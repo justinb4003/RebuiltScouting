@@ -15,6 +15,8 @@ class PitProvider extends ChangeNotifier {
   String driveTrain = 'Swerve';
   List<String> wheelTypes = [];
   int robotRating = 0;
+  bool canCrossBump = false;
+  bool canEnterTrench = false;
   String notes = '';
   String? photoBase64;
   Uint8List? photoBytes;
@@ -30,6 +32,8 @@ class PitProvider extends ChangeNotifier {
     driveTrain = 'Swerve';
     wheelTypes = [];
     robotRating = 0;
+    canCrossBump = false;
+    canEnterTrench = false;
     notes = '';
     photoBase64 = null;
     photoBytes = null;
@@ -110,6 +114,8 @@ class PitProvider extends ChangeNotifier {
       driveTrain: driveTrain,
       wheelTypes: List.from(wheelTypes),
       robotRating: robotRating,
+      canCrossBump: canCrossBump,
+      canEnterTrench: canEnterTrench,
       notes: notes,
       photoBase64: photoBase64,
     );

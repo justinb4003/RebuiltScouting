@@ -9,6 +9,8 @@ class PitResult {
   String driveTrain; // Swerve, Tank, Mecanum, Other
   List<String> wheelTypes; // omni, mecanum, inflated, solid
   int robotRating; // -10 to +10
+  bool canCrossBump;
+  bool canEnterTrench;
   String notes;
   String? photoBase64;
   final DateTime timestamp;
@@ -22,6 +24,8 @@ class PitResult {
     this.driveTrain = 'Swerve',
     List<String>? wheelTypes,
     this.robotRating = 0,
+    this.canCrossBump = false,
+    this.canEnterTrench = false,
     this.notes = '',
     this.photoBase64,
     DateTime? timestamp,
@@ -38,6 +42,8 @@ class PitResult {
         'drive_train': driveTrain,
         'wheel_types': wheelTypes,
         'robot_rating': robotRating,
+        'can_cross_bump': canCrossBump,
+        'can_enter_trench': canEnterTrench,
         'notes': notes,
         'photo_base64': photoBase64,
         'timestamp': timestamp.toIso8601String(),
@@ -52,6 +58,8 @@ class PitResult {
         driveTrain: json['drive_train'] ?? 'Swerve',
         wheelTypes: List<String>.from(json['wheel_types'] ?? []),
         robotRating: json['robot_rating'] ?? 0,
+        canCrossBump: json['can_cross_bump'] ?? false,
+        canEnterTrench: json['can_enter_trench'] ?? false,
         notes: json['notes'] ?? '',
         photoBase64: json['photo_base64'],
         timestamp: json['timestamp'] != null

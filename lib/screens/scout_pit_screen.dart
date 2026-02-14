@@ -119,6 +119,21 @@ class ScoutPitScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
+          // Capabilities
+          SwitchListTile(
+            title: const Text('Can Cross Bump'),
+            value: pit.canCrossBump,
+            onChanged: (v) =>
+                pit.updateField(() => pit.canCrossBump = v),
+          ),
+          SwitchListTile(
+            title: const Text('Can Enter Trench'),
+            value: pit.canEnterTrench,
+            onChanged: (v) =>
+                pit.updateField(() => pit.canEnterTrench = v),
+          ),
+          const SizedBox(height: 16),
+
           // Notes
           TextField(
             decoration: const InputDecoration(
