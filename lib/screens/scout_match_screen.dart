@@ -406,6 +406,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
                         ?.copyWith(color: AppTheme.endgameColor)),
                 const SizedBox(height: 12),
                 SegmentedButton<int>(
+                  expandedInsets: EdgeInsets.zero,
                   segments: const [
                     ButtonSegment(value: 0, label: Text('None')),
                     ButtonSegment(value: 1, label: Text('L1')),
