@@ -21,6 +21,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late ConfettiController _confettiController;
   bool _obscureKey = true;
   Timer? _saveTimer;
+  Timer? _eventDebounce;
 
   @override
   void initState() {
@@ -47,6 +48,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _saveTimer?.cancel();
+    _eventDebounce?.cancel();
     // Final save of all text fields on dispose
     final appState = context.read<AppStateProvider>();
     appState.updateScouterName(_nameController.text.trim());
@@ -173,7 +175,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             ? null
                             : () => appState.loadEvents(settings.eventYear),
                         icon: const Icon(Icons.refresh),
-                        label: const Text('Refresh'),
+                        label: const Text('Force Events Refresh'),
                       ),
                     ],
                   ),
@@ -199,20 +201,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           : null,
                     ),
                     onChanged: (v) {
-                      final suffix = v.trim();
-                      final combined = '${settings.eventYear}$suffix';
-                      // Auto-set if it matches a known event
-                      final match = appState.events
-                          .where((e) => e.key == combined);
-                      if (match.isNotEmpty) {
-                        appState.setEventKey(combined);
-                      } else {
-                        settings.selectedEventKey =
-                            suffix.isNotEmpty ? combined : null;
-                        settings.selectedEventName = null;
-                        _debouncedSaveTextFields();
-                      }
-                      setState(() {});
+                      _eventDebounce?.cancel();
+                      _eventDebounce = Timer(
+                          const Duration(milliseconds: 150), () {
+                        final suffix = v.trim();
+                        final combined =
+                            '${settings.eventYear}$suffix';
+                        final match = appState.events
+                            .where((e) => e.key == combined);
+                        if (match.isNotEmpty) {
+                          appState.setEventKey(combined);
+                        } else {
+                          settings.selectedEventKey =
+                              suffix.isNotEmpty ? combined : null;
+                          settings.selectedEventName = null;
+                          _debouncedSaveTextFields();
+                        }
+                        setState(() {});
+                      });
                     },
                     onSubmitted: (v) {
                       final suffix = v.trim();
@@ -271,7 +277,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: const Icon(Icons.groups),
                       label: Text(appState.teams.isEmpty
                           ? 'Load Teams'
-                          : 'Reload Teams (${appState.teams.length} loaded)'),
+                          : 'Force Reload Teams (${appState.teams.length} loaded)'),
                     ),
                 ],
               ),

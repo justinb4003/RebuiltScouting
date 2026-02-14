@@ -112,6 +112,22 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                             style: theme.textTheme.titleMedium,
                             textAlign: TextAlign.center,
                           ),
+                          _buildEventCountdown(appState, theme),
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: appState.loading
+                                ? null
+                                : () => appState.loadMatches(),
+                            icon: appState.loading
+                                ? const SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(
+                                        strokeWidth: 2),
+                                  )
+                                : const Icon(Icons.download),
+                            label: const Text('Load Match Schedule'),
+                          ),
                           const SizedBox(height: 8),
                           Text(
                             'The match list for this event hasn\'t been published yet. '
@@ -320,6 +336,61 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildEventCountdown(AppStateProvider appState, ThemeData theme) {
+    final eventKey = appState.settings.selectedEventKey;
+    if (eventKey == null) return const SizedBox.shrink();
+
+    final matchingEvents =
+        appState.events.where((e) => e.key == eventKey);
+    if (matchingEvents.isEmpty) return const SizedBox.shrink();
+
+    final event = matchingEvents.first;
+    if (event.startDate == null) return const SizedBox.shrink();
+
+    final start = DateTime.tryParse(event.startDate!);
+    if (start == null) return const SizedBox.shrink();
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final startDay = DateTime(start.year, start.month, start.day);
+
+    String? message;
+
+    if (startDay.isAfter(today)) {
+      final days = startDay.difference(today).inDays;
+      if (days == 1) {
+        message = 'Event starts tomorrow';
+      } else {
+        message = 'Event starts in $days days';
+      }
+    } else {
+      // Start date is today or in the past — check end date
+      final end = event.endDate != null
+          ? DateTime.tryParse(event.endDate!)
+          : null;
+      final endDay = end != null
+          ? DateTime(end.year, end.month, end.day)
+          : null;
+
+      if (startDay == today) {
+        message = 'Event starts today';
+      } else if (endDay != null && !today.isAfter(endDay)) {
+        message = 'Event is underway — schedule may be available soon';
+      }
+    }
+
+    if (message == null) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Text(
+        message,
+        style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+        textAlign: TextAlign.center,
       ),
     );
   }
