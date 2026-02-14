@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../providers/app_state_provider.dart';
 
 class NavDrawer extends StatelessWidget {
   final int selectedIndex;
@@ -7,6 +9,8 @@ class NavDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final heldCount = context.watch<AppStateProvider>().heldDataCount;
+
     return NavigationDrawer(
       selectedIndex: selectedIndex,
       onDestinationSelected: (index) {
@@ -26,31 +30,39 @@ class NavDrawer extends StatelessWidget {
             break;
         }
       },
-      children: const [
-        Padding(
+      children: [
+        const Padding(
           padding: EdgeInsets.fromLTRB(28, 16, 16, 10),
           child: Text(
             'FRC Scouting',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
           ),
         ),
-        Divider(indent: 28, endIndent: 28),
-        NavigationDrawerDestination(
+        const Divider(indent: 28, endIndent: 28),
+        const NavigationDrawerDestination(
           icon: Icon(Icons.assignment_outlined),
           selectedIcon: Icon(Icons.assignment),
           label: Text('Scout Match'),
         ),
-        NavigationDrawerDestination(
+        const NavigationDrawerDestination(
           icon: Icon(Icons.build_outlined),
           selectedIcon: Icon(Icons.build),
           label: Text('Scout Pit'),
         ),
         NavigationDrawerDestination(
-          icon: Icon(Icons.cloud_off_outlined),
-          selectedIcon: Icon(Icons.cloud_off),
-          label: Text('Held Data'),
+          icon: Badge(
+            isLabelVisible: heldCount > 0,
+            label: Text('$heldCount'),
+            child: const Icon(Icons.cloud_off_outlined),
+          ),
+          selectedIcon: Badge(
+            isLabelVisible: heldCount > 0,
+            label: Text('$heldCount'),
+            child: const Icon(Icons.cloud_off),
+          ),
+          label: const Text('Held Data'),
         ),
-        NavigationDrawerDestination(
+        const NavigationDrawerDestination(
           icon: Icon(Icons.settings_outlined),
           selectedIcon: Icon(Icons.settings),
           label: Text('Settings'),

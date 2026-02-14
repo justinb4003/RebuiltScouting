@@ -211,6 +211,7 @@ class ScoutPitScreen extends StatelessWidget {
                       eventKey: appState.settings.selectedEventKey ?? '',
                     );
                     if (context.mounted) {
+                      appState.refreshHeldDataCount();
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(result.message),

@@ -16,23 +16,41 @@ class ScoutMatchScreen extends StatefulWidget {
   State<ScoutMatchScreen> createState() => _ScoutMatchScreenState();
 }
 
-class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
+class _ScoutMatchScreenState extends State<ScoutMatchScreen>
+    with SingleTickerProviderStateMixin {
   late ConfettiController _confettiController;
-  final TextEditingController _matchController = TextEditingController(text: '1');
+  late TabController _tabController;
+  final TextEditingController _matchController =
+      TextEditingController(text: '1');
+  final TextEditingController _notesController = TextEditingController();
   TbaMatch? _selectedMatch;
   int? _selectedRobotIndex; // 0-2 red, 3-5 blue
+
+  static const _tabColors = [
+    AppTheme.autoColor,
+    AppTheme.teleopColor,
+    AppTheme.endgameColor,
+  ];
 
   @override
   void initState() {
     super.initState();
     _confettiController =
         ConfettiController(duration: const Duration(milliseconds: 400));
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (!_tabController.indexIsChanging) {
+        setState(() {});
+      }
+    });
   }
 
   @override
   void dispose() {
     _confettiController.dispose();
     _matchController.dispose();
+    _notesController.dispose();
+    _tabController.dispose();
     super.dispose();
   }
 
@@ -57,7 +75,8 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
     final teamNum = teamList[alliancePos];
     final teamData = teams.where((t) => t.teamNumber.toString() == teamNum);
     final name = teamData.isNotEmpty ? teamData.first.nickname : '';
-    final alliance = isRed ? 'Red ${alliancePos + 1}' : 'Blue ${alliancePos + 1}';
+    final alliance =
+        isRed ? 'Red ${alliancePos + 1}' : 'Blue ${alliancePos + 1}';
     return '$alliance — $teamNum${name.isNotEmpty ? ' $name' : ''}';
   }
 
@@ -74,141 +93,114 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
       drawer: const NavDrawer(selectedIndex: 0),
       body: Stack(
         children: [
-          ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              // State 1: No matches available
-              if (!hasMatches && !scouting.practiceMode) ...[
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      children: [
-                        const Icon(Icons.schedule, size: 48, color: Colors.grey),
-                        const SizedBox(height: 16),
-                        Text(
-                          'Match Schedule Not Available',
-                          style: theme.textTheme.titleMedium,
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'The match list for this event hasn\'t been published yet. '
-                          'You can try practice scouting to get familiar with the form.',
-                          style: theme.textTheme.bodyMedium
-                              ?.copyWith(color: Colors.grey),
-                          textAlign: TextAlign.center,
-                        ),
-                        const SizedBox(height: 16),
-                        FilledButton.icon(
-                          onPressed: () {
-                            scouting.updateField(() {
-                              scouting.practiceMode = true;
-                              scouting.scoutingActive = true;
-                            });
-                          },
-                          icon: const Icon(Icons.science),
-                          label: const Text('Practice Scouting'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-
-              // State 2: Practice mode
-              if (scouting.practiceMode) ...[
-                Card(
-                  color: Colors.orange.shade50,
-                  child: Padding(
-                    padding: const EdgeInsets.all(12),
-                    child: Row(
-                      children: [
-                        Icon(Icons.science, color: Colors.orange.shade700),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Practice Mode — data will not be submitted',
-                            style: theme.textTheme.bodyMedium
-                                ?.copyWith(color: Colors.orange.shade900),
-                          ),
-                        ),
-                        TextButton(
-                          onPressed: () => scouting.resetForm(),
-                          child: const Text('Exit'),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                _buildScoutingForm(context, scouting, appState, theme),
-              ],
-
-              // State 3: Normal mode (matches loaded)
-              if (hasMatches && !scouting.practiceMode) ...[
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text('Match Setup',
-                            style: theme.textTheme.titleMedium),
-                        const SizedBox(height: 12),
-                        // Match number input
-                        Row(
-                          children: [
-                            SizedBox(
-                              width: 120,
-                              child: TextField(
-                                decoration: const InputDecoration(
-                                  labelText: 'Match #',
-                                  border: OutlineInputBorder(),
-                                ),
-                                keyboardType: TextInputType.number,
-                                controller: _matchController,
-                                onChanged: (v) {
-                                  final n = int.tryParse(v);
-                                  if (n != null) {
-                                    scouting.updateField(
-                                        () => scouting.matchNumber = n);
-                                    setState(() {
-                                      _selectedMatch = _findMatch(matches, n);
-                                      _selectedRobotIndex = null;
-                                      scouting.selectedTeamNumber = null;
-                                    });
-                                  } else {
-                                    setState(() {
-                                      _selectedMatch = null;
-                                      _selectedRobotIndex = null;
-                                    });
-                                  }
-                                },
-                              ),
-                            ),
-                            const SizedBox(width: 12),
-                            if (_selectedMatch != null)
-                              Text(_selectedMatch!.displayName,
-                                  style: theme.textTheme.titleSmall),
-                            if (_selectedMatch == null &&
-                                _matchController.text.isNotEmpty)
-                              Text('No match found',
-                                  style: theme.textTheme.bodySmall
-                                      ?.copyWith(color: Colors.grey)),
-                          ],
-                        ),
-                        // 6-robot selector
-                        if (_selectedMatch != null) ...[
+          if (!scouting.scoutingActive)
+            ListView(
+              padding: const EdgeInsets.all(16),
+              children: [
+                // State 1: No matches available
+                if (!hasMatches && !scouting.practiceMode) ...[
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        children: [
+                          const Icon(Icons.schedule,
+                              size: 48, color: Colors.grey),
                           const SizedBox(height: 16),
-                          Text('Select Robot',
-                              style: theme.textTheme.titleSmall),
+                          Text(
+                            'Match Schedule Not Available',
+                            style: theme.textTheme.titleMedium,
+                            textAlign: TextAlign.center,
+                          ),
                           const SizedBox(height: 8),
-                          _buildRobotSelector(
-                              _selectedMatch!, appState, scouting),
+                          Text(
+                            'The match list for this event hasn\'t been published yet. '
+                            'You can try practice scouting to get familiar with the form.',
+                            style: theme.textTheme.bodyMedium
+                                ?.copyWith(color: Colors.grey),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          FilledButton.icon(
+                            onPressed: () {
+                              scouting.updateField(() {
+                                scouting.practiceMode = true;
+                                scouting.scoutingActive = true;
+                              });
+                            },
+                            icon: const Icon(Icons.science),
+                            label: const Text('Practice Scouting'),
+                          ),
                         ],
-                        const SizedBox(height: 12),
-                        if (!scouting.scoutingActive)
+                      ),
+                    ),
+                  ),
+                ],
+
+                // State 2: Normal mode (matches loaded)
+                if (hasMatches) ...[
+                  Card(
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Match Setup',
+                              style: theme.textTheme.titleMedium),
+                          const SizedBox(height: 12),
+                          // Match number input
+                          Row(
+                            children: [
+                              SizedBox(
+                                width: 120,
+                                child: TextField(
+                                  decoration: const InputDecoration(
+                                    labelText: 'Match #',
+                                    border: OutlineInputBorder(),
+                                  ),
+                                  keyboardType: TextInputType.number,
+                                  controller: _matchController,
+                                  onChanged: (v) {
+                                    final n = int.tryParse(v);
+                                    if (n != null) {
+                                      scouting.updateField(
+                                          () => scouting.matchNumber = n);
+                                      setState(() {
+                                        _selectedMatch =
+                                            _findMatch(matches, n);
+                                        _selectedRobotIndex = null;
+                                        scouting.selectedTeamNumber = null;
+                                      });
+                                    } else {
+                                      setState(() {
+                                        _selectedMatch = null;
+                                        _selectedRobotIndex = null;
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              if (_selectedMatch != null)
+                                Text(_selectedMatch!.displayName,
+                                    style: theme.textTheme.titleSmall),
+                              if (_selectedMatch == null &&
+                                  _matchController.text.isNotEmpty)
+                                Text('No match found',
+                                    style: theme.textTheme.bodySmall
+                                        ?.copyWith(color: Colors.grey)),
+                            ],
+                          ),
+                          // 6-robot selector
+                          if (_selectedMatch != null) ...[
+                            const SizedBox(height: 16),
+                            Text('Select Robot',
+                                style: theme.textTheme.titleSmall),
+                            const SizedBox(height: 8),
+                            _buildRobotSelector(
+                                _selectedMatch!, appState, scouting),
+                          ],
+                          const SizedBox(height: 12),
                           FilledButton.icon(
                             onPressed: scouting.selectedTeamNumber != null
                                 ? () => scouting.beginScouting()
@@ -216,17 +208,96 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
                             icon: const Icon(Icons.play_arrow),
                             label: const Text('Begin Scouting'),
                           ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            )
+          else
+            Column(
+              children: [
+                // Header
+                if (scouting.practiceMode)
+                  Card(
+                    margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    color: Colors.orange.shade50,
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Row(
+                        children: [
+                          Icon(Icons.science, color: Colors.orange.shade700),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Practice Mode — data will not be submitted',
+                              style: theme.textTheme.bodyMedium
+                                  ?.copyWith(color: Colors.orange.shade900),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              _notesController.clear();
+                              scouting.resetForm();
+                            },
+                            child: const Text('Exit'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                else
+                  Padding(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Row(
+                      children: [
+                        Icon(Icons.sports_score,
+                            size: 20, color: theme.colorScheme.primary),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Match ${scouting.matchNumber} • Team ${scouting.selectedTeamNumber ?? "???"}',
+                          style: theme.textTheme.titleSmall,
+                        ),
                       ],
                     ),
                   ),
+                // TabBar
+                TabBar(
+                  controller: _tabController,
+                  indicatorColor: _tabColors[_tabController.index],
+                  tabs: List.generate(
+                    3,
+                    (i) => Tab(
+                      child: Text(
+                        const ['Auto', 'Teleop', 'Endgame'][i],
+                        style: TextStyle(
+                          color: _tabColors[i],
+                          fontWeight: _tabController.index == i
+                              ? FontWeight.bold
+                              : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                  ),
                 ),
-                if (scouting.scoutingActive) ...[
-                  const SizedBox(height: 16),
-                  _buildScoutingForm(context, scouting, appState, theme),
-                ],
+                // Tab content
+                Expanded(
+                  child: TabBarView(
+                    controller: _tabController,
+                    children: [
+                      _KeepAliveTab(
+                          child: _buildAutoTab(scouting, appState, theme)),
+                      _KeepAliveTab(
+                          child: _buildTeleopTab(scouting, appState, theme)),
+                      _KeepAliveTab(
+                          child: _buildEndgameTab(scouting, appState, theme)),
+                    ],
+                  ),
+                ),
               ],
-            ],
-          ),
+            ),
           // Confetti overlay
           Align(
             alignment: Alignment.topCenter,
@@ -255,10 +326,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
 
   Widget _buildRobotSelector(
       TbaMatch match, AppStateProvider appState, ScoutingProvider scouting) {
-    final disabled = scouting.scoutingActive;
-
     void selectRobot(int index) {
-      if (disabled) return;
       final isRed = index < 3;
       final pos = isRed ? index : index - 3;
       final teamList = isRed ? match.redTeams : match.blueTeams;
@@ -275,15 +343,13 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
       return ListTile(
         dense: true,
         leading: Icon(
-          selected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-          color: disabled
-              ? Colors.grey
-              : selected
-                  ? color
-                  : null,
+          selected
+              ? Icons.radio_button_checked
+              : Icons.radio_button_unchecked,
+          color: selected ? color : null,
         ),
         title: Text(label, style: TextStyle(color: color)),
-        onTap: disabled ? null : () => selectRobot(index),
+        onTap: () => selectRobot(index),
       );
     }
 
@@ -296,15 +362,11 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
     );
   }
 
-  Widget _buildScoutingForm(
-    BuildContext context,
-    ScoutingProvider scouting,
-    AppStateProvider appState,
-    ThemeData theme,
-  ) {
-    return Column(
+  Widget _buildAutoTab(
+      ScoutingProvider scouting, AppStateProvider appState, ThemeData theme) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
       children: [
-        // Auto Section
         Card(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -354,9 +416,15 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 16),
+      ],
+    );
+  }
 
-        // Teleop Section
+  Widget _buildTeleopTab(
+      ScoutingProvider scouting, AppStateProvider appState, ThemeData theme) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
         Card(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -418,8 +486,15 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
             ),
           ),
         ),
-        const SizedBox(height: 16),
+      ],
+    );
+  }
 
+  Widget _buildEndgameTab(
+      ScoutingProvider scouting, AppStateProvider appState, ThemeData theme) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
         // Endgame Section
         Card(
           shape: RoundedRectangleBorder(
@@ -478,6 +553,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
 
         // Notes
         TextField(
+          controller: _notesController,
           decoration: const InputDecoration(
             labelText: 'Match Notes',
             border: OutlineInputBorder(),
@@ -491,7 +567,10 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
         // Submit / Reset
         if (scouting.practiceMode)
           FilledButton.icon(
-            onPressed: () => scouting.resetForm(),
+            onPressed: () {
+              _notesController.clear();
+              scouting.resetForm();
+            },
             icon: const Icon(Icons.refresh),
             label: const Text('Reset'),
           )
@@ -500,24 +579,46 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
             onPressed: scouting.submitting
                 ? null
                 : () async {
+                    final confirmed = await showDialog<bool>(
+                      context: context,
+                      builder: (ctx) => AlertDialog(
+                        title: const Text('Submit Match Data?'),
+                        content: Text(
+                          'Match ${scouting.matchNumber}\n'
+                          'Team ${scouting.selectedTeamNumber}',
+                        ),
+                        actions: [
+                          TextButton(
+                            onPressed: () => Navigator.pop(ctx, false),
+                            child: const Text('Cancel'),
+                          ),
+                          FilledButton(
+                            onPressed: () => Navigator.pop(ctx, true),
+                            child: const Text('Submit'),
+                          ),
+                        ],
+                      ),
+                    );
+                    if (confirmed != true) return;
+
                     final result = await scouting.submit(
                       scouterName: appState.settings.scouterName,
                       secretTeamKey: appState.settings.secretTeamKey,
                       eventKey:
                           appState.settings.selectedEventKey ?? '',
                     );
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(result.message),
-                          backgroundColor:
-                              result.success ? Colors.green : Colors.red,
-                        ),
-                      );
-                      if (result.success) {
-                        scouting.resetForm();
-                        _resetMatchSelection();
-                      }
+                    if (!mounted) return;
+                    context.read<AppStateProvider>().refreshHeldDataCount();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(result.message),
+                        backgroundColor:
+                            result.success ? Colors.green : Colors.red,
+                      ),
+                    );
+                    if (result.success) {
+                      scouting.resetForm();
+                      _resetMatchSelection();
                     }
                   },
             icon: scouting.submitting
@@ -535,11 +636,52 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
 
   void _resetMatchSelection() {
     final scouting = context.read<ScoutingProvider>();
+    final appState = context.read<AppStateProvider>();
     _matchController.text = '${scouting.matchNumber}';
+    _notesController.clear();
+    final newMatch = _findMatch(appState.matches, scouting.matchNumber);
+
     setState(() {
-      _selectedMatch = _findMatch(
-          context.read<AppStateProvider>().matches, scouting.matchNumber);
-      _selectedRobotIndex = null;
+      _selectedMatch = newMatch;
     });
+
+    if (_selectedRobotIndex != null && newMatch != null) {
+      final isRed = _selectedRobotIndex! < 3;
+      final pos = isRed ? _selectedRobotIndex! : _selectedRobotIndex! - 3;
+      final teamList = isRed ? newMatch.redTeams : newMatch.blueTeams;
+      if (pos < teamList.length) {
+        final teamNum = int.tryParse(teamList[pos]);
+        scouting.updateField(() {
+          scouting.selectedTeamNumber = teamNum;
+          scouting.scoutingActive = true;
+        });
+      } else {
+        setState(() => _selectedRobotIndex = null);
+      }
+    } else {
+      setState(() => _selectedRobotIndex = null);
+    }
+
+    _tabController.animateTo(0);
+  }
+}
+
+class _KeepAliveTab extends StatefulWidget {
+  final Widget child;
+  const _KeepAliveTab({required this.child});
+
+  @override
+  State<_KeepAliveTab> createState() => _KeepAliveTabState();
+}
+
+class _KeepAliveTabState extends State<_KeepAliveTab>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
   }
 }

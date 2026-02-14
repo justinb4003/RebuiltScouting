@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/scout_result.dart';
 import '../models/pit_result.dart';
+import '../providers/app_state_provider.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../widgets/nav_drawer.dart';
@@ -72,6 +74,9 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
 
     await _loadData();
     setState(() => _uploading = false);
+    if (mounted) {
+      context.read<AppStateProvider>().refreshHeldDataCount();
+    }
 
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -86,11 +91,17 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
   Future<void> _deleteScoutResult(String id) async {
     await _storage.removeHeldScoutResult(id);
     await _loadData();
+    if (mounted) {
+      context.read<AppStateProvider>().refreshHeldDataCount();
+    }
   }
 
   Future<void> _deletePitResult(String id) async {
     await _storage.removeHeldPitResult(id);
     await _loadData();
+    if (mounted) {
+      context.read<AppStateProvider>().refreshHeldDataCount();
+    }
   }
 
   @override

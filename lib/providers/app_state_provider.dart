@@ -16,6 +16,7 @@ class AppStateProvider extends ChangeNotifier {
   List<TbaMatch> _matches = [];
   bool _loading = false;
   String? _error;
+  int _heldDataCount = 0;
 
   AppSettings get settings => _settings;
   List<TbaEvent> get events => _events;
@@ -23,6 +24,7 @@ class AppStateProvider extends ChangeNotifier {
   List<TbaMatch> get matches => _matches;
   bool get loading => _loading;
   String? get error => _error;
+  int get heldDataCount => _heldDataCount;
 
   Future<void> init() async {
     _settings = await _storage.loadSettings();
@@ -31,12 +33,20 @@ class AppStateProvider extends ChangeNotifier {
       _teams = await _storage.loadCachedTeams(_settings.selectedEventKey!);
       _matches = await _storage.loadCachedMatches(_settings.selectedEventKey!);
     }
+    await refreshHeldDataCount();
     notifyListeners();
 
     // Auto-load events if cache is empty (non-blocking)
     if (_events.isEmpty) {
       loadEvents(_settings.eventYear);
     }
+  }
+
+  Future<void> refreshHeldDataCount() async {
+    final scout = await _storage.loadHeldScoutData();
+    final pit = await _storage.loadHeldPitData();
+    _heldDataCount = scout.length + pit.length;
+    notifyListeners();
   }
 
   /// Persist settings to storage without triggering a rebuild.
@@ -75,6 +85,10 @@ class AppStateProvider extends ChangeNotifier {
     // Try to find matching event name
     final match = _events.where((e) => e.key == key);
     _settings.selectedEventName = match.isNotEmpty ? match.first.name : null;
+
+    // Clear old event data immediately so screens don't show stale data
+    _teams = [];
+    _matches = [];
 
     await _persistSettings();
     notifyListeners();
