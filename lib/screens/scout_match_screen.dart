@@ -37,6 +37,8 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
   }
 
   void _fireConfetti() {
+    final settings = context.read<AppStateProvider>().settings;
+    if (!settings.confettiEnabled) return;
     _confettiController.stop();
     _confettiController.play();
   }
@@ -328,6 +330,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
                   value: scouting.autoFuelScored,
                   showBulkButtons: true,
                   onTap: _fireConfetti,
+                  enableHaptic: appState.settings.hapticEnabled,
                   onChanged: (v) => scouting
                       .updateField(() => scouting.autoFuelScored = v),
                 ),
@@ -337,6 +340,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
                   value: scouting.autoFuelMissed,
                   showBulkButtons: true,
                   onTap: _fireConfetti,
+                  enableHaptic: appState.settings.hapticEnabled,
                   onChanged: (v) => scouting
                       .updateField(() => scouting.autoFuelMissed = v),
                 ),
@@ -372,6 +376,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
                   value: scouting.teleopFuelScored,
                   showBulkButtons: true,
                   onTap: _fireConfetti,
+                  enableHaptic: appState.settings.hapticEnabled,
                   onChanged: (v) => scouting
                       .updateField(() => scouting.teleopFuelScored = v),
                 ),
@@ -381,6 +386,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
                   value: scouting.teleopFuelMissed,
                   showBulkButtons: true,
                   onTap: _fireConfetti,
+                  enableHaptic: appState.settings.hapticEnabled,
                   onChanged: (v) => scouting
                       .updateField(() => scouting.teleopFuelMissed = v),
                 ),

@@ -7,6 +7,8 @@ class AppSettings {
   bool useOpenDyslexic;
   int themeColor;
   String themeMode;
+  bool confettiEnabled;
+  bool hapticEnabled;
 
   AppSettings({
     this.scouterName = '',
@@ -17,6 +19,8 @@ class AppSettings {
     this.useOpenDyslexic = false,
     this.themeColor = 0xFF1565C0,
     this.themeMode = 'system',
+    this.confettiEnabled = true,
+    this.hapticEnabled = true,
   });
 
   Map<String, dynamic> toJson() => {
@@ -28,6 +32,8 @@ class AppSettings {
         'useOpenDyslexic': useOpenDyslexic,
         'themeColor': themeColor,
         'themeMode': themeMode,
+        'confettiEnabled': confettiEnabled,
+        'hapticEnabled': hapticEnabled,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
@@ -39,5 +45,7 @@ class AppSettings {
         useOpenDyslexic: json['useOpenDyslexic'] ?? false,
         themeColor: json['themeColor'] ?? 0xFF1565C0,
         themeMode: json['themeMode'] ?? 'system',
+        confettiEnabled: json['confettiEnabled'] ?? true,
+        hapticEnabled: json['hapticEnabled'] ?? true,
       );
 }

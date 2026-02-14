@@ -9,6 +9,7 @@ class CounterButton extends StatelessWidget {
   final int max;
   final bool showBulkButtons;
   final VoidCallback? onTap;
+  final bool enableHaptic;
 
   const CounterButton({
     super.key,
@@ -19,13 +20,14 @@ class CounterButton extends StatelessWidget {
     this.max = 999,
     this.showBulkButtons = false,
     this.onTap,
+    this.enableHaptic = true,
   });
 
   void _change(int newValue) {
     final clamped = newValue.clamp(min, max);
     if (clamped != value) {
       onChanged(clamped);
-      HapticFeedback.lightImpact();
+      if (enableHaptic) HapticFeedback.lightImpact();
       onTap?.call();
     }
   }
