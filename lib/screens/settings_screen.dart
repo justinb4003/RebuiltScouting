@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:math';
+import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/tba_event.dart';
@@ -18,12 +20,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _keyController;
   late TextEditingController _eventCodeController;
   final FocusNode _eventFocusNode = FocusNode();
+  late ConfettiController _confettiController;
   bool _obscureKey = true;
   Timer? _saveTimer;
 
   @override
   void initState() {
     super.initState();
+    _confettiController =
+        ConfettiController(duration: const Duration(milliseconds: 400));
     final appState = context.read<AppStateProvider>();
     final settings = appState.settings;
     _nameController = TextEditingController(text: settings.scouterName);
@@ -52,6 +57,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _keyController.dispose();
     _eventCodeController.dispose();
     _eventFocusNode.dispose();
+    _confettiController.dispose();
     super.dispose();
   }
 
@@ -73,7 +79,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       drawer: const NavDrawer(selectedIndex: 3),
-      body: ListView(
+      body: Stack(
+        children: [
+          ListView(
         padding: const EdgeInsets.all(16),
         children: [
           // Dyslexia-friendly font toggle
@@ -419,6 +427,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onChanged: (value) {
               settings.confettiEnabled = value;
               appState.saveAndNotify();
+              if (value) {
+                _confettiController.stop();
+                _confettiController.play();
+              }
             },
           ),
           SwitchListTile(
@@ -430,6 +442,28 @@ class _SettingsScreenState extends State<SettingsScreen> {
               settings.hapticEnabled = value;
               appState.saveAndNotify();
             },
+          ),
+        ],
+      ),
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirection: pi / 2,
+              blastDirectionality: BlastDirectionality.explosive,
+              numberOfParticles: 15,
+              maxBlastForce: 20,
+              minBlastForce: 5,
+              gravity: 0.3,
+              colors: const [
+                Colors.blue,
+                Colors.green,
+                Colors.orange,
+                Colors.red,
+                Colors.purple,
+                Colors.yellow,
+              ],
+            ),
           ),
         ],
       ),
