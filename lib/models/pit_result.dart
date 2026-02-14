@@ -11,6 +11,7 @@ class PitResult {
   int robotRating; // -10 to +10
   bool canCrossBump;
   bool canEnterTrench;
+  int fuelCapacity;
   String notes;
   String? photoBase64;
   final DateTime timestamp;
@@ -26,6 +27,7 @@ class PitResult {
     this.robotRating = 0,
     this.canCrossBump = false,
     this.canEnterTrench = false,
+    this.fuelCapacity = 0,
     this.notes = '',
     this.photoBase64,
     DateTime? timestamp,
@@ -44,6 +46,7 @@ class PitResult {
         'robot_rating': robotRating,
         'can_cross_bump': canCrossBump,
         'can_enter_trench': canEnterTrench,
+        'fuel_capacity': fuelCapacity,
         'notes': notes,
         'photo_base64': photoBase64,
         'timestamp': timestamp.toIso8601String(),
@@ -60,6 +63,7 @@ class PitResult {
         robotRating: json['robot_rating'] ?? 0,
         canCrossBump: json['can_cross_bump'] ?? false,
         canEnterTrench: json['can_enter_trench'] ?? false,
+        fuelCapacity: json['fuel_capacity'] ?? 0,
         notes: json['notes'] ?? '',
         photoBase64: json['photo_base64'],
         timestamp: json['timestamp'] != null

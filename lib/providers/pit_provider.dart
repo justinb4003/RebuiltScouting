@@ -17,6 +17,7 @@ class PitProvider extends ChangeNotifier {
   int robotRating = 0;
   bool canCrossBump = false;
   bool canEnterTrench = false;
+  int fuelCapacity = 0;
   String notes = '';
   String? photoBase64;
   Uint8List? photoBytes;
@@ -34,6 +35,7 @@ class PitProvider extends ChangeNotifier {
     robotRating = 0;
     canCrossBump = false;
     canEnterTrench = false;
+    fuelCapacity = 0;
     notes = '';
     photoBase64 = null;
     photoBytes = null;
@@ -116,6 +118,7 @@ class PitProvider extends ChangeNotifier {
       robotRating: robotRating,
       canCrossBump: canCrossBump,
       canEnterTrench: canEnterTrench,
+      fuelCapacity: fuelCapacity,
       notes: notes,
       photoBase64: photoBase64,
     );

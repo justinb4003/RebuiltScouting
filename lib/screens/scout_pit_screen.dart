@@ -134,6 +134,19 @@ class ScoutPitScreen extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
+          // Fuel capacity
+          TextField(
+            decoration: const InputDecoration(
+              labelText: 'Fuel Cell Capacity',
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.inventory_2),
+            ),
+            keyboardType: TextInputType.number,
+            onChanged: (v) => pit.updateField(
+                () => pit.fuelCapacity = int.tryParse(v) ?? 0),
+          ),
+          const SizedBox(height: 16),
+
           // Notes
           TextField(
             decoration: const InputDecoration(
