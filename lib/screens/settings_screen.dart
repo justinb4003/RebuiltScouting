@@ -3,7 +3,6 @@ import 'dart:math';
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/tba_event.dart';
 import '../providers/app_state_provider.dart';
 import '../theme.dart';
 import '../widgets/nav_drawer.dart';
@@ -18,8 +17,7 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _nameController;
   late TextEditingController _keyController;
-  late TextEditingController _eventCodeController;
-  final FocusNode _eventFocusNode = FocusNode();
+  late TextEditingController _eventSuffixController;
   late ConfettiController _confettiController;
   bool _obscureKey = true;
   Timer? _saveTimer;
@@ -33,8 +31,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final settings = appState.settings;
     _nameController = TextEditingController(text: settings.scouterName);
     _keyController = TextEditingController(text: settings.secretTeamKey);
-    _eventCodeController =
-        TextEditingController(text: settings.selectedEventKey ?? '');
+    // Extract suffix by stripping the year prefix from the stored event key
+    final storedKey = settings.selectedEventKey ?? '';
+    final yearStr = settings.eventYear.toString();
+    final suffix =
+        storedKey.startsWith(yearStr) ? storedKey.substring(yearStr.length) : storedKey;
+    _eventSuffixController = TextEditingController(text: suffix);
 
     // Load events from cache or API when settings screen opens
     if (appState.events.isEmpty) {
@@ -49,14 +51,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final appState = context.read<AppStateProvider>();
     appState.updateScouterName(_nameController.text.trim());
     appState.updateSecretKey(_keyController.text.trim());
-    final eventCode = _eventCodeController.text.trim();
-    appState.settings.selectedEventKey =
-        eventCode.isNotEmpty ? eventCode : null;
+    final suffix = _eventSuffixController.text.trim();
+    final combined = suffix.isNotEmpty
+        ? '${appState.settings.eventYear}$suffix'
+        : null;
+    appState.settings.selectedEventKey = combined;
     appState.persistTextFields();
     _nameController.dispose();
     _keyController.dispose();
-    _eventCodeController.dispose();
-    _eventFocusNode.dispose();
+    _eventSuffixController.dispose();
     _confettiController.dispose();
     super.dispose();
   }
@@ -146,6 +149,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           onSelected: (year) {
                             if (year != null) {
                               appState.setEventYear(year);
+                              // Recompute combined key with new year + current suffix
+                              final suffix =
+                                  _eventSuffixController.text.trim();
+                              if (suffix.isNotEmpty) {
+                                appState.setEventKey('$year$suffix');
+                              }
                             }
                           },
                           dropdownMenuEntries: List.generate(
@@ -170,118 +179,84 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Event search with autocomplete
-                  RawAutocomplete<TbaEvent>(
-                    textEditingController: _eventCodeController,
-                    focusNode: _eventFocusNode,
-                    optionsBuilder: (textEditingValue) {
-                      final query =
-                          textEditingValue.text.trim().toLowerCase();
-                      if (query.isEmpty) return appState.events;
-                      return appState.events.where((e) =>
-                          e.name.toLowerCase().contains(query) ||
-                          e.key.toLowerCase().contains(query) ||
-                          (e.city?.toLowerCase().contains(query) ??
-                              false));
-                    },
-                    displayStringForOption: (e) => e.key,
-                    onSelected: (event) {
-                      appState.setEventKey(event.key);
-                    },
-                    fieldViewBuilder: (context, controller, focusNode,
-                        onFieldSubmitted) {
-                      return TextField(
-                        controller: controller,
-                        focusNode: focusNode,
-                        decoration: InputDecoration(
-                          labelText: 'Event',
-                          hintText: 'Search by name, code, or city',
-                          border: const OutlineInputBorder(),
-                          prefixIcon: const Icon(Icons.event),
-                          suffixIcon: controller.text.isNotEmpty
-                              ? IconButton(
-                                  icon: const Icon(Icons.clear),
-                                  onPressed: () {
-                                    controller.clear();
-                                    appState.setEventKey('');
-                                    setState(() {});
-                                  },
-                                )
-                              : null,
-                        ),
-                        onChanged: (v) {
-                          final trimmed = v.trim();
-                          // Check if typed value matches a known event
-                          final match = appState.events
-                              .where((e) => e.key == trimmed);
-                          if (match.isNotEmpty) {
-                            appState.setEventKey(trimmed);
-                          } else {
-                            settings.selectedEventKey =
-                                trimmed.isNotEmpty ? trimmed : null;
-                            settings.selectedEventName = null;
-                            _debouncedSaveTextFields();
-                          }
-                          setState(() {});
-                        },
-                        onSubmitted: (v) {
-                          final trimmed = v.trim();
-                          if (trimmed.isNotEmpty) {
-                            appState.setEventKey(trimmed);
-                          }
-                        },
-                        onTap: () {
-                          if (controller.text.isNotEmpty) {
-                            controller.selection = TextSelection(
-                              baseOffset: 0,
-                              extentOffset: controller.text.length,
-                            );
-                          }
-                        },
-                      );
-                    },
-                    optionsViewBuilder:
-                        (context, onSelected, options) {
-                      return Align(
-                        alignment: Alignment.topLeft,
-                        child: Material(
-                          elevation: 4,
-                          borderRadius: BorderRadius.circular(8),
-                          child: ConstrainedBox(
-                            constraints:
-                                const BoxConstraints(maxHeight: 240),
-                            child: ListView.builder(
-                              padding: EdgeInsets.zero,
-                              shrinkWrap: true,
-                              itemCount: options.length,
-                              itemBuilder: (context, index) {
-                                final event =
-                                    options.elementAt(index);
-                                return ListTile(
-                                  dense: true,
-                                  title: Text(event.name),
-                                  subtitle: Text(event.key),
-                                  onTap: () => onSelected(event),
-                                );
+                  // Event code suffix field (year is shown as prefix)
+                  TextField(
+                    controller: _eventSuffixController,
+                    decoration: InputDecoration(
+                      labelText: 'Event Code',
+                      prefixText: '${settings.eventYear}',
+                      border: const OutlineInputBorder(),
+                      prefixIcon: const Icon(Icons.event),
+                      suffixIcon: _eventSuffixController.text.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear),
+                              onPressed: () {
+                                _eventSuffixController.clear();
+                                appState.setEventKey('');
+                                setState(() {});
                               },
-                            ),
-                          ),
-                        ),
-                      );
+                            )
+                          : null,
+                    ),
+                    onChanged: (v) {
+                      final suffix = v.trim();
+                      final combined = '${settings.eventYear}$suffix';
+                      // Auto-set if it matches a known event
+                      final match = appState.events
+                          .where((e) => e.key == combined);
+                      if (match.isNotEmpty) {
+                        appState.setEventKey(combined);
+                      } else {
+                        settings.selectedEventKey =
+                            suffix.isNotEmpty ? combined : null;
+                        settings.selectedEventName = null;
+                        _debouncedSaveTextFields();
+                      }
+                      setState(() {});
+                    },
+                    onSubmitted: (v) {
+                      final suffix = v.trim();
+                      if (suffix.isNotEmpty) {
+                        appState.setEventKey(
+                            '${settings.eventYear}$suffix');
+                      }
                     },
                   ),
-                  if (settings.selectedEventName != null)
+                  // Combined code + event name display
+                  if (_eventSuffixController.text.trim().isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 4, left: 12),
-                      child: Text(
-                        settings.selectedEventName!,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(
-                              color:
-                                  Theme.of(context).colorScheme.primary,
+                      child: Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text:
+                                  '${settings.eventYear}${_eventSuffixController.text.trim()}',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .primary,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                             ),
+                            if (settings.selectedEventName != null)
+                              TextSpan(
+                                text:
+                                    ' \u2014 ${settings.selectedEventName}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .primary,
+                                    ),
+                              ),
+                          ],
+                        ),
                       ),
                     ),
                   const SizedBox(height: 12),
@@ -302,6 +277,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
+
+          // Team list card
+          if (appState.teams.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Teams (${appState.teams.length})',
+                          style:
+                              Theme.of(context).textTheme.titleMedium),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: (List.of(appState.teams)
+                              ..sort((a, b) =>
+                                  a.teamNumber.compareTo(b.teamNumber)))
+                            .map((team) => Tooltip(
+                                  message: team.nickname,
+                                  child: Chip(
+                                    label: Text('${team.teamNumber}'),
+                                    visualDensity: VisualDensity.compact,
+                                  ),
+                                ))
+                            .toList(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
 
           if (appState.loading)
             const Padding(
