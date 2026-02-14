@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/tba_event.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/nav_drawer.dart';
 
@@ -15,6 +16,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _nameController;
   late TextEditingController _keyController;
   late TextEditingController _eventCodeController;
+  final FocusNode _eventFocusNode = FocusNode();
   bool _obscureKey = true;
   Timer? _saveTimer;
 
@@ -48,6 +50,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _nameController.dispose();
     _keyController.dispose();
     _eventCodeController.dispose();
+    _eventFocusNode.dispose();
     super.dispose();
   }
 
@@ -61,23 +64,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
-  void _onDropdownSelected(String? key) {
-    if (key != null) {
-      _eventCodeController.text = key;
-      context.read<AppStateProvider>().setEventKey(key);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppStateProvider>();
     final settings = appState.settings;
-
-    // Determine if event code matches an event in the list for dropdown display
-    final matchingEventKey =
-        appState.events.any((e) => e.key == settings.selectedEventKey)
-            ? settings.selectedEventKey
-            : null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -158,35 +148,104 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Event code text field
-                  TextField(
-                    controller: _eventCodeController,
-                    decoration: const InputDecoration(
-                      labelText: 'Event Code',
-                      hintText: 'e.g. 2026miwmi',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.code),
-                    ),
-                    onChanged: (v) {
-                      final trimmed = v.trim();
-                      final match =
-                          appState.events.where((e) => e.key == trimmed);
-                      if (match.isNotEmpty) {
-                        appState.setEventKey(trimmed);
-                      } else {
-                        // Update in-memory and schedule a save
-                        settings.selectedEventKey =
-                            trimmed.isNotEmpty ? trimmed : null;
-                        settings.selectedEventName = null;
-                        _debouncedSaveTextFields();
-                      }
-                      setState(() {});
+                  // Event search with autocomplete
+                  RawAutocomplete<TbaEvent>(
+                    textEditingController: _eventCodeController,
+                    focusNode: _eventFocusNode,
+                    optionsBuilder: (textEditingValue) {
+                      final query =
+                          textEditingValue.text.trim().toLowerCase();
+                      if (query.isEmpty) return appState.events;
+                      return appState.events.where((e) =>
+                          e.name.toLowerCase().contains(query) ||
+                          e.key.toLowerCase().contains(query) ||
+                          (e.city?.toLowerCase().contains(query) ??
+                              false));
                     },
-                    onSubmitted: (v) {
-                      final trimmed = v.trim();
-                      if (trimmed.isNotEmpty) {
-                        appState.setEventKey(trimmed);
-                      }
+                    displayStringForOption: (e) => e.key,
+                    onSelected: (event) {
+                      appState.setEventKey(event.key);
+                    },
+                    fieldViewBuilder: (context, controller, focusNode,
+                        onFieldSubmitted) {
+                      return TextField(
+                        controller: controller,
+                        focusNode: focusNode,
+                        decoration: InputDecoration(
+                          labelText: 'Event',
+                          hintText: 'Search by name, code, or city',
+                          border: const OutlineInputBorder(),
+                          prefixIcon: const Icon(Icons.event),
+                          suffixIcon: controller.text.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear),
+                                  onPressed: () {
+                                    controller.clear();
+                                    appState.setEventKey('');
+                                    setState(() {});
+                                  },
+                                )
+                              : null,
+                        ),
+                        onChanged: (v) {
+                          final trimmed = v.trim();
+                          // Check if typed value matches a known event
+                          final match = appState.events
+                              .where((e) => e.key == trimmed);
+                          if (match.isNotEmpty) {
+                            appState.setEventKey(trimmed);
+                          } else {
+                            settings.selectedEventKey =
+                                trimmed.isNotEmpty ? trimmed : null;
+                            settings.selectedEventName = null;
+                            _debouncedSaveTextFields();
+                          }
+                          setState(() {});
+                        },
+                        onSubmitted: (v) {
+                          final trimmed = v.trim();
+                          if (trimmed.isNotEmpty) {
+                            appState.setEventKey(trimmed);
+                          }
+                        },
+                        onTap: () {
+                          if (controller.text.isNotEmpty) {
+                            controller.selection = TextSelection(
+                              baseOffset: 0,
+                              extentOffset: controller.text.length,
+                            );
+                          }
+                        },
+                      );
+                    },
+                    optionsViewBuilder:
+                        (context, onSelected, options) {
+                      return Align(
+                        alignment: Alignment.topLeft,
+                        child: Material(
+                          elevation: 4,
+                          borderRadius: BorderRadius.circular(8),
+                          child: ConstrainedBox(
+                            constraints:
+                                const BoxConstraints(maxHeight: 240),
+                            child: ListView.builder(
+                              padding: EdgeInsets.zero,
+                              shrinkWrap: true,
+                              itemCount: options.length,
+                              itemBuilder: (context, index) {
+                                final event =
+                                    options.elementAt(index);
+                                return ListTile(
+                                  dense: true,
+                                  title: Text(event.name),
+                                  subtitle: Text(event.key),
+                                  onTap: () => onSelected(event),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      );
                     },
                   ),
                   if (settings.selectedEventName != null)
@@ -198,37 +257,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             .textTheme
                             .bodyMedium
                             ?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
+                              color:
+                                  Theme.of(context).colorScheme.primary,
                             ),
                       ),
                     ),
-                  const SizedBox(height: 12),
-
-                  // Event dropdown (updates the text field)
-                  if (appState.events.isNotEmpty)
-                    DropdownMenu<String>(
-                      key: ValueKey('dropdown_$matchingEventKey'),
-                      label: const Text('Select from list'),
-                      expandedInsets: EdgeInsets.zero,
-                      enableFilter: true,
-                      enableSearch: true,
-                      initialSelection: matchingEventKey,
-                      onSelected: _onDropdownSelected,
-                      dropdownMenuEntries: appState.events
-                          .map((e) => DropdownMenuEntry(
-                                value: e.key,
-                                label: e.name,
-                              ))
-                          .toList(),
-                    ),
-
                   const SizedBox(height: 12),
 
                   // Load Teams button
                   if (settings.selectedEventKey != null &&
                       settings.selectedEventKey!.isNotEmpty)
                     FilledButton.icon(
-                      onPressed: appState.loading || matchingEventKey == null
+                      onPressed: appState.loading
                           ? null
                           : () => appState.loadTeams(),
                       icon: const Icon(Icons.groups),
