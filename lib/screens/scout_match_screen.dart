@@ -402,6 +402,18 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
                   onChanged: (v) => scouting
                       .updateField(() => scouting.teleopEnteredTrench = v),
                 ),
+                SwitchListTile(
+                  title: const Text('Ground Pickup'),
+                  value: scouting.fuelGroundPickup,
+                  onChanged: (v) => scouting
+                      .updateField(() => scouting.fuelGroundPickup = v),
+                ),
+                SwitchListTile(
+                  title: const Text('Human Player Pickup'),
+                  value: scouting.fuelHumanPickup,
+                  onChanged: (v) => scouting
+                      .updateField(() => scouting.fuelHumanPickup = v),
+                ),
               ],
             ),
           ),
@@ -441,29 +453,12 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
         ),
         const SizedBox(height: 16),
 
-        // Pickup & Defense
+        // Defense
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                Text('Capabilities', style: theme.textTheme.titleMedium),
-                const SizedBox(height: 4),
-                SwitchListTile(
-                  title: const Text('Ground Pickup'),
-                  dense: true,
-                  value: scouting.fuelGroundPickup,
-                  onChanged: (v) => scouting
-                      .updateField(() => scouting.fuelGroundPickup = v),
-                ),
-                SwitchListTile(
-                  title: const Text('Human Player Pickup'),
-                  dense: true,
-                  value: scouting.fuelHumanPickup,
-                  onChanged: (v) => scouting
-                      .updateField(() => scouting.fuelHumanPickup = v),
-                ),
-                const SizedBox(height: 4),
                 Text('Defense Rating: ${scouting.defenseRating}',
                     style: theme.textTheme.bodyLarge),
                 Slider(
