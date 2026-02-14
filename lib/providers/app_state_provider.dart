@@ -28,12 +28,57 @@ class AppStateProvider extends ChangeNotifier {
       _teams = await _storage.loadCachedTeams(_settings.selectedEventKey!);
     }
     notifyListeners();
+
+    // Auto-load events if cache is empty (non-blocking)
+    if (_events.isEmpty) {
+      loadEvents(_settings.eventYear);
+    }
   }
 
-  Future<void> updateSettings(AppSettings newSettings) async {
-    _settings = newSettings;
-    await _storage.saveSettings(newSettings);
+  /// Persist settings to storage without triggering a rebuild.
+  Future<void> _persistSettings() async {
+    await _storage.saveSettings(_settings);
+  }
+
+  /// Persist and notify listeners (triggers rebuild).
+  Future<void> saveAndNotify() async {
+    await _storage.saveSettings(_settings);
     notifyListeners();
+  }
+
+  void updateScouterName(String name) {
+    _settings.scouterName = name;
+  }
+
+  void updateSecretKey(String key) {
+    _settings.secretTeamKey = key;
+  }
+
+  /// Persist name/key without rebuilding the widget tree.
+  Future<void> persistTextFields() async {
+    await _persistSettings();
+  }
+
+  Future<void> setEventYear(int year) async {
+    _settings.eventYear = year;
+    await _persistSettings();
+    await loadEvents(year);
+  }
+
+  Future<void> setEventKey(String key) async {
+    _settings.selectedEventKey = key.isEmpty ? null : key;
+
+    // Try to find matching event name
+    final match = _events.where((e) => e.key == key);
+    _settings.selectedEventName = match.isNotEmpty ? match.first.name : null;
+
+    await _persistSettings();
+    notifyListeners();
+
+    // Auto-load teams when event is set
+    if (key.isNotEmpty) {
+      await loadTeams();
+    }
   }
 
   Future<void> loadEvents(int year) async {

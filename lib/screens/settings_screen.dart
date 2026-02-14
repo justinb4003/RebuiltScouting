@@ -1,6 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../models/app_settings.dart';
 import '../providers/app_state_provider.dart';
 import '../widgets/nav_drawer.dart';
 
@@ -16,6 +16,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _keyController;
   late TextEditingController _eventCodeController;
   bool _obscureKey = true;
+  Timer? _saveTimer;
 
   @override
   void initState() {
@@ -29,16 +30,45 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   @override
   void dispose() {
+    _saveTimer?.cancel();
+    // Final save of text fields on dispose
+    final appState = context.read<AppStateProvider>();
+    appState.updateScouterName(_nameController.text.trim());
+    appState.updateSecretKey(_keyController.text.trim());
+    appState.persistTextFields();
     _nameController.dispose();
     _keyController.dispose();
     _eventCodeController.dispose();
     super.dispose();
   }
 
+  void _debouncedSaveTextFields() {
+    _saveTimer?.cancel();
+    _saveTimer = Timer(const Duration(milliseconds: 500), () {
+      final appState = context.read<AppStateProvider>();
+      appState.updateScouterName(_nameController.text.trim());
+      appState.updateSecretKey(_keyController.text.trim());
+      appState.persistTextFields();
+    });
+  }
+
+  void _onDropdownSelected(String? key) {
+    if (key != null) {
+      _eventCodeController.text = key;
+      context.read<AppStateProvider>().setEventKey(key);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppStateProvider>();
     final settings = appState.settings;
+
+    // Determine if event code matches an event in the list for dropdown display
+    final matchingEventKey =
+        appState.events.any((e) => e.key == settings.selectedEventKey)
+            ? settings.selectedEventKey
+            : null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -54,6 +84,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.person),
             ),
+            onChanged: (_) => _debouncedSaveTextFields(),
           ),
           const SizedBox(height: 16),
 
@@ -71,10 +102,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 onPressed: () => setState(() => _obscureKey = !_obscureKey),
               ),
             ),
+            onChanged: (_) => _debouncedSaveTextFields(),
           ),
           const SizedBox(height: 24),
 
-          // Event Year
+          // Event Selection
           Card(
             child: Padding(
               padding: const EdgeInsets.all(16),
@@ -92,7 +124,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           initialSelection: settings.eventYear,
                           onSelected: (year) {
                             if (year != null) {
-                              settings.eventYear = year;
+                              appState.setEventYear(year);
                             }
                           },
                           dropdownMenuEntries: List.generate(
@@ -110,8 +142,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         onPressed: appState.loading
                             ? null
                             : () => appState.loadEvents(settings.eventYear),
-                        icon: const Icon(Icons.download),
-                        label: const Text('Load Events'),
+                        icon: const Icon(Icons.refresh),
+                        label: const Text('Refresh'),
                       ),
                     ],
                   ),
@@ -127,29 +159,52 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       prefixIcon: Icon(Icons.code),
                     ),
                     onChanged: (v) {
-                      settings.selectedEventKey = v.trim().isNotEmpty ? v.trim() : null;
-                      settings.selectedEventName = null;
+                      final trimmed = v.trim();
+                      settings.selectedEventKey =
+                          trimmed.isNotEmpty ? trimmed : null;
+
+                      // Check if it matches an event
+                      final match =
+                          appState.events.where((e) => e.key == trimmed);
+                      if (match.isNotEmpty) {
+                        settings.selectedEventName = match.first.name;
+                      } else {
+                        settings.selectedEventName = null;
+                      }
+                      setState(() {});
+                    },
+                    onSubmitted: (v) {
+                      final trimmed = v.trim();
+                      if (trimmed.isNotEmpty) {
+                        appState.setEventKey(trimmed);
+                      }
                     },
                   ),
+                  if (settings.selectedEventName != null)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 4, left: 12),
+                      child: Text(
+                        settings.selectedEventName!,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                      ),
+                    ),
                   const SizedBox(height: 12),
 
                   // Event dropdown (updates the text field)
                   if (appState.events.isNotEmpty)
                     DropdownMenu<String>(
+                      key: ValueKey('dropdown_$matchingEventKey'),
                       label: const Text('Select from list'),
                       expandedInsets: EdgeInsets.zero,
                       enableFilter: true,
                       enableSearch: true,
-                      initialSelection: settings.selectedEventKey,
-                      onSelected: (key) {
-                        if (key != null) {
-                          final event = appState.events
-                              .firstWhere((e) => e.key == key);
-                          settings.selectedEventKey = key;
-                          settings.selectedEventName = event.name;
-                          _eventCodeController.text = key;
-                        }
-                      },
+                      initialSelection: matchingEventKey,
+                      onSelected: _onDropdownSelected,
                       dropdownMenuEntries: appState.events
                           .map((e) => DropdownMenuEntry(
                                 value: e.key,
@@ -161,7 +216,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   const SizedBox(height: 12),
 
                   // Load Teams button
-                  if (_eventCodeController.text.isNotEmpty)
+                  if (settings.selectedEventKey != null &&
+                      settings.selectedEventKey!.isNotEmpty)
                     FilledButton.icon(
                       onPressed: appState.loading
                           ? null
@@ -191,24 +247,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: Theme.of(context).colorScheme.error),
               ),
             ),
-
-          const SizedBox(height: 24),
-
-          // Save button
-          FilledButton.icon(
-            onPressed: () async {
-              settings.scouterName = _nameController.text.trim();
-              settings.secretTeamKey = _keyController.text.trim();
-              await appState.updateSettings(settings);
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Settings saved!')),
-                );
-              }
-            },
-            icon: const Icon(Icons.save),
-            label: const Text('Save Settings'),
-          ),
         ],
       ),
     );

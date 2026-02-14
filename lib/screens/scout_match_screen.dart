@@ -33,6 +33,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
   }
 
   void _fireConfetti() {
+    _confettiController.stop();
     _confettiController.play();
   }
 
@@ -117,7 +118,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Autonomous',
                             style: theme.textTheme.titleMedium
@@ -133,7 +133,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
                           label: 'Fuel Scored',
                           value: scouting.autoFuelScored,
                           showBulkButtons: true,
-                          onIncrement: _fireConfetti,
+                          onTap: _fireConfetti,
                           onChanged: (v) => scouting.updateField(
                               () => scouting.autoFuelScored = v),
                         ),
@@ -142,7 +142,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
                           label: 'Fuel Missed',
                           value: scouting.autoFuelMissed,
                           showBulkButtons: true,
-                          onIncrement: _fireConfetti,
+                          onTap: _fireConfetti,
                           onChanged: (v) => scouting.updateField(
                               () => scouting.autoFuelMissed = v),
                         ),
@@ -169,7 +169,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Teleop',
                             style: theme.textTheme.titleMedium
@@ -179,7 +178,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
                           label: 'Fuel Scored',
                           value: scouting.teleopFuelScored,
                           showBulkButtons: true,
-                          onIncrement: _fireConfetti,
+                          onTap: _fireConfetti,
                           onChanged: (v) => scouting.updateField(
                               () => scouting.teleopFuelScored = v),
                         ),
@@ -188,7 +187,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
                           label: 'Fuel Missed',
                           value: scouting.teleopFuelMissed,
                           showBulkButtons: true,
-                          onIncrement: _fireConfetti,
+                          onTap: _fireConfetti,
                           onChanged: (v) => scouting.updateField(
                               () => scouting.teleopFuelMissed = v),
                         ),
@@ -209,7 +208,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Endgame',
                             style: theme.textTheme.titleMedium
@@ -237,25 +235,28 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
                   child: Padding(
                     padding: const EdgeInsets.all(16),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text('Capabilities',
                             style: theme.textTheme.titleMedium),
+                        const SizedBox(height: 4),
                         SwitchListTile(
                           title: const Text('Ground Pickup'),
+                          dense: true,
                           value: scouting.fuelGroundPickup,
                           onChanged: (v) => scouting.updateField(
                               () => scouting.fuelGroundPickup = v),
                         ),
                         SwitchListTile(
                           title: const Text('Human Player Pickup'),
+                          dense: true,
                           value: scouting.fuelHumanPickup,
                           onChanged: (v) => scouting.updateField(
                               () => scouting.fuelHumanPickup = v),
                         ),
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 4),
                         Text(
-                            'Defense Rating: ${scouting.defenseRating}'),
+                            'Defense Rating: ${scouting.defenseRating}',
+                            style: theme.textTheme.bodyLarge),
                         Slider(
                           value: scouting.defenseRating.toDouble(),
                           min: 0,
