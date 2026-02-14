@@ -390,6 +390,18 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen> {
                   onChanged: (v) => scouting
                       .updateField(() => scouting.teleopFuelMissed = v),
                 ),
+                SwitchListTile(
+                  title: const Text('Crossed Bump'),
+                  value: scouting.teleopCrossedBump,
+                  onChanged: (v) => scouting
+                      .updateField(() => scouting.teleopCrossedBump = v),
+                ),
+                SwitchListTile(
+                  title: const Text('Entered Trench'),
+                  value: scouting.teleopEnteredTrench,
+                  onChanged: (v) => scouting
+                      .updateField(() => scouting.teleopEnteredTrench = v),
+                ),
               ],
             ),
           ),

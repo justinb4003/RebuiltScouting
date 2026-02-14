@@ -22,6 +22,8 @@ class ScoutingProvider extends ChangeNotifier {
   // Teleop
   int teleopFuelScored = 0;
   int teleopFuelMissed = 0;
+  bool teleopCrossedBump = false;
+  bool teleopEnteredTrench = false;
 
   // Endgame
   int endgameTowerLevel = 0;
@@ -52,6 +54,8 @@ class ScoutingProvider extends ChangeNotifier {
     autoTowerLevel1 = false;
     teleopFuelScored = 0;
     teleopFuelMissed = 0;
+    teleopCrossedBump = false;
+    teleopEnteredTrench = false;
     endgameTowerLevel = 0;
     fuelGroundPickup = false;
     fuelHumanPickup = false;
@@ -91,6 +95,8 @@ class ScoutingProvider extends ChangeNotifier {
       autoTowerLevel1: autoTowerLevel1,
       teleopFuelScored: teleopFuelScored,
       teleopFuelMissed: teleopFuelMissed,
+      teleopCrossedBump: teleopCrossedBump,
+      teleopEnteredTrench: teleopEnteredTrench,
       endgameTowerLevel: endgameTowerLevel,
       fuelGroundPickup: fuelGroundPickup,
       fuelHumanPickup: fuelHumanPickup,
