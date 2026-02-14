@@ -17,16 +17,17 @@ class ScoutPitScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Scout Pit'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Load scouted teams',
-            onPressed: appState.settings.selectedEventKey != null
-                ? () =>
-                    pit.loadScoutedTeams(appState.settings.selectedEventKey!)
-                : null,
-          ),
-        ],
+        // TODO: Re-enable once scouted teams feature is ready
+        // actions: [
+        //   IconButton(
+        //     icon: const Icon(Icons.refresh),
+        //     tooltip: 'Load scouted teams',
+        //     onPressed: appState.settings.selectedEventKey != null
+        //         ? () =>
+        //             pit.loadScoutedTeams(appState.settings.selectedEventKey!)
+        //         : null,
+        //   ),
+        // ],
       ),
       drawer: const NavDrawer(selectedIndex: 1),
       body: ListView(
@@ -232,18 +233,18 @@ class ScoutPitScreen extends StatelessWidget {
           ),
           const SizedBox(height: 24),
 
-          // Already scouted teams
-          if (pit.scoutedTeams.isNotEmpty) ...[
-            Text('Already Scouted', style: theme.textTheme.titleMedium),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 4,
-              children: pit.scoutedTeams
-                  .map((r) => Chip(label: Text('${r.teamNumber}')))
-                  .toList(),
-            ),
-          ],
+          // TODO: Re-enable once scouted teams feature is ready
+          // if (pit.scoutedTeams.isNotEmpty) ...[
+          //   Text('Already Scouted', style: theme.textTheme.titleMedium),
+          //   const SizedBox(height: 8),
+          //   Wrap(
+          //     spacing: 8,
+          //     runSpacing: 4,
+          //     children: pit.scoutedTeams
+          //         .map((r) => Chip(label: Text('${r.teamNumber}')))
+          //         .toList(),
+          //   ),
+          // ],
           const SizedBox(height: 32),
         ],
       ),
