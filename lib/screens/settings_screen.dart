@@ -21,11 +21,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    final settings = context.read<AppStateProvider>().settings;
+    final appState = context.read<AppStateProvider>();
+    final settings = appState.settings;
     _nameController = TextEditingController(text: settings.scouterName);
     _keyController = TextEditingController(text: settings.secretTeamKey);
     _eventCodeController =
         TextEditingController(text: settings.selectedEventKey ?? '');
+
+    // Load events from cache or API when settings screen opens
+    if (appState.events.isEmpty) {
+      appState.loadEvents(settings.eventYear);
+    }
   }
 
   @override
@@ -160,15 +166,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     onChanged: (v) {
                       final trimmed = v.trim();
-                      settings.selectedEventKey =
-                          trimmed.isNotEmpty ? trimmed : null;
-
-                      // Check if it matches an event
+                      // Only persist when it matches a known event
                       final match =
                           appState.events.where((e) => e.key == trimmed);
                       if (match.isNotEmpty) {
-                        settings.selectedEventName = match.first.name;
+                        appState.setEventKey(trimmed);
                       } else {
+                        // Update in-memory only for UI display
+                        settings.selectedEventKey =
+                            trimmed.isNotEmpty ? trimmed : null;
                         settings.selectedEventName = null;
                       }
                       setState(() {});
@@ -219,7 +225,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   if (settings.selectedEventKey != null &&
                       settings.selectedEventKey!.isNotEmpty)
                     FilledButton.icon(
-                      onPressed: appState.loading
+                      onPressed: appState.loading || matchingEventKey == null
                           ? null
                           : () => appState.loadTeams(),
                       icon: const Icon(Icons.groups),
