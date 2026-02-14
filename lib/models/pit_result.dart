@@ -7,10 +7,10 @@ class PitResult {
   final String eventKey;
   final int teamNumber;
   String driveTrain; // Swerve, Tank, Mecanum, Other
-  List<String> wheelTypes; // omni, mecanum, inflated, solid
-  int robotRating; // -10 to +10
   bool canCrossBump;
   bool canEnterTrench;
+  bool groundPickup;
+  bool humanPlayerPickup;
   int fuelCapacity;
   String notes;
   String? photoBase64;
@@ -23,16 +23,15 @@ class PitResult {
     required this.eventKey,
     required this.teamNumber,
     this.driveTrain = 'Swerve',
-    List<String>? wheelTypes,
-    this.robotRating = 0,
     this.canCrossBump = false,
     this.canEnterTrench = false,
+    this.groundPickup = false,
+    this.humanPlayerPickup = false,
     this.fuelCapacity = 0,
     this.notes = '',
     this.photoBase64,
     DateTime? timestamp,
   })  : id = id ?? const Uuid().v4(),
-        wheelTypes = wheelTypes ?? [],
         timestamp = timestamp ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
@@ -42,10 +41,10 @@ class PitResult {
         'event_key': eventKey,
         'team_number': teamNumber,
         'drive_train': driveTrain,
-        'wheel_types': wheelTypes,
-        'robot_rating': robotRating,
         'can_cross_bump': canCrossBump,
         'can_enter_trench': canEnterTrench,
+        'ground_pickup': groundPickup,
+        'human_player_pickup': humanPlayerPickup,
         'fuel_capacity': fuelCapacity,
         'notes': notes,
         'photo_base64': photoBase64,
@@ -59,10 +58,10 @@ class PitResult {
         eventKey: json['event_key'] ?? '',
         teamNumber: json['team_number'] ?? 0,
         driveTrain: json['drive_train'] ?? 'Swerve',
-        wheelTypes: List<String>.from(json['wheel_types'] ?? []),
-        robotRating: json['robot_rating'] ?? 0,
         canCrossBump: json['can_cross_bump'] ?? false,
         canEnterTrench: json['can_enter_trench'] ?? false,
+        groundPickup: json['ground_pickup'] ?? false,
+        humanPlayerPickup: json['human_player_pickup'] ?? false,
         fuelCapacity: json['fuel_capacity'] ?? 0,
         notes: json['notes'] ?? '',
         photoBase64: json['photo_base64'],

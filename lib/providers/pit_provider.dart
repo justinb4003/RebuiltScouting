@@ -13,10 +13,10 @@ class PitProvider extends ChangeNotifier {
 
   int? selectedTeamNumber;
   String driveTrain = 'Swerve';
-  List<String> wheelTypes = [];
-  int robotRating = 0;
   bool canCrossBump = false;
   bool canEnterTrench = false;
+  bool groundPickup = false;
+  bool humanPlayerPickup = false;
   int fuelCapacity = 0;
   String notes = '';
   String? photoBase64;
@@ -27,14 +27,13 @@ class PitProvider extends ChangeNotifier {
   bool get submitting => _submitting;
 
   static const driveTrainOptions = ['Swerve', 'Tank', 'Mecanum', 'Other'];
-  static const wheelTypeOptions = ['Omni', 'Mecanum', 'Inflated', 'Solid'];
 
   void resetForm() {
     driveTrain = 'Swerve';
-    wheelTypes = [];
-    robotRating = 0;
     canCrossBump = false;
     canEnterTrench = false;
+    groundPickup = false;
+    humanPlayerPickup = false;
     fuelCapacity = 0;
     notes = '';
     photoBase64 = null;
@@ -45,15 +44,6 @@ class PitProvider extends ChangeNotifier {
 
   void updateField(VoidCallback update) {
     update();
-    notifyListeners();
-  }
-
-  void toggleWheelType(String type) {
-    if (wheelTypes.contains(type)) {
-      wheelTypes.remove(type);
-    } else {
-      wheelTypes.add(type);
-    }
     notifyListeners();
   }
 
@@ -114,10 +104,10 @@ class PitProvider extends ChangeNotifier {
       eventKey: eventKey,
       teamNumber: selectedTeamNumber!,
       driveTrain: driveTrain,
-      wheelTypes: List.from(wheelTypes),
-      robotRating: robotRating,
       canCrossBump: canCrossBump,
       canEnterTrench: canEnterTrench,
+      groundPickup: groundPickup,
+      humanPlayerPickup: humanPlayerPickup,
       fuelCapacity: fuelCapacity,
       notes: notes,
       photoBase64: photoBase64,

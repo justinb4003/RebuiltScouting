@@ -172,7 +172,7 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
             ..._heldPit.map((r) => Card(
                   child: ListTile(
                     title: Text('Team ${r.teamNumber}'),
-                    subtitle: Text('${r.driveTrain} drive | Rating: ${r.robotRating}'),
+                    subtitle: Text('${r.driveTrain} drive'),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
                       onPressed: () => _deletePitResult(r.id),

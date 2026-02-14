@@ -40,213 +40,159 @@ class ScoutPitScreen extends StatelessWidget {
             onChanged: (v) =>
                 pit.updateField(() => pit.selectedTeamNumber = v),
           ),
-          const SizedBox(height: 16),
+          if (pit.selectedTeamNumber != null) ...[
+            const SizedBox(height: 16),
 
-          // Drive Train
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Drive Train', style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 12),
-                  SegmentedButton<String>(
-                    segments: PitProvider.driveTrainOptions
-                        .map((dt) =>
-                            ButtonSegment(value: dt, label: Text(dt)))
-                        .toList(),
-                    selected: {pit.driveTrain},
-                    onSelectionChanged: (v) =>
-                        pit.updateField(() => pit.driveTrain = v.first),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Wheel Types
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Wheel Types', style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: PitProvider.wheelTypeOptions.map((wt) {
-                      final selected = pit.wheelTypes.contains(wt);
-                      return FilterChip(
-                        label: Text(wt),
-                        selected: selected,
-                        onSelected: (_) => pit.toggleWheelType(wt),
-                      );
-                    }).toList(),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Robot Rating
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Robot Rating: ${pit.robotRating}',
-                      style: theme.textTheme.titleMedium),
-                  Slider(
-                    value: pit.robotRating.toDouble(),
-                    min: -10,
-                    max: 10,
-                    divisions: 20,
-                    label: '${pit.robotRating}',
-                    onChanged: (v) =>
-                        pit.updateField(() => pit.robotRating = v.round()),
-                  ),
-                  const Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [Text('-10'), Text('0'), Text('+10')],
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 16),
-
-          // Capabilities
-          SwitchListTile(
-            title: const Text('Can Cross Bump'),
-            value: pit.canCrossBump,
-            onChanged: (v) =>
-                pit.updateField(() => pit.canCrossBump = v),
-          ),
-          SwitchListTile(
-            title: const Text('Can Enter Trench'),
-            value: pit.canEnterTrench,
-            onChanged: (v) =>
-                pit.updateField(() => pit.canEnterTrench = v),
-          ),
-          const SizedBox(height: 16),
-
-          // Fuel capacity
-          TextField(
-            decoration: const InputDecoration(
-              labelText: 'Fuel Cell Capacity',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.inventory_2),
-            ),
-            keyboardType: TextInputType.number,
-            onChanged: (v) => pit.updateField(
-                () => pit.fuelCapacity = int.tryParse(v) ?? 0),
-          ),
-          const SizedBox(height: 16),
-
-          // Notes
-          TextField(
-            decoration: const InputDecoration(
-              labelText: 'Notes',
-              border: OutlineInputBorder(),
-            ),
-            maxLines: 3,
-            onChanged: (v) => pit.updateField(() => pit.notes = v),
-          ),
-          const SizedBox(height: 16),
-
-          // Photo
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Photo', style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      FilledButton.tonalIcon(
-                        onPressed: () => pit.capturePhoto(),
-                        icon: const Icon(Icons.camera_alt),
-                        label: const Text('Camera'),
-                      ),
-                      const SizedBox(width: 12),
-                      FilledButton.tonalIcon(
-                        onPressed: () => pit.pickPhoto(),
-                        icon: const Icon(Icons.photo_library),
-                        label: const Text('Gallery'),
-                      ),
-                    ],
-                  ),
-                  if (pit.photoBytes != null) ...[
+            // Drive Train
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Drive Train', style: theme.textTheme.titleMedium),
                     const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.memory(
-                        pit.photoBytes!,
-                        height: 200,
-                        fit: BoxFit.cover,
-                      ),
+                    SegmentedButton<String>(
+                      segments: PitProvider.driveTrainOptions
+                          .map((dt) =>
+                              ButtonSegment(value: dt, label: Text(dt)))
+                          .toList(),
+                      selected: {pit.driveTrain},
+                      onSelectionChanged: (v) =>
+                          pit.updateField(() => pit.driveTrain = v.first),
                     ),
                   ],
-                ],
+                ),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
+            const SizedBox(height: 16),
 
-          // Submit
-          FilledButton.icon(
-            onPressed: pit.submitting
-                ? null
-                : () async {
-                    final result = await pit.submit(
-                      scouterName: appState.settings.scouterName,
-                      secretTeamKey: appState.settings.secretTeamKey,
-                      eventKey: appState.settings.selectedEventKey ?? '',
-                    );
-                    if (context.mounted) {
-                      appState.refreshHeldDataCount();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(result.message),
-                          backgroundColor:
-                              result.success ? Colors.green : Colors.red,
+            // Capabilities
+            SwitchListTile(
+              title: const Text('Can Cross Bump'),
+              value: pit.canCrossBump,
+              onChanged: (v) =>
+                  pit.updateField(() => pit.canCrossBump = v),
+            ),
+            SwitchListTile(
+              title: const Text('Can Enter Trench'),
+              value: pit.canEnterTrench,
+              onChanged: (v) =>
+                  pit.updateField(() => pit.canEnterTrench = v),
+            ),
+            SwitchListTile(
+              title: const Text('Ground Pickup'),
+              value: pit.groundPickup,
+              onChanged: (v) =>
+                  pit.updateField(() => pit.groundPickup = v),
+            ),
+            SwitchListTile(
+              title: const Text('Human Player Pickup'),
+              value: pit.humanPlayerPickup,
+              onChanged: (v) =>
+                  pit.updateField(() => pit.humanPlayerPickup = v),
+            ),
+            const SizedBox(height: 16),
+
+            // Fuel capacity
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'Fuel Cell Capacity',
+                border: OutlineInputBorder(),
+                prefixIcon: Icon(Icons.inventory_2),
+              ),
+              keyboardType: TextInputType.number,
+              onChanged: (v) => pit.updateField(
+                  () => pit.fuelCapacity = int.tryParse(v) ?? 0),
+            ),
+            const SizedBox(height: 16),
+
+            // Notes
+            TextField(
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+              onChanged: (v) => pit.updateField(() => pit.notes = v),
+            ),
+            const SizedBox(height: 16),
+
+            // Photo
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Photo', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        FilledButton.tonalIcon(
+                          onPressed: () => pit.capturePhoto(),
+                          icon: const Icon(Icons.camera_alt),
+                          label: const Text('Camera'),
                         ),
-                      );
-                      if (result.success) {
-                        pit.resetForm();
-                      }
-                    }
-                  },
-            icon: pit.submitting
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2))
-                : const Icon(Icons.send),
-            label: const Text('Submit'),
-          ),
-          const SizedBox(height: 24),
+                        const SizedBox(width: 12),
+                        FilledButton.tonalIcon(
+                          onPressed: () => pit.pickPhoto(),
+                          icon: const Icon(Icons.photo_library),
+                          label: const Text('Gallery'),
+                        ),
+                      ],
+                    ),
+                    if (pit.photoBytes != null) ...[
+                      const SizedBox(height: 12),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: Image.memory(
+                          pit.photoBytes!,
+                          height: 200,
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
 
-          // TODO: Re-enable once scouted teams feature is ready
-          // if (pit.scoutedTeams.isNotEmpty) ...[
-          //   Text('Already Scouted', style: theme.textTheme.titleMedium),
-          //   const SizedBox(height: 8),
-          //   Wrap(
-          //     spacing: 8,
-          //     runSpacing: 4,
-          //     children: pit.scoutedTeams
-          //         .map((r) => Chip(label: Text('${r.teamNumber}')))
-          //         .toList(),
-          //   ),
-          // ],
-          const SizedBox(height: 32),
+            // Submit
+            FilledButton.icon(
+              onPressed: pit.submitting
+                  ? null
+                  : () async {
+                      final result = await pit.submit(
+                        scouterName: appState.settings.scouterName,
+                        secretTeamKey: appState.settings.secretTeamKey,
+                        eventKey: appState.settings.selectedEventKey ?? '',
+                      );
+                      if (context.mounted) {
+                        appState.refreshHeldDataCount();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(result.message),
+                            backgroundColor:
+                                result.success ? Colors.green : Colors.red,
+                          ),
+                        );
+                        if (result.success) {
+                          pit.resetForm();
+                        }
+                      }
+                    },
+              icon: pit.submitting
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.send),
+              label: const Text('Submit'),
+            ),
+            const SizedBox(height: 32),
+          ],
         ],
       ),
     );
