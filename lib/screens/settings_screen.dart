@@ -87,26 +87,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               appState.saveAndNotify();
             },
           ),
-          SwitchListTile(
-            title: const Text('Confetti'),
-            subtitle: const Text('Celebrate when scouting'),
-            secondary: const Icon(Icons.celebration),
-            value: settings.confettiEnabled,
-            onChanged: (value) {
-              settings.confettiEnabled = value;
-              appState.saveAndNotify();
-            },
-          ),
-          SwitchListTile(
-            title: const Text('Haptic feedback'),
-            subtitle: const Text('Vibrate on counter taps'),
-            secondary: const Icon(Icons.vibration),
-            value: settings.hapticEnabled,
-            onChanged: (value) {
-              settings.hapticEnabled = value;
-              appState.saveAndNotify();
-            },
-          ),
           const SizedBox(height: 16),
 
           // Scouter Name
@@ -427,6 +407,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 ],
               ),
             ),
+          ),
+
+          // Confetti & haptic toggles
+          const SizedBox(height: 16),
+          SwitchListTile(
+            title: const Text('Confetti'),
+            subtitle: const Text('Celebrate when scouting'),
+            secondary: const Icon(Icons.celebration),
+            value: settings.confettiEnabled,
+            onChanged: (value) {
+              settings.confettiEnabled = value;
+              appState.saveAndNotify();
+            },
+          ),
+          SwitchListTile(
+            title: const Text('Haptic feedback'),
+            subtitle: const Text('Vibrate on counter taps'),
+            secondary: const Icon(Icons.vibration),
+            value: settings.hapticEnabled,
+            onChanged: (value) {
+              settings.hapticEnabled = value;
+              appState.saveAndNotify();
+            },
           ),
         ],
       ),
