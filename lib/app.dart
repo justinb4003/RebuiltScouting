@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'theme.dart';
+import 'providers/app_state_provider.dart';
 import 'screens/scout_match_screen.dart';
 import 'screens/scout_pit_screen.dart';
 import 'screens/held_data_screen.dart';
@@ -10,11 +12,15 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final settings = context.watch<AppStateProvider>().settings;
+    final fontFamily =
+        settings.useOpenDyslexic ? 'OpenDyslexic' : null;
+
     return MaterialApp(
       title: 'FRC Scouting',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme,
-      darkTheme: AppTheme.darkTheme,
+      theme: AppTheme.lightTheme(fontFamily: fontFamily),
+      darkTheme: AppTheme.darkTheme(fontFamily: fontFamily),
       themeMode: ThemeMode.system,
       initialRoute: '/scout',
       routes: {

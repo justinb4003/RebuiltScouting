@@ -103,7 +103,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             onChanged: (_) => _debouncedSaveTextFields(),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
+
+          // Dyslexia-friendly font toggle
+          SwitchListTile(
+            title: const Text('Dyslexia-friendly font'),
+            subtitle: const Text('Use OpenDyslexic across the app'),
+            secondary: const Icon(Icons.font_download),
+            value: settings.useOpenDyslexic,
+            onChanged: (value) {
+              settings.useOpenDyslexic = value;
+              appState.saveAndNotify();
+            },
+          ),
+          const SizedBox(height: 8),
 
           // Event Selection
           Card(

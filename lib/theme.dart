@@ -3,16 +3,18 @@ import 'package:flutter/material.dart';
 class AppTheme {
   static const _seedColor = Color(0xFF1565C0); // Blue 800
 
-  static final lightTheme = ThemeData(
+  static ThemeData lightTheme({String? fontFamily}) => ThemeData(
     useMaterial3: true,
     colorSchemeSeed: _seedColor,
     brightness: Brightness.light,
+    fontFamily: fontFamily,
   );
 
-  static final darkTheme = ThemeData(
+  static ThemeData darkTheme({String? fontFamily}) => ThemeData(
     useMaterial3: true,
     colorSchemeSeed: _seedColor,
     brightness: Brightness.dark,
+    fontFamily: fontFamily,
   );
 
   // Section colors for scouting phases

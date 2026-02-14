@@ -4,6 +4,7 @@ class AppSettings {
   int eventYear;
   String? selectedEventKey;
   String? selectedEventName;
+  bool useOpenDyslexic;
 
   AppSettings({
     this.scouterName = '',
@@ -11,6 +12,7 @@ class AppSettings {
     this.eventYear = 2026,
     this.selectedEventKey,
     this.selectedEventName,
+    this.useOpenDyslexic = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -19,6 +21,7 @@ class AppSettings {
         'eventYear': eventYear,
         'selectedEventKey': selectedEventKey,
         'selectedEventName': selectedEventName,
+        'useOpenDyslexic': useOpenDyslexic,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
@@ -27,5 +30,6 @@ class AppSettings {
         eventYear: json['eventYear'] ?? 2026,
         selectedEventKey: json['selectedEventKey'],
         selectedEventName: json['selectedEventName'],
+        useOpenDyslexic: json['useOpenDyslexic'] ?? false,
       );
 }
