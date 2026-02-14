@@ -311,6 +311,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
 
+          // Theme mode toggle
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Appearance',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 12),
+                  SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                        value: 'light',
+                        label: Text('Light'),
+                        icon: Icon(Icons.light_mode),
+                      ),
+                      ButtonSegment(
+                        value: 'system',
+                        label: Text('System'),
+                        icon: Icon(Icons.settings_brightness),
+                      ),
+                      ButtonSegment(
+                        value: 'dark',
+                        label: Text('Dark'),
+                        icon: Icon(Icons.dark_mode),
+                      ),
+                    ],
+                    selected: {settings.themeMode},
+                    onSelectionChanged: (selected) {
+                      settings.themeMode = selected.first;
+                      appState.saveAndNotify();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+
           // Theme color picker
           const SizedBox(height: 16),
           Card(

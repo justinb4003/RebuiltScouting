@@ -16,13 +16,18 @@ class App extends StatelessWidget {
     final fontFamily =
         settings.useOpenDyslexic ? 'OpenDyslexic' : null;
     final seedColor = Color(settings.themeColor);
+    final themeMode = switch (settings.themeMode) {
+      'light' => ThemeMode.light,
+      'dark' => ThemeMode.dark,
+      _ => ThemeMode.system,
+    };
 
     return MaterialApp(
       title: 'FRC Scouting',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme(fontFamily: fontFamily, seedColor: seedColor),
       darkTheme: AppTheme.darkTheme(fontFamily: fontFamily, seedColor: seedColor),
-      themeMode: ThemeMode.system,
+      themeMode: themeMode,
       initialRoute: '/scout',
       routes: {
         '/scout': (context) => const ScoutMatchScreen(),
