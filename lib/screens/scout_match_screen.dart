@@ -20,8 +20,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
     with SingleTickerProviderStateMixin {
   late ConfettiController _confettiController;
   late TabController _tabController;
-  final TextEditingController _matchController =
-      TextEditingController(text: '1');
+  final TextEditingController _matchController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
   TbaMatch? _selectedMatch;
   int? _selectedRobotIndex; // 0-2 red, 3-5 blue
@@ -87,6 +86,19 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
     final theme = Theme.of(context);
     final matches = appState.matches;
     final hasMatches = matches.isNotEmpty;
+
+    // Auto-exit practice mode when matches become available,
+    // or exit scouting when matches disappear (e.g. switched events)
+    if ((hasMatches && scouting.practiceMode) ||
+        (!hasMatches && scouting.scoutingActive && !scouting.practiceMode)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        scouting.resetForm();
+        setState(() {
+          _selectedMatch = null;
+          _selectedRobotIndex = null;
+        });
+      });
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Scout Match')),
@@ -172,6 +184,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                                 child: TextField(
                                   decoration: const InputDecoration(
                                     labelText: 'Match #',
+                                    hintText: 'xx',
                                     border: OutlineInputBorder(),
                                   ),
                                   keyboardType: TextInputType.number,
@@ -688,8 +701,15 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                       ),
                     );
                     if (result.success) {
+                      final nextMatch = scouting.matchNumber + 1;
+                      _notesController.clear();
                       scouting.resetForm();
-                      _resetMatchSelection();
+                      _matchController.text = '$nextMatch';
+                      setState(() {
+                        _selectedMatch = _findMatch(
+                            appState.matches, nextMatch);
+                        _selectedRobotIndex = null;
+                      });
                     }
                   },
             icon: scouting.submitting
@@ -705,36 +725,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
     );
   }
 
-  void _resetMatchSelection() {
-    final scouting = context.read<ScoutingProvider>();
-    final appState = context.read<AppStateProvider>();
-    _matchController.text = '${scouting.matchNumber}';
-    _notesController.clear();
-    final newMatch = _findMatch(appState.matches, scouting.matchNumber);
 
-    setState(() {
-      _selectedMatch = newMatch;
-    });
-
-    if (_selectedRobotIndex != null && newMatch != null) {
-      final isRed = _selectedRobotIndex! < 3;
-      final pos = isRed ? _selectedRobotIndex! : _selectedRobotIndex! - 3;
-      final teamList = isRed ? newMatch.redTeams : newMatch.blueTeams;
-      if (pos < teamList.length) {
-        final teamNum = int.tryParse(teamList[pos]);
-        scouting.updateField(() {
-          scouting.selectedTeamNumber = teamNum;
-          scouting.scoutingActive = true;
-        });
-      } else {
-        setState(() => _selectedRobotIndex = null);
-      }
-    } else {
-      setState(() => _selectedRobotIndex = null);
-    }
-
-    _tabController.animateTo(0);
-  }
 }
 
 class _KeepAliveTab extends StatefulWidget {
