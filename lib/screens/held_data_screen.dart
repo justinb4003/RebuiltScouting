@@ -107,10 +107,11 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final appState = context.watch<AppStateProvider>();
     final totalHeld = _heldScout.length + _heldPit.length;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Held Data')),
+      appBar: AppBar(title: Text(appState.settings.selectedEventName ?? 'Configure Event to Continue...')),
       drawer: const NavDrawer(selectedIndex: 2),
       body: ListView(
         padding: const EdgeInsets.all(16),

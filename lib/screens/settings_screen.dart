@@ -82,7 +82,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final settings = appState.settings;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: Text(settings.selectedEventName ?? 'Configure Event to Continue...')),
       drawer: const NavDrawer(selectedIndex: 3),
       body: Stack(
         children: [

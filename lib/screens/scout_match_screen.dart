@@ -101,7 +101,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Scout Match')),
+      appBar: AppBar(title: Text(appState.settings.selectedEventName ?? 'Configure Event to Continue...')),
       drawer: const NavDrawer(selectedIndex: 0),
       body: Stack(
         children: [
@@ -465,11 +465,19 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                     style: theme.textTheme.titleMedium
                         ?.copyWith(color: AppTheme.autoColor)),
                 const SizedBox(height: 12),
-                SwitchListTile(
-                  title: const Text('Did nothing'),
-                  value: scouting.autoLeave,
-                  onChanged: (v) =>
-                      scouting.updateField(() => scouting.autoLeave = v),
+                Container(
+                  decoration: BoxDecoration(
+                    color: scouting.autoLeave
+                        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
+                        : null,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: SwitchListTile(
+                    title: const Text('Did nothing'),
+                    value: scouting.autoLeave,
+                    onChanged: (v) =>
+                        scouting.updateField(() => scouting.autoLeave = v),
+                  ),
                 ),
                 CounterButton(
                   label: 'Fuel Scored',
@@ -490,11 +498,20 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   onChanged: (v) => scouting
                       .updateField(() => scouting.autoFuelMissed = v),
                 ),
-                SwitchListTile(
-                  title: const Text('Tower L1 (15 pts)'),
-                  value: scouting.autoTowerLevel1,
-                  onChanged: (v) => scouting
-                      .updateField(() => scouting.autoTowerLevel1 = v),
+                const SizedBox(height: 8),
+                Text('Tower Level', style: theme.textTheme.bodyLarge),
+                const SizedBox(height: 4),
+                SegmentedButton<int>(
+                  expandedInsets: EdgeInsets.zero,
+                  segments: const [
+                    ButtonSegment(value: 0, label: Text('None')),
+                    ButtonSegment(value: 1, label: Text('L1')),
+                    ButtonSegment(value: 2, label: Text('L2')),
+                    ButtonSegment(value: 3, label: Text('L3')),
+                  ],
+                  selected: {scouting.autoTowerLevel},
+                  onSelectionChanged: (v) => scouting.updateField(
+                      () => scouting.autoTowerLevel = v.first),
                 ),
               ],
             ),
@@ -542,29 +559,50 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   onChanged: (v) => scouting
                       .updateField(() => scouting.teleopFuelMissed = v),
                 ),
-                SwitchListTile(
-                  title: const Text('Crossed Bump'),
-                  value: scouting.teleopCrossedBump,
+                CounterButton(
+                  label: 'Bump Crossings',
+                  value: scouting.teleopBumpCrossings,
+                  showBulkButtons: false,
+                  enableHaptic: appState.settings.hapticEnabled,
                   onChanged: (v) => scouting
-                      .updateField(() => scouting.teleopCrossedBump = v),
+                      .updateField(() => scouting.teleopBumpCrossings = v),
                 ),
-                SwitchListTile(
-                  title: const Text('Entered Trench'),
-                  value: scouting.teleopEnteredTrench,
+                const SizedBox(height: 8),
+                CounterButton(
+                  label: 'Trench Crossings',
+                  value: scouting.teleopTrenchCrossings,
+                  showBulkButtons: false,
+                  enableHaptic: appState.settings.hapticEnabled,
                   onChanged: (v) => scouting
-                      .updateField(() => scouting.teleopEnteredTrench = v),
+                      .updateField(() => scouting.teleopTrenchCrossings = v),
                 ),
-                SwitchListTile(
-                  title: const Text('Ground Pickup'),
-                  value: scouting.fuelGroundPickup,
-                  onChanged: (v) => scouting
-                      .updateField(() => scouting.fuelGroundPickup = v),
+                Container(
+                  decoration: BoxDecoration(
+                    color: scouting.fuelGroundPickup
+                        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
+                        : null,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: SwitchListTile(
+                    title: const Text('Ground Pickup'),
+                    value: scouting.fuelGroundPickup,
+                    onChanged: (v) => scouting
+                        .updateField(() => scouting.fuelGroundPickup = v),
+                  ),
                 ),
-                SwitchListTile(
-                  title: const Text('Human Player Pickup'),
-                  value: scouting.fuelHumanPickup,
-                  onChanged: (v) => scouting
-                      .updateField(() => scouting.fuelHumanPickup = v),
+                Container(
+                  decoration: BoxDecoration(
+                    color: scouting.fuelHumanPickup
+                        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
+                        : null,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: SwitchListTile(
+                    title: const Text('Human Player Pickup'),
+                    value: scouting.fuelHumanPickup,
+                    onChanged: (v) => scouting
+                        .updateField(() => scouting.fuelHumanPickup = v),
+                  ),
                 ),
               ],
             ),

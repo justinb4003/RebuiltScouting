@@ -7,6 +7,7 @@ class PitResult {
   final String eventKey;
   final int teamNumber;
   String driveTrain; // Swerve, Tank, Mecanum, Other
+  String driveTrainOther;
   bool canCrossBump;
   bool canEnterTrench;
   bool groundPickup;
@@ -23,6 +24,7 @@ class PitResult {
     required this.eventKey,
     required this.teamNumber,
     this.driveTrain = 'Swerve',
+    this.driveTrainOther = '',
     this.canCrossBump = false,
     this.canEnterTrench = false,
     this.groundPickup = false,
@@ -41,6 +43,7 @@ class PitResult {
         'event_key': eventKey,
         'team_number': teamNumber,
         'drive_train': driveTrain,
+        'drive_train_other': driveTrainOther,
         'can_cross_bump': canCrossBump,
         'can_enter_trench': canEnterTrench,
         'ground_pickup': groundPickup,
@@ -58,6 +61,7 @@ class PitResult {
         eventKey: json['event_key'] ?? '',
         teamNumber: json['team_number'] ?? 0,
         driveTrain: json['drive_train'] ?? 'Swerve',
+        driveTrainOther: json['drive_train_other'] ?? '',
         canCrossBump: json['can_cross_bump'] ?? false,
         canEnterTrench: json['can_enter_trench'] ?? false,
         groundPickup: json['ground_pickup'] ?? false,

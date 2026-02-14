@@ -16,7 +16,7 @@ class ScoutPitScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Scout Pit'),
+        title: Text(appState.settings.selectedEventName ?? 'Configure Event to Continue...'),
         // TODO: Re-enable once scouted teams feature is ready
         // actions: [
         //   IconButton(
@@ -59,8 +59,22 @@ class ScoutPitScreen extends StatelessWidget {
                           .toList(),
                       selected: {pit.driveTrain},
                       onSelectionChanged: (v) =>
-                          pit.updateField(() => pit.driveTrain = v.first),
+                          pit.updateField(() {
+                            pit.driveTrain = v.first;
+                            if (v.first != 'Other') pit.driveTrainOther = '';
+                          }),
                     ),
+                    if (pit.driveTrain == 'Other') ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        decoration: const InputDecoration(
+                          labelText: 'Specify Drive Train',
+                          border: OutlineInputBorder(),
+                        ),
+                        onChanged: (v) =>
+                            pit.updateField(() => pit.driveTrainOther = v),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -68,29 +82,61 @@ class ScoutPitScreen extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Capabilities
-            SwitchListTile(
-              title: const Text('Can Cross Bump'),
-              value: pit.canCrossBump,
-              onChanged: (v) =>
-                  pit.updateField(() => pit.canCrossBump = v),
+            Container(
+              decoration: BoxDecoration(
+                color: pit.canCrossBump
+                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
+                    : null,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: SwitchListTile(
+                title: const Text('Can Cross Bump'),
+                value: pit.canCrossBump,
+                onChanged: (v) =>
+                    pit.updateField(() => pit.canCrossBump = v),
+              ),
             ),
-            SwitchListTile(
-              title: const Text('Can Enter Trench'),
-              value: pit.canEnterTrench,
-              onChanged: (v) =>
-                  pit.updateField(() => pit.canEnterTrench = v),
+            Container(
+              decoration: BoxDecoration(
+                color: pit.canEnterTrench
+                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
+                    : null,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: SwitchListTile(
+                title: const Text('Can Enter Trench'),
+                value: pit.canEnterTrench,
+                onChanged: (v) =>
+                    pit.updateField(() => pit.canEnterTrench = v),
+              ),
             ),
-            SwitchListTile(
-              title: const Text('Ground Pickup'),
-              value: pit.groundPickup,
-              onChanged: (v) =>
-                  pit.updateField(() => pit.groundPickup = v),
+            Container(
+              decoration: BoxDecoration(
+                color: pit.groundPickup
+                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
+                    : null,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: SwitchListTile(
+                title: const Text('Ground Pickup'),
+                value: pit.groundPickup,
+                onChanged: (v) =>
+                    pit.updateField(() => pit.groundPickup = v),
+              ),
             ),
-            SwitchListTile(
-              title: const Text('Human Player Pickup'),
-              value: pit.humanPlayerPickup,
-              onChanged: (v) =>
-                  pit.updateField(() => pit.humanPlayerPickup = v),
+            Container(
+              decoration: BoxDecoration(
+                color: pit.humanPlayerPickup
+                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
+                    : null,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: SwitchListTile(
+                title: const Text('Human Player Pickup'),
+                value: pit.humanPlayerPickup,
+                onChanged: (v) =>
+                    pit.updateField(() => pit.humanPlayerPickup = v),
+              ),
             ),
             const SizedBox(height: 16),
 

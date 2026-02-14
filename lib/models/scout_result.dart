@@ -12,13 +12,13 @@ class ScoutResult {
   bool autoLeave;
   int autoFuelScored;
   int autoFuelMissed;
-  bool autoTowerLevel1;
+  int autoTowerLevel;
 
   // Teleop phase
   int teleopFuelScored;
   int teleopFuelMissed;
-  bool teleopCrossedBump;
-  bool teleopEnteredTrench;
+  int teleopBumpCrossings;
+  int teleopTrenchCrossings;
 
   // Endgame
   int endgameTowerLevel; // 0=none, 1=L1, 2=L2, 3=L3
@@ -43,11 +43,11 @@ class ScoutResult {
     this.autoLeave = false,
     this.autoFuelScored = 0,
     this.autoFuelMissed = 0,
-    this.autoTowerLevel1 = false,
+    this.autoTowerLevel = 0,
     this.teleopFuelScored = 0,
     this.teleopFuelMissed = 0,
-    this.teleopCrossedBump = false,
-    this.teleopEnteredTrench = false,
+    this.teleopBumpCrossings = 0,
+    this.teleopTrenchCrossings = 0,
     this.endgameTowerLevel = 0,
     this.fuelGroundPickup = false,
     this.fuelHumanPickup = false,
@@ -67,11 +67,11 @@ class ScoutResult {
         'auto_leave': autoLeave,
         'auto_fuel_scored': autoFuelScored,
         'auto_fuel_missed': autoFuelMissed,
-        'auto_tower_level1': autoTowerLevel1,
+        'auto_tower_level': autoTowerLevel,
         'teleop_fuel_scored': teleopFuelScored,
         'teleop_fuel_missed': teleopFuelMissed,
-        'teleop_crossed_bump': teleopCrossedBump,
-        'teleop_entered_trench': teleopEnteredTrench,
+        'teleop_bump_crossings': teleopBumpCrossings,
+        'teleop_trench_crossings': teleopTrenchCrossings,
         'endgame_tower_level': endgameTowerLevel,
         'fuel_ground_pickup': fuelGroundPickup,
         'fuel_human_pickup': fuelHumanPickup,
@@ -90,11 +90,11 @@ class ScoutResult {
         autoLeave: json['auto_leave'] ?? false,
         autoFuelScored: json['auto_fuel_scored'] ?? 0,
         autoFuelMissed: json['auto_fuel_missed'] ?? 0,
-        autoTowerLevel1: json['auto_tower_level1'] ?? false,
+        autoTowerLevel: json['auto_tower_level'] ?? 0,
         teleopFuelScored: json['teleop_fuel_scored'] ?? 0,
         teleopFuelMissed: json['teleop_fuel_missed'] ?? 0,
-        teleopCrossedBump: json['teleop_crossed_bump'] ?? false,
-        teleopEnteredTrench: json['teleop_entered_trench'] ?? false,
+        teleopBumpCrossings: json['teleop_bump_crossings'] ?? 0,
+        teleopTrenchCrossings: json['teleop_trench_crossings'] ?? 0,
         endgameTowerLevel: json['endgame_tower_level'] ?? 0,
         fuelGroundPickup: json['fuel_ground_pickup'] ?? false,
         fuelHumanPickup: json['fuel_human_pickup'] ?? false,
