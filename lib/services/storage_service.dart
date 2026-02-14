@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_settings.dart';
 import '../models/tba_event.dart';
 import '../models/tba_team.dart';
+import '../models/tba_match.dart';
 import '../models/scout_result.dart';
 import '../models/pit_result.dart';
 
@@ -10,6 +11,7 @@ class StorageService {
   static const String _settingsKey = 'app_settings';
   static const String _eventListKey = 'event_list';
   static const String _eventTeamsCacheKey = 'event_teams_cache';
+  static const String _eventMatchesCacheKey = 'event_matches_cache';
   static const String _heldScoutDataKey = 'held_scout_data';
   static const String _heldPitDataKey = 'held_pit_data';
 
@@ -68,6 +70,31 @@ class StorageService {
     }
     cache[eventKey] = teams.map((t) => t.toJson()).toList();
     await prefs.setString(_eventTeamsCacheKey, jsonEncode(cache));
+  }
+
+  // Match list cache (per event)
+  Future<List<TbaMatch>> loadCachedMatches(String eventKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    final json = prefs.getString(_eventMatchesCacheKey);
+    if (json != null) {
+      final Map<String, dynamic> cache = jsonDecode(json);
+      if (cache.containsKey(eventKey)) {
+        final List<dynamic> data = cache[eventKey];
+        return data.map((e) => TbaMatch.fromJson(e)).toList();
+      }
+    }
+    return [];
+  }
+
+  Future<void> cacheMatches(String eventKey, List<TbaMatch> matches) async {
+    final prefs = await SharedPreferences.getInstance();
+    final json = prefs.getString(_eventMatchesCacheKey);
+    Map<String, dynamic> cache = {};
+    if (json != null) {
+      cache = jsonDecode(json);
+    }
+    cache[eventKey] = matches.map((m) => m.toJson()).toList();
+    await prefs.setString(_eventMatchesCacheKey, jsonEncode(cache));
   }
 
   // Held scout data

@@ -37,10 +37,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _saveTimer?.cancel();
-    // Final save of text fields on dispose
+    // Final save of all text fields on dispose
     final appState = context.read<AppStateProvider>();
     appState.updateScouterName(_nameController.text.trim());
     appState.updateSecretKey(_keyController.text.trim());
+    final eventCode = _eventCodeController.text.trim();
+    appState.settings.selectedEventKey =
+        eventCode.isNotEmpty ? eventCode : null;
     appState.persistTextFields();
     _nameController.dispose();
     _keyController.dispose();
@@ -166,16 +169,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     onChanged: (v) {
                       final trimmed = v.trim();
-                      // Only persist when it matches a known event
                       final match =
                           appState.events.where((e) => e.key == trimmed);
                       if (match.isNotEmpty) {
                         appState.setEventKey(trimmed);
                       } else {
-                        // Update in-memory only for UI display
+                        // Update in-memory and schedule a save
                         settings.selectedEventKey =
                             trimmed.isNotEmpty ? trimmed : null;
                         settings.selectedEventName = null;
+                        _debouncedSaveTextFields();
                       }
                       setState(() {});
                     },

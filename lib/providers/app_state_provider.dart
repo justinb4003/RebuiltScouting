@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import '../models/app_settings.dart';
 import '../models/tba_event.dart';
+import '../models/tba_match.dart';
 import '../models/tba_team.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
@@ -12,12 +13,14 @@ class AppStateProvider extends ChangeNotifier {
   AppSettings _settings = AppSettings();
   List<TbaEvent> _events = [];
   List<TbaTeam> _teams = [];
+  List<TbaMatch> _matches = [];
   bool _loading = false;
   String? _error;
 
   AppSettings get settings => _settings;
   List<TbaEvent> get events => _events;
   List<TbaTeam> get teams => _teams;
+  List<TbaMatch> get matches => _matches;
   bool get loading => _loading;
   String? get error => _error;
 
@@ -26,6 +29,7 @@ class AppStateProvider extends ChangeNotifier {
     _events = await _storage.loadCachedEvents();
     if (_settings.selectedEventKey != null) {
       _teams = await _storage.loadCachedTeams(_settings.selectedEventKey!);
+      _matches = await _storage.loadCachedMatches(_settings.selectedEventKey!);
     }
     notifyListeners();
 
@@ -75,9 +79,9 @@ class AppStateProvider extends ChangeNotifier {
     await _persistSettings();
     notifyListeners();
 
-    // Auto-load teams when event is set
+    // Auto-load teams and matches when event is set
     if (key.isNotEmpty) {
-      await loadTeams();
+      await Future.wait([loadTeams(), loadMatches()]);
     }
   }
 
@@ -105,6 +109,21 @@ class AppStateProvider extends ChangeNotifier {
       await _storage.cacheTeams(_settings.selectedEventKey!, _teams);
     } catch (e) {
       _error = 'Failed to load teams: $e';
+    }
+    _loading = false;
+    notifyListeners();
+  }
+
+  Future<void> loadMatches() async {
+    if (_settings.selectedEventKey == null) return;
+    _loading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      _matches = await _api.getMatchesForEvent(_settings.selectedEventKey!);
+      await _storage.cacheMatches(_settings.selectedEventKey!, _matches);
+    } catch (e) {
+      _error = 'Failed to load matches: $e';
     }
     _loading = false;
     notifyListeners();

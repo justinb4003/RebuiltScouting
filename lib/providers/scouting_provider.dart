@@ -11,6 +11,7 @@ class ScoutingProvider extends ChangeNotifier {
   int matchNumber = 1;
   int? selectedTeamNumber;
   bool scoutingActive = false;
+  bool practiceMode = false;
 
   // Auto
   bool autoLeave = false;
@@ -42,7 +43,9 @@ class ScoutingProvider extends ChangeNotifier {
   }
 
   void resetForm() {
+    final wasPractice = practiceMode;
     scoutingActive = false;
+    practiceMode = false;
     autoLeave = false;
     autoFuelScored = 0;
     autoFuelMissed = 0;
@@ -55,7 +58,7 @@ class ScoutingProvider extends ChangeNotifier {
     matchNotes = '';
     defenseRating = 0;
     selectedTeamNumber = null;
-    matchNumber++;
+    if (!wasPractice) matchNumber++;
     notifyListeners();
   }
 

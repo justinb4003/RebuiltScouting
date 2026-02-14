@@ -24,14 +24,38 @@ class TbaMatch {
         'blueTeams': blueTeams,
       };
 
-  factory TbaMatch.fromJson(Map<String, dynamic> json) => TbaMatch(
-        key: json['key'] ?? json['match_key'] ?? '',
-        matchNumber: json['matchNumber'] ?? json['match_number'] ?? 0,
-        compLevel: json['compLevel'] ?? json['comp_level'] ?? 'qm',
-        setNumber: json['setNumber'] ?? json['set_number'] ?? 1,
-        redTeams: List<String>.from(json['redTeams'] ?? json['red_teams'] ?? []),
-        blueTeams: List<String>.from(json['blueTeams'] ?? json['blue_teams'] ?? []),
-      );
+  factory TbaMatch.fromJson(Map<String, dynamic> json) {
+    List<String> redTeams;
+    List<String> blueTeams;
+
+    // API format: alliances.red.team_keys / alliances.blue.team_keys
+    final alliances = json['alliances'];
+    if (alliances != null && alliances is Map) {
+      redTeams = _extractTeamNumbers(alliances['red']?['team_keys']);
+      blueTeams = _extractTeamNumbers(alliances['blue']?['team_keys']);
+    } else {
+      // Cached format: redTeams / blueTeams (already plain numbers)
+      redTeams = List<String>.from(json['redTeams'] ?? []);
+      blueTeams = List<String>.from(json['blueTeams'] ?? []);
+    }
+
+    return TbaMatch(
+      key: json['key'] ?? json['match_key'] ?? '',
+      matchNumber: json['matchNumber'] ?? json['match_number'] ?? 0,
+      compLevel: json['compLevel'] ?? json['comp_level'] ?? 'qm',
+      setNumber: json['setNumber'] ?? json['set_number'] ?? 1,
+      redTeams: redTeams,
+      blueTeams: blueTeams,
+    );
+  }
+
+  /// Strip "frc" prefix from team keys like "frc862" → "862"
+  static List<String> _extractTeamNumbers(dynamic teamKeys) {
+    if (teamKeys == null || teamKeys is! List) return [];
+    return teamKeys
+        .map<String>((k) => k.toString().replaceFirst('frc', ''))
+        .toList();
+  }
 
   String get displayName {
     switch (compLevel) {
