@@ -5,6 +5,7 @@ class AppSettings {
   String? selectedEventKey;
   String? selectedEventName;
   bool useOpenDyslexic;
+  int themeColor;
 
   AppSettings({
     this.scouterName = '',
@@ -13,6 +14,7 @@ class AppSettings {
     this.selectedEventKey,
     this.selectedEventName,
     this.useOpenDyslexic = false,
+    this.themeColor = 0xFF1565C0,
   });
 
   Map<String, dynamic> toJson() => {
@@ -22,6 +24,7 @@ class AppSettings {
         'selectedEventKey': selectedEventKey,
         'selectedEventName': selectedEventName,
         'useOpenDyslexic': useOpenDyslexic,
+        'themeColor': themeColor,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
@@ -31,5 +34,6 @@ class AppSettings {
         selectedEventKey: json['selectedEventKey'],
         selectedEventName: json['selectedEventName'],
         useOpenDyslexic: json['useOpenDyslexic'] ?? false,
+        themeColor: json['themeColor'] ?? 0xFF1565C0,
       );
 }

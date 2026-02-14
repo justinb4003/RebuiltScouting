@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/tba_event.dart';
 import '../providers/app_state_provider.dart';
+import '../theme.dart';
 import '../widgets/nav_drawer.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -75,6 +76,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
+          // Dyslexia-friendly font toggle
+          SwitchListTile(
+            title: const Text('Dyslexia-friendly font'),
+            subtitle: const Text('Use OpenDyslexic across the app'),
+            secondary: const Icon(Icons.font_download),
+            value: settings.useOpenDyslexic,
+            onChanged: (value) {
+              settings.useOpenDyslexic = value;
+              appState.saveAndNotify();
+            },
+          ),
+          const SizedBox(height: 16),
+
           // Scouter Name
           TextField(
             controller: _nameController,
@@ -103,20 +117,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
             onChanged: (_) => _debouncedSaveTextFields(),
           ),
-          const SizedBox(height: 16),
-
-          // Dyslexia-friendly font toggle
-          SwitchListTile(
-            title: const Text('Dyslexia-friendly font'),
-            subtitle: const Text('Use OpenDyslexic across the app'),
-            secondary: const Icon(Icons.font_download),
-            value: settings.useOpenDyslexic,
-            onChanged: (value) {
-              settings.useOpenDyslexic = value;
-              appState.saveAndNotify();
-            },
-          ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 24),
 
           // Event Selection
           Card(
@@ -309,6 +310,64 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: Theme.of(context).colorScheme.error),
               ),
             ),
+
+          // Theme color picker
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Theme Color',
+                      style: Theme.of(context).textTheme.titleMedium),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: AppTheme.themeColors.entries.map((entry) {
+                      final isSelected =
+                          settings.themeColor == entry.value.toARGB32();
+                      return GestureDetector(
+                        onTap: () {
+                          settings.themeColor = entry.value.toARGB32();
+                          appState.saveAndNotify();
+                        },
+                        child: Tooltip(
+                          message: entry.key,
+                          child: Container(
+                            width: 40,
+                            height: 40,
+                            decoration: BoxDecoration(
+                              color: entry.value,
+                              shape: BoxShape.circle,
+                              border: isSelected
+                                  ? Border.all(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface,
+                                      width: 3,
+                                    )
+                                  : null,
+                            ),
+                            child: isSelected
+                                ? Icon(Icons.check,
+                                    color: ThemeData.estimateBrightnessForColor(
+                                                entry.value) ==
+                                            Brightness.dark
+                                        ? Colors.white
+                                        : Colors.black,
+                                    size: 20)
+                                : null,
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
     );
