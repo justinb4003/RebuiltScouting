@@ -9,7 +9,7 @@ class ScoutResult {
   final int teamNumber;
 
   // Auto phase
-  bool autoLeave;
+  bool autoDidNothing;
   int autoFuelScored;
   int autoFuelMissed;
   int autoTowerLevel;
@@ -43,7 +43,7 @@ class ScoutResult {
     required this.eventKey,
     required this.matchNumber,
     required this.teamNumber,
-    this.autoLeave = false,
+    this.autoDidNothing = false,
     this.autoFuelScored = 0,
     this.autoFuelMissed = 0,
     this.autoTowerLevel = 0,
@@ -70,7 +70,7 @@ class ScoutResult {
         'event_key': eventKey,
         'match_number': matchNumber,
         'team_number': teamNumber,
-        'auto_leave': autoLeave,
+        'auto_did_nothing': autoDidNothing,
         'auto_fuel_scored': autoFuelScored,
         'auto_fuel_missed': autoFuelMissed,
         'auto_tower_level': autoTowerLevel,
@@ -96,7 +96,7 @@ class ScoutResult {
         eventKey: json['event_key'] ?? '',
         matchNumber: json['match_number'] ?? 0,
         teamNumber: json['team_number'] ?? 0,
-        autoLeave: json['auto_leave'] ?? false,
+        autoDidNothing: json['auto_did_nothing'] ?? false,
         autoFuelScored: json['auto_fuel_scored'] ?? 0,
         autoFuelMissed: json['auto_fuel_missed'] ?? 0,
         autoTowerLevel: json['auto_tower_level'] ?? 0,

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/pit_provider.dart';
+import '../widgets/highlighted_switch.dart';
 import '../widgets/nav_drawer.dart';
 import '../widgets/team_selector.dart';
 
@@ -82,61 +83,29 @@ class ScoutPitScreen extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Capabilities
-            Container(
-              decoration: BoxDecoration(
-                color: pit.canCrossRamp
-                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
-                    : null,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SwitchListTile(
-                title: const Text('Can Cross Ramp'),
-                value: pit.canCrossRamp,
-                onChanged: (v) =>
-                    pit.updateField(() => pit.canCrossRamp = v),
-              ),
+            HighlightedSwitch(
+              title: 'Can Cross Ramp',
+              value: pit.canCrossRamp,
+              onChanged: (v) =>
+                  pit.updateField(() => pit.canCrossRamp = v),
             ),
-            Container(
-              decoration: BoxDecoration(
-                color: pit.canEnterTrench
-                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
-                    : null,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SwitchListTile(
-                title: const Text('Can Enter Trench'),
-                value: pit.canEnterTrench,
-                onChanged: (v) =>
-                    pit.updateField(() => pit.canEnterTrench = v),
-              ),
+            HighlightedSwitch(
+              title: 'Can Enter Trench',
+              value: pit.canEnterTrench,
+              onChanged: (v) =>
+                  pit.updateField(() => pit.canEnterTrench = v),
             ),
-            Container(
-              decoration: BoxDecoration(
-                color: pit.groundPickup
-                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
-                    : null,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SwitchListTile(
-                title: const Text('Ground Pickup'),
-                value: pit.groundPickup,
-                onChanged: (v) =>
-                    pit.updateField(() => pit.groundPickup = v),
-              ),
+            HighlightedSwitch(
+              title: 'Ground Pickup',
+              value: pit.groundPickup,
+              onChanged: (v) =>
+                  pit.updateField(() => pit.groundPickup = v),
             ),
-            Container(
-              decoration: BoxDecoration(
-                color: pit.humanPlayerPickup
-                    ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
-                    : null,
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SwitchListTile(
-                title: const Text('Human Player Pickup'),
-                value: pit.humanPlayerPickup,
-                onChanged: (v) =>
-                    pit.updateField(() => pit.humanPlayerPickup = v),
-              ),
+            HighlightedSwitch(
+              title: 'Human Player Pickup',
+              value: pit.humanPlayerPickup,
+              onChanged: (v) =>
+                  pit.updateField(() => pit.humanPlayerPickup = v),
             ),
             const SizedBox(height: 16),
 

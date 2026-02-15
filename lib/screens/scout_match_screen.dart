@@ -3,10 +3,12 @@ import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/tba_match.dart';
+import '../models/tba_team.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/scouting_provider.dart';
 import '../theme.dart';
 import '../widgets/counter_button.dart';
+import '../widgets/highlighted_switch.dart';
 import '../widgets/nav_drawer.dart';
 
 class ScoutMatchScreen extends StatefulWidget {
@@ -66,12 +68,21 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
     return results.isNotEmpty ? results.first : null;
   }
 
-  String _robotLabel(int index, TbaMatch match, List teams) {
+  /// Resolve a robot index (0-2 red, 3-5 blue) to a team number string,
+  /// or null if the index is out of range.
+  static String? _teamAtIndex(int index, TbaMatch match) {
+    final isRed = index < 3;
+    final pos = isRed ? index : index - 3;
+    final teamList = isRed ? match.redTeams : match.blueTeams;
+    if (pos >= teamList.length) return null;
+    return teamList[pos];
+  }
+
+  String _robotLabel(int index, TbaMatch match, List<TbaTeam> teams) {
     final isRed = index < 3;
     final alliancePos = isRed ? index : index - 3;
-    final teamList = isRed ? match.redTeams : match.blueTeams;
-    if (alliancePos >= teamList.length) return '???';
-    final teamNum = teamList[alliancePos];
+    final teamNum = _teamAtIndex(index, match);
+    if (teamNum == null) return '???';
     final teamData = teams.where((t) => t.teamNumber.toString() == teamNum);
     final name = teamData.isNotEmpty ? teamData.first.nickname : '';
     final alliance =
@@ -414,11 +425,9 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
   Widget _buildRobotSelector(
       TbaMatch match, AppStateProvider appState, ScoutingProvider scouting) {
     void selectRobot(int index) {
-      final isRed = index < 3;
-      final pos = isRed ? index : index - 3;
-      final teamList = isRed ? match.redTeams : match.blueTeams;
-      if (pos < teamList.length) {
-        final teamNum = int.tryParse(teamList[pos]);
+      final teamStr = _teamAtIndex(index, match);
+      if (teamStr != null) {
+        final teamNum = int.tryParse(teamStr);
         setState(() => _selectedRobotIndex = index);
         scouting.updateField(() => scouting.selectedTeamNumber = teamNum);
       }
@@ -468,19 +477,11 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                     style: theme.textTheme.titleMedium
                         ?.copyWith(color: AppTheme.autoColor)),
                 const SizedBox(height: 12),
-                Container(
-                  decoration: BoxDecoration(
-                    color: scouting.autoLeave
-                        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
-                        : null,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: SwitchListTile(
-                    title: const Text('Did nothing'),
-                    value: scouting.autoLeave,
-                    onChanged: (v) =>
-                        scouting.updateField(() => scouting.autoLeave = v),
-                  ),
+                HighlightedSwitch(
+                  title: 'Did nothing',
+                  value: scouting.autoDidNothing,
+                  onChanged: (v) =>
+                      scouting.updateField(() => scouting.autoDidNothing = v),
                 ),
                 CounterButton(
                   label: 'Fuel Scored',
@@ -589,6 +590,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   onChanged: (v) => scouting
                       .updateField(() => scouting.teleopFuelMissed = v),
                 ),
+                const SizedBox(height: 8),
                 CounterButton(
                   label: 'Ramp Crossings',
                   value: scouting.teleopRampCrossings,
@@ -606,33 +608,17 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   onChanged: (v) => scouting
                       .updateField(() => scouting.teleopTrenchCrossings = v),
                 ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: scouting.fuelGroundPickup
-                        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
-                        : null,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: SwitchListTile(
-                    title: const Text('Ground Pickup'),
-                    value: scouting.fuelGroundPickup,
-                    onChanged: (v) => scouting
-                        .updateField(() => scouting.fuelGroundPickup = v),
-                  ),
+                HighlightedSwitch(
+                  title: 'Ground Pickup',
+                  value: scouting.fuelGroundPickup,
+                  onChanged: (v) => scouting
+                      .updateField(() => scouting.fuelGroundPickup = v),
                 ),
-                Container(
-                  decoration: BoxDecoration(
-                    color: scouting.fuelHumanPickup
-                        ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
-                        : null,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: SwitchListTile(
-                    title: const Text('Human Player Pickup'),
-                    value: scouting.fuelHumanPickup,
-                    onChanged: (v) => scouting
-                        .updateField(() => scouting.fuelHumanPickup = v),
-                  ),
+                HighlightedSwitch(
+                  title: 'Human Player Pickup',
+                  value: scouting.fuelHumanPickup,
+                  onChanged: (v) => scouting
+                      .updateField(() => scouting.fuelHumanPickup = v),
                 ),
               ],
             ),
@@ -782,13 +768,9 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                       });
                       // Auto-select the same robot position in the next match
                       if (nextMatchData != null && prevRobotIndex != null) {
-                        final isRed = prevRobotIndex < 3;
-                        final pos = isRed ? prevRobotIndex : prevRobotIndex - 3;
-                        final teamList = isRed
-                            ? nextMatchData.redTeams
-                            : nextMatchData.blueTeams;
-                        if (pos < teamList.length) {
-                          final teamNum = int.tryParse(teamList[pos]);
+                        final teamStr = _teamAtIndex(prevRobotIndex, nextMatchData);
+                        if (teamStr != null) {
+                          final teamNum = int.tryParse(teamStr);
                           scouting.updateField(
                               () => scouting.selectedTeamNumber = teamNum);
                         }
@@ -807,8 +789,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
       ],
     );
   }
-
-
 }
 
 class _KeepAliveTab extends StatefulWidget {

@@ -14,7 +14,7 @@ class ScoutingProvider extends ChangeNotifier {
   bool practiceMode = false;
 
   // Auto
-  bool autoLeave = false;
+  bool autoDidNothing = false;
   int autoFuelScored = 0;
   int autoFuelMissed = 0;
   int autoTowerLevel = 0;
@@ -51,7 +51,7 @@ class ScoutingProvider extends ChangeNotifier {
     final wasPractice = practiceMode;
     scoutingActive = false;
     practiceMode = false;
-    autoLeave = false;
+    autoDidNothing = false;
     autoFuelScored = 0;
     autoFuelMissed = 0;
     autoTowerLevel = 0;
@@ -95,7 +95,7 @@ class ScoutingProvider extends ChangeNotifier {
       eventKey: eventKey,
       matchNumber: matchNumber,
       teamNumber: selectedTeamNumber!,
-      autoLeave: autoLeave,
+      autoDidNothing: autoDidNothing,
       autoFuelScored: autoFuelScored,
       autoFuelMissed: autoFuelMissed,
       autoTowerLevel: autoTowerLevel,

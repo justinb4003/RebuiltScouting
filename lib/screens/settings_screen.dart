@@ -162,7 +162,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           dropdownMenuEntries: List.generate(
                             5,
                             (i) {
-                              final y = 2026 - i;
+                              final y = DateTime.now().year - i;
                               return DropdownMenuEntry(
                                   value: y, label: '$y');
                             },

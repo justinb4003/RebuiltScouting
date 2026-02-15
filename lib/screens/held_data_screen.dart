@@ -76,9 +76,6 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
     setState(() => _uploading = false);
     if (mounted) {
       context.read<AppStateProvider>().refreshHeldDataCount();
-    }
-
-    if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Uploaded: $successCount, Failed: $failCount'),

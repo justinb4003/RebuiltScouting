@@ -8,11 +8,13 @@ import '../models/pit_result.dart';
 
 class ApiService {
   static const String baseUrl =
-      'https://trisonics-scouting-api.azurewebsites.net/api';
+      'http://localhost:7071/api';
+  static const _timeout = Duration(seconds: 10);
 
   Future<List<TbaEvent>> getEvents(int year) async {
-    final response =
-        await http.get(Uri.parse('$baseUrl/GetEvents?year=$year'));
+    final response = await http
+        .get(Uri.parse('$baseUrl/GetEvents?year=$year'))
+        .timeout(_timeout);
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((e) => TbaEvent.fromJson(e)).toList();
@@ -22,7 +24,8 @@ class ApiService {
 
   Future<List<TbaTeam>> getTeamsForEvent(String eventKey) async {
     final response = await http
-        .get(Uri.parse('$baseUrl/GetTeamsForEvent?event_key=$eventKey'));
+        .get(Uri.parse('$baseUrl/GetTeamsForEvent?event_key=$eventKey'))
+        .timeout(_timeout);
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((e) => TbaTeam.fromJson(e)).toList()
@@ -33,7 +36,8 @@ class ApiService {
 
   Future<List<TbaMatch>> getMatchesForEvent(String eventKey) async {
     final response = await http
-        .get(Uri.parse('$baseUrl/GetMatchesForEvent?event_key=$eventKey'));
+        .get(Uri.parse('$baseUrl/GetMatchesForEvent?event_key=$eventKey'))
+        .timeout(_timeout);
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((e) => TbaMatch.fromJson(e)).toList()
@@ -47,7 +51,7 @@ class ApiService {
       Uri.parse('$baseUrl/PostResults'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(result.toJson()),
-    );
+    ).timeout(_timeout);
     return response.statusCode == 200 || response.statusCode == 201;
   }
 
@@ -56,13 +60,14 @@ class ApiService {
       Uri.parse('$baseUrl/PostPitResults'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(result.toJson()),
-    );
+    ).timeout(_timeout);
     return response.statusCode == 200 || response.statusCode == 201;
   }
 
   Future<List<PitResult>> getPitResults(String eventKey) async {
     final response = await http
-        .get(Uri.parse('$baseUrl/GetPitResults?event_key=$eventKey'));
+        .get(Uri.parse('$baseUrl/GetPitResults?event_key=$eventKey'))
+        .timeout(_timeout);
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
       return data.map((e) => PitResult.fromJson(e)).toList();
