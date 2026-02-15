@@ -67,6 +67,49 @@ class NavDrawer extends StatelessWidget {
           selectedIcon: Icon(Icons.settings),
           label: Text('Settings'),
         ),
+        const Divider(indent: 28, endIndent: 28),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: TextButton.icon(
+            onPressed: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Reset App?'),
+                  content: const Text(
+                    'This will clear all local data including settings, '
+                    'cached teams/matches, and any unsent scouting results. '
+                    'This cannot be undone.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, false),
+                      child: const Text('Cancel'),
+                    ),
+                    FilledButton(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: Theme.of(ctx).colorScheme.error,
+                      ),
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Reset'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true && context.mounted) {
+                await context.read<AppStateProvider>().resetToDefaults();
+                if (context.mounted) {
+                  Navigator.pop(context); // Close drawer
+                  Navigator.pushReplacementNamed(context, '/settings');
+                }
+              }
+            },
+            icon: Icon(Icons.restart_alt,
+                color: Theme.of(context).colorScheme.error),
+            label: Text('Reset App',
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ),
+        ),
       ],
     );
   }

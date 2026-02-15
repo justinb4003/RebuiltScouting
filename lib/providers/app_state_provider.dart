@@ -143,6 +143,17 @@ class AppStateProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> resetToDefaults() async {
+    await _storage.clearAll();
+    _settings = AppSettings();
+    _events = [];
+    _teams = [];
+    _matches = [];
+    _heldDataCount = 0;
+    _error = null;
+    notifyListeners();
+  }
+
   void clearError() {
     _error = null;
     notifyListeners();

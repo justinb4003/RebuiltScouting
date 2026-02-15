@@ -97,6 +97,11 @@ class StorageService {
     await prefs.setString(_eventMatchesCacheKey, jsonEncode(cache));
   }
 
+  Future<void> clearAll() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+  }
+
   // Held scout data
   Future<List<ScoutResult>> loadHeldScoutData() async {
     final prefs = await SharedPreferences.getInstance();
