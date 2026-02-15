@@ -8,6 +8,7 @@ import '../providers/app_state_provider.dart';
 import '../providers/scouting_provider.dart';
 import '../theme.dart';
 import '../widgets/counter_button.dart';
+import '../widgets/fixed_segmented_button.dart';
 import '../widgets/highlighted_switch.dart';
 import '../widgets/nav_drawer.dart';
 
@@ -505,8 +506,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                 const SizedBox(height: 8),
                 Text('Tower Level', style: theme.textTheme.bodyLarge),
                 const SizedBox(height: 4),
-                SegmentedButton<int>(
-                  expandedInsets: EdgeInsets.zero,
+                FixedSegmentedButton<int>(
                   segments: const [
                     ButtonSegment(value: 0, label: Text('None')),
                     ButtonSegment(value: 1, label: Text('L1')),
@@ -648,8 +648,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                     style: theme.textTheme.titleMedium
                         ?.copyWith(color: AppTheme.endgameColor)),
                 const SizedBox(height: 12),
-                SegmentedButton<int>(
-                  expandedInsets: EdgeInsets.zero,
+                FixedSegmentedButton<int>(
                   segments: const [
                     ButtonSegment(value: 0, label: Text('None')),
                     ButtonSegment(value: 1, label: Text('L1')),

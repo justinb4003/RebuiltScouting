@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/pit_provider.dart';
+import '../widgets/fixed_segmented_button.dart';
 import '../widgets/highlighted_switch.dart';
 import '../widgets/nav_drawer.dart';
 import '../widgets/team_selector.dart';
@@ -53,7 +54,7 @@ class ScoutPitScreen extends StatelessWidget {
                   children: [
                     Text('Drive Train', style: theme.textTheme.titleMedium),
                     const SizedBox(height: 12),
-                    SegmentedButton<String>(
+                    FixedSegmentedButton<String>(
                       segments: PitProvider.driveTrainOptions
                           .map((dt) =>
                               ButtonSegment(value: dt, label: Text(dt)))

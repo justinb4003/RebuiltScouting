@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/app_settings.dart';
 import '../models/tba_event.dart';
+import '../widgets/fixed_segmented_button.dart';
 import '../providers/app_state_provider.dart';
 import '../theme.dart';
 import '../widgets/nav_drawer.dart';
@@ -264,7 +265,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Text('Appearance',
                       style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 12),
-                  SegmentedButton<String>(
+                  FixedSegmentedButton<String>(
                     segments: const [
                       ButtonSegment(
                         value: 'light',
