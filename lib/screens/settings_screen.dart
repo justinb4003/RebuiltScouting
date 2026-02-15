@@ -3,6 +3,8 @@ import 'dart:math';
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/app_settings.dart';
+import '../models/tba_event.dart';
 import '../providers/app_state_provider.dart';
 import '../theme.dart';
 import '../widgets/nav_drawer.dart';
@@ -17,11 +19,10 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _nameController;
   late TextEditingController _keyController;
-  late TextEditingController _eventSuffixController;
+  late TextEditingController _eventSearchController;
+  final FocusNode _eventSearchFocusNode = FocusNode();
   late ConfettiController _confettiController;
-  bool _obscureKey = true;
   Timer? _saveTimer;
-  Timer? _eventDebounce;
 
   @override
   void initState() {
@@ -32,12 +33,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final settings = appState.settings;
     _nameController = TextEditingController(text: settings.scouterName);
     _keyController = TextEditingController(text: settings.secretTeamKey);
-    // Extract suffix by stripping the year prefix from the stored event key
-    final storedKey = settings.selectedEventKey ?? '';
-    final yearStr = settings.eventYear.toString();
-    final suffix =
-        storedKey.startsWith(yearStr) ? storedKey.substring(yearStr.length) : storedKey;
-    _eventSuffixController = TextEditingController(text: suffix);
+    _eventSearchController = TextEditingController(
+      text: settings.selectedEventName ?? '',
+    );
 
     // Load events from cache or API when settings screen opens
     if (appState.events.isEmpty) {
@@ -48,20 +46,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void dispose() {
     _saveTimer?.cancel();
-    _eventDebounce?.cancel();
     // Final save of all text fields on dispose
     final appState = context.read<AppStateProvider>();
     appState.updateScouterName(_nameController.text.trim());
     appState.updateSecretKey(_keyController.text.trim());
-    final suffix = _eventSuffixController.text.trim();
-    final combined = suffix.isNotEmpty
-        ? '${appState.settings.eventYear}$suffix'
-        : null;
-    appState.settings.selectedEventKey = combined;
     appState.persistTextFields();
     _nameController.dispose();
     _keyController.dispose();
-    _eventSuffixController.dispose();
+    _eventSearchController.dispose();
+    _eventSearchFocusNode.dispose();
     _confettiController.dispose();
     super.dispose();
   }
@@ -117,16 +110,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           // Secret Team Key
           TextField(
             controller: _keyController,
-            obscureText: _obscureKey,
-            decoration: InputDecoration(
+            decoration: const InputDecoration(
               labelText: 'Secret Team Key',
-              border: const OutlineInputBorder(),
-              prefixIcon: const Icon(Icons.key),
-              suffixIcon: IconButton(
-                icon: Icon(
-                    _obscureKey ? Icons.visibility : Icons.visibility_off),
-                onPressed: () => setState(() => _obscureKey = !_obscureKey),
-              ),
+              border: OutlineInputBorder(),
+              prefixIcon: Icon(Icons.key),
             ),
             onChanged: (_) => _debouncedSaveTextFields(),
           ),
@@ -151,12 +138,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           onSelected: (year) {
                             if (year != null) {
                               appState.setEventYear(year);
-                              // Recompute combined key with new year + current suffix
-                              final suffix =
-                                  _eventSuffixController.text.trim();
-                              if (suffix.isNotEmpty) {
-                                appState.setEventKey('$year$suffix');
-                              }
+                              // Clear event selection when year changes
+                              _eventSearchController.clear();
+                              appState.setEventKey('');
                             }
                           },
                           dropdownMenuEntries: List.generate(
@@ -181,88 +165,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   const SizedBox(height: 12),
 
-                  // Event code suffix field (year is shown as prefix)
-                  TextField(
-                    controller: _eventSuffixController,
-                    decoration: InputDecoration(
-                      labelText: 'Event Code',
-                      prefixText: '${settings.eventYear}',
-                      border: const OutlineInputBorder(),
-                      prefixIcon: const Icon(Icons.event),
-                      suffixIcon: _eventSuffixController.text.isNotEmpty
-                          ? IconButton(
-                              icon: const Icon(Icons.clear),
-                              onPressed: () {
-                                _eventSuffixController.clear();
-                                appState.setEventKey('');
-                                setState(() {});
-                              },
-                            )
-                          : null,
-                    ),
-                    onChanged: (v) {
-                      _eventDebounce?.cancel();
-                      _eventDebounce = Timer(
-                          const Duration(milliseconds: 150), () {
-                        final suffix = v.trim();
-                        final combined =
-                            '${settings.eventYear}$suffix';
-                        final match = appState.events
-                            .where((e) => e.key == combined);
-                        if (match.isNotEmpty) {
-                          appState.setEventKey(combined);
-                        } else {
-                          settings.selectedEventKey =
-                              suffix.isNotEmpty ? combined : null;
-                          settings.selectedEventName = null;
-                          _debouncedSaveTextFields();
-                        }
-                        setState(() {});
-                      });
-                    },
-                    onSubmitted: (v) {
-                      final suffix = v.trim();
-                      if (suffix.isNotEmpty) {
-                        appState.setEventKey(
-                            '${settings.eventYear}$suffix');
-                      }
-                    },
-                  ),
-                  // Combined code + event name display
-                  if (_eventSuffixController.text.trim().isNotEmpty)
+                  // Event search autocomplete
+                  _buildEventAutocomplete(appState, settings),
+
+                  if (settings.selectedEventKey != null &&
+                      settings.selectedEventKey!.isNotEmpty)
                     Padding(
                       padding: const EdgeInsets.only(top: 4, left: 12),
-                      child: Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text:
-                                  '${settings.eventYear}${_eventSuffixController.text.trim()}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .primary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                      child: Text(
+                        settings.selectedEventKey!,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodyMedium
+                            ?.copyWith(
+                              color: Theme.of(context).colorScheme.primary,
+                              fontWeight: FontWeight.bold,
                             ),
-                            if (settings.selectedEventName != null)
-                              TextSpan(
-                                text:
-                                    ' \u2014 ${settings.selectedEventName}',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .primary,
-                                    ),
-                              ),
-                          ],
-                        ),
                       ),
                     ),
                   const SizedBox(height: 12),
@@ -483,6 +401,88 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildEventAutocomplete(AppStateProvider appState, AppSettings settings) {
+    final yearEvents = appState.events
+        .where((e) => e.key.startsWith(settings.eventYear.toString()))
+        .toList();
+
+    return RawAutocomplete<TbaEvent>(
+      textEditingController: _eventSearchController,
+      focusNode: _eventSearchFocusNode,
+      optionsBuilder: (textEditingValue) {
+        final query = textEditingValue.text.trim().toLowerCase();
+        if (query.isEmpty) return yearEvents;
+        return yearEvents.where((e) =>
+            e.name.toLowerCase().contains(query) ||
+            e.key.toLowerCase().contains(query));
+      },
+      displayStringForOption: (e) => e.name,
+      onSelected: (event) {
+        appState.setEventKey(event.key);
+        _eventSearchController.text = event.name;
+      },
+      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+        return TextField(
+          controller: controller,
+          focusNode: focusNode,
+          decoration: InputDecoration(
+            labelText: 'Search Events',
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.event),
+            suffixIcon: controller.text.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.clear),
+                    onPressed: () {
+                      controller.clear();
+                      appState.setEventKey('');
+                      setState(() {});
+                    },
+                  )
+                : null,
+          ),
+          onTap: () {
+            if (controller.text.isNotEmpty) {
+              controller.selection = TextSelection(
+                baseOffset: 0,
+                extentOffset: controller.text.length,
+              );
+            }
+          },
+        );
+      },
+      optionsViewBuilder: (context, onSelected, options) {
+        return Align(
+          alignment: Alignment.topLeft,
+          child: Material(
+            elevation: 4,
+            borderRadius: BorderRadius.circular(8),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 300),
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                shrinkWrap: true,
+                itemCount: options.length,
+                itemBuilder: (context, index) {
+                  final event = options.elementAt(index);
+                  final isSelected = event.key == settings.selectedEventKey;
+                  return ListTile(
+                    dense: true,
+                    selected: isSelected,
+                    title: Text(event.name),
+                    subtitle: Text(
+                      '${event.key}${event.city != null ? ' \u2014 ${event.city}, ${event.stateProv ?? ''}' : ''}',
+                    ),
+                    onTap: () => onSelected(event),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
