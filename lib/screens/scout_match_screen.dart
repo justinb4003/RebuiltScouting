@@ -232,7 +232,10 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                           const SizedBox(height: 12),
                           FilledButton.icon(
                             onPressed: scouting.selectedTeamNumber != null
-                                ? () => scouting.beginScouting()
+                                ? () {
+                                    _tabController.index = 0;
+                                    scouting.beginScouting();
+                                  }
                                 : null,
                             icon: const Icon(Icons.play_arrow),
                             label: const Text('Begin Scouting'),
@@ -513,6 +516,33 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   onSelectionChanged: (v) => scouting.updateField(
                       () => scouting.autoTowerLevel = v.first),
                 ),
+                const SizedBox(height: 8),
+                CounterButton(
+                  label: 'Middle Pickup',
+                  value: scouting.autoMiddlePickup,
+                  showBulkButtons: false,
+                  enableHaptic: appState.settings.hapticEnabled,
+                  onChanged: (v) => scouting
+                      .updateField(() => scouting.autoMiddlePickup = v),
+                ),
+                const SizedBox(height: 8),
+                CounterButton(
+                  label: 'Depot Pickup',
+                  value: scouting.autoDepotPickup,
+                  showBulkButtons: false,
+                  enableHaptic: appState.settings.hapticEnabled,
+                  onChanged: (v) => scouting
+                      .updateField(() => scouting.autoDepotPickup = v),
+                ),
+                const SizedBox(height: 8),
+                CounterButton(
+                  label: 'Human Station Pickup',
+                  value: scouting.autoHumanStationPickup,
+                  showBulkButtons: false,
+                  enableHaptic: appState.settings.hapticEnabled,
+                  onChanged: (v) => scouting
+                      .updateField(() => scouting.autoHumanStationPickup = v),
+                ),
               ],
             ),
           ),
@@ -560,12 +590,12 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                       .updateField(() => scouting.teleopFuelMissed = v),
                 ),
                 CounterButton(
-                  label: 'Bump Crossings',
-                  value: scouting.teleopBumpCrossings,
+                  label: 'Ramp Crossings',
+                  value: scouting.teleopRampCrossings,
                   showBulkButtons: false,
                   enableHaptic: appState.settings.hapticEnabled,
                   onChanged: (v) => scouting
-                      .updateField(() => scouting.teleopBumpCrossings = v),
+                      .updateField(() => scouting.teleopRampCrossings = v),
                 ),
                 const SizedBox(height: 8),
                 CounterButton(
@@ -740,14 +770,29 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                     );
                     if (result.success) {
                       final nextMatch = scouting.matchNumber + 1;
+                      final prevRobotIndex = _selectedRobotIndex;
                       _notesController.clear();
                       scouting.resetForm();
                       _matchController.text = '$nextMatch';
+                      final nextMatchData = _findMatch(
+                          appState.matches, nextMatch);
                       setState(() {
-                        _selectedMatch = _findMatch(
-                            appState.matches, nextMatch);
-                        _selectedRobotIndex = null;
+                        _selectedMatch = nextMatchData;
+                        _selectedRobotIndex = prevRobotIndex;
                       });
+                      // Auto-select the same robot position in the next match
+                      if (nextMatchData != null && prevRobotIndex != null) {
+                        final isRed = prevRobotIndex < 3;
+                        final pos = isRed ? prevRobotIndex : prevRobotIndex - 3;
+                        final teamList = isRed
+                            ? nextMatchData.redTeams
+                            : nextMatchData.blueTeams;
+                        if (pos < teamList.length) {
+                          final teamNum = int.tryParse(teamList[pos]);
+                          scouting.updateField(
+                              () => scouting.selectedTeamNumber = teamNum);
+                        }
+                      }
                     }
                   },
             icon: scouting.submitting

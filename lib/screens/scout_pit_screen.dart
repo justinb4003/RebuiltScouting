@@ -84,16 +84,16 @@ class ScoutPitScreen extends StatelessWidget {
             // Capabilities
             Container(
               decoration: BoxDecoration(
-                color: pit.canCrossBump
+                color: pit.canCrossRamp
                     ? theme.colorScheme.primaryContainer.withValues(alpha: 0.4)
                     : null,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: SwitchListTile(
-                title: const Text('Can Cross Bump'),
-                value: pit.canCrossBump,
+                title: const Text('Can Cross Ramp'),
+                value: pit.canCrossRamp,
                 onChanged: (v) =>
-                    pit.updateField(() => pit.canCrossBump = v),
+                    pit.updateField(() => pit.canCrossRamp = v),
               ),
             ),
             Container(

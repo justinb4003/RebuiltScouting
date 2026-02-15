@@ -18,11 +18,14 @@ class ScoutingProvider extends ChangeNotifier {
   int autoFuelScored = 0;
   int autoFuelMissed = 0;
   int autoTowerLevel = 0;
+  int autoMiddlePickup = 0;
+  int autoDepotPickup = 0;
+  int autoHumanStationPickup = 0;
 
   // Teleop
   int teleopFuelScored = 0;
   int teleopFuelMissed = 0;
-  int teleopBumpCrossings = 0;
+  int teleopRampCrossings = 0;
   int teleopTrenchCrossings = 0;
 
   // Endgame
@@ -52,9 +55,12 @@ class ScoutingProvider extends ChangeNotifier {
     autoFuelScored = 0;
     autoFuelMissed = 0;
     autoTowerLevel = 0;
+    autoMiddlePickup = 0;
+    autoDepotPickup = 0;
+    autoHumanStationPickup = 0;
     teleopFuelScored = 0;
     teleopFuelMissed = 0;
-    teleopBumpCrossings = 0;
+    teleopRampCrossings = 0;
     teleopTrenchCrossings = 0;
     endgameTowerLevel = 0;
     fuelGroundPickup = false;
@@ -93,9 +99,12 @@ class ScoutingProvider extends ChangeNotifier {
       autoFuelScored: autoFuelScored,
       autoFuelMissed: autoFuelMissed,
       autoTowerLevel: autoTowerLevel,
+      autoMiddlePickup: autoMiddlePickup,
+      autoDepotPickup: autoDepotPickup,
+      autoHumanStationPickup: autoHumanStationPickup,
       teleopFuelScored: teleopFuelScored,
       teleopFuelMissed: teleopFuelMissed,
-      teleopBumpCrossings: teleopBumpCrossings,
+      teleopRampCrossings: teleopRampCrossings,
       teleopTrenchCrossings: teleopTrenchCrossings,
       endgameTowerLevel: endgameTowerLevel,
       fuelGroundPickup: fuelGroundPickup,
