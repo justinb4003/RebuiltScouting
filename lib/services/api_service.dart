@@ -8,7 +8,7 @@ import '../models/pit_result.dart';
 
 class ApiService {
   static const String baseUrl =
-      'http://localhost:7071/api';
+      'https://trisonics-scouting-api.azurewebsites.net/api';
   static const _timeout = Duration(seconds: 10);
 
   Future<List<TbaEvent>> getEvents(int year) async {
