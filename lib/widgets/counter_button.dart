@@ -79,6 +79,26 @@ class CounterButton extends StatelessWidget {
             children: [
               FilledButton(
                 onPressed:
+                    value - 10 >= min ? () => _change(value - 10) : null,
+                style: FilledButton.styleFrom(
+                  minimumSize: bulkBtnSize,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
+                child: const Text('-10', style: TextStyle(fontSize: 16)),
+              ),
+              const SizedBox(width: 12),
+              FilledButton(
+                onPressed:
+                    value - 5 >= min ? () => _change(value - 5) : null,
+                style: FilledButton.styleFrom(
+                  minimumSize: bulkBtnSize,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
+                child: const Text('-5', style: TextStyle(fontSize: 16)),
+              ),
+              const SizedBox(width: 12),
+              FilledButton(
+                onPressed:
                     value + 5 <= max ? () => _change(value + 5) : null,
                 style: FilledButton.styleFrom(
                   minimumSize: bulkBtnSize,
