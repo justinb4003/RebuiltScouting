@@ -38,5 +38,6 @@ class AppTheme {
   // Section colors for scouting phases
   static const autoColor = Color(0xFF1565C0); // Blue
   static const teleopColor = Color(0xFF2E7D32); // Green
-  static const endgameColor = Color(0xFFE65100); // Orange
+  static const teleopInactiveColor = Color(0xFFE65100); // Orange
+  static const endgameColor = Color(0xFFC62828); // Red
 }

@@ -31,6 +31,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
   static const _tabColors = [
     AppTheme.autoColor,
     AppTheme.teleopColor,
+    AppTheme.teleopInactiveColor,
     AppTheme.endgameColor,
   ];
 
@@ -39,7 +40,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
     super.initState();
     _confettiController =
         ConfettiController(duration: const Duration(milliseconds: 400));
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
         setState(() {});
@@ -311,11 +312,13 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                 TabBar(
                   controller: _tabController,
                   indicatorColor: _tabColors[_tabController.index],
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.center,
                   tabs: List.generate(
-                    3,
+                    4,
                     (i) => Tab(
                       child: Text(
-                        const ['Auto', 'Teleop', 'Endgame'][i],
+                        const ['Auto', 'Teleop Active', 'Teleop Inactive', 'Endgame'][i],
                         style: TextStyle(
                           color: _tabColors[i],
                           fontWeight: _tabController.index == i
@@ -334,7 +337,9 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                       _KeepAliveTab(
                           child: _buildAutoTab(scouting, appState, theme)),
                       _KeepAliveTab(
-                          child: _buildTeleopTab(scouting, appState, theme)),
+                          child: _buildTeleopActiveTab(scouting, appState, theme)),
+                      _KeepAliveTab(
+                          child: _buildTeleopInactiveTab(scouting, appState, theme)),
                       _KeepAliveTab(
                           child: _buildEndgameTab(scouting, appState, theme)),
                     ],
@@ -552,7 +557,70 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
     );
   }
 
-  Widget _buildTeleopTab(
+  Widget _buildDefenseControls({
+    required ScoutingProvider scouting,
+    required ThemeData theme,
+    required String defenseTime,
+    required ValueChanged<String> onDefenseTimeChanged,
+    required String defenseQuality,
+    required ValueChanged<String> onDefenseQualityChanged,
+  }) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Defense Time',
+                      style: theme.textTheme.titleMedium),
+                  for (final option in const ['N/A', '0%', '25%', '50%', '100%'])
+                    RadioListTile<String>(
+                      title: Text(option),
+                      value: option,
+                      groupValue: defenseTime,
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      onChanged: (v) => onDefenseTimeChanged(v!),
+                    ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Defense Quality',
+                      style: theme.textTheme.titleMedium),
+                  for (final option in const [
+                    'N/A',
+                    'Non-effective',
+                    'Poor',
+                    'OK',
+                    'Good',
+                    'Great'
+                  ])
+                    RadioListTile<String>(
+                      title: Text(option),
+                      value: option,
+                      groupValue: defenseQuality,
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      onChanged: (v) => onDefenseQualityChanged(v!),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTeleopActiveTab(
       ScoutingProvider scouting, AppStateProvider appState, ThemeData theme) {
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -567,7 +635,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
             padding: const EdgeInsets.all(16),
             child: Column(
               children: [
-                Text('Teleop',
+                Text('Teleop Active',
                     style: theme.textTheme.titleMedium
                         ?.copyWith(color: AppTheme.teleopColor)),
                 const SizedBox(height: 12),
@@ -605,6 +673,67 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
               ],
             ),
           ),
+        ),
+        const SizedBox(height: 16),
+        _buildDefenseControls(
+          scouting: scouting,
+          theme: theme,
+          defenseTime: scouting.teleopActiveDefenseTime,
+          onDefenseTimeChanged: (v) => scouting
+              .updateField(() => scouting.teleopActiveDefenseTime = v),
+          defenseQuality: scouting.teleopActiveDefenseQuality,
+          onDefenseQualityChanged: (v) => scouting
+              .updateField(() => scouting.teleopActiveDefenseQuality = v),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTeleopInactiveTab(
+      ScoutingProvider scouting, AppStateProvider appState, ThemeData theme) {
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Card(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+            side: BorderSide(
+                color: AppTheme.teleopInactiveColor.withValues(alpha: 0.5)),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Text('Teleop Inactive',
+                    style: theme.textTheme.titleMedium
+                        ?.copyWith(color: AppTheme.teleopInactiveColor)),
+                const SizedBox(height: 12),
+                HighlightedSwitch(
+                  title: 'Scored Fuel',
+                  value: scouting.teleopInactiveScoredFuel,
+                  onChanged: (v) => scouting
+                      .updateField(() => scouting.teleopInactiveScoredFuel = v),
+                ),
+                HighlightedSwitch(
+                  title: 'Collected Fuel',
+                  value: scouting.teleopInactiveCollectedFuel,
+                  onChanged: (v) => scouting
+                      .updateField(() => scouting.teleopInactiveCollectedFuel = v),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildDefenseControls(
+          scouting: scouting,
+          theme: theme,
+          defenseTime: scouting.teleopInactiveDefenseTime,
+          onDefenseTimeChanged: (v) => scouting
+              .updateField(() => scouting.teleopInactiveDefenseTime = v),
+          defenseQuality: scouting.teleopInactiveDefenseQuality,
+          onDefenseQualityChanged: (v) => scouting
+              .updateField(() => scouting.teleopInactiveDefenseQuality = v),
         ),
       ],
     );
@@ -647,29 +776,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
         ),
         const SizedBox(height: 16),
 
-        // Defense
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              children: [
-                Text('Defense Rating: ${scouting.defenseRating}',
-                    style: theme.textTheme.bodyLarge),
-                Slider(
-                  value: scouting.defenseRating.toDouble(),
-                  min: 0,
-                  max: 5,
-                  divisions: 5,
-                  label: '${scouting.defenseRating}',
-                  onChanged: (v) => scouting
-                      .updateField(() => scouting.defenseRating = v.round()),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
-
         // Notes
         TextField(
           controller: _notesController,
@@ -680,6 +786,11 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
           maxLines: 3,
           onChanged: (v) =>
               scouting.updateField(() => scouting.matchNotes = v),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Instructions placeholder: detailed scouting guidelines will go here.',
+          style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
         ),
         const SizedBox(height: 16),
 

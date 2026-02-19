@@ -25,6 +25,11 @@ class ScoutingProvider extends ChangeNotifier {
   // Teleop
   int teleopFuelScored = 0;
   int teleopFuelMissed = 0;
+
+  // Teleop Inactive
+  bool teleopInactiveScoredFuel = false;
+  bool teleopInactiveCollectedFuel = false;
+
   // Endgame
   int endgameTowerLevel = 0;
 
@@ -32,9 +37,16 @@ class ScoutingProvider extends ChangeNotifier {
   bool fuelGroundPickup = false;
   bool fuelHumanPickup = false;
 
+  // Defense - Teleop Active
+  String teleopActiveDefenseTime = 'N/A';
+  String teleopActiveDefenseQuality = 'N/A';
+
+  // Defense - Teleop Inactive
+  String teleopInactiveDefenseTime = 'N/A';
+  String teleopInactiveDefenseQuality = 'N/A';
+
   // General
   String matchNotes = '';
-  int defenseRating = 0;
 
   bool _submitting = false;
   bool get submitting => _submitting;
@@ -57,11 +69,16 @@ class ScoutingProvider extends ChangeNotifier {
     autoHumanStationPickup = 0;
     teleopFuelScored = 0;
     teleopFuelMissed = 0;
+    teleopInactiveScoredFuel = false;
+    teleopInactiveCollectedFuel = false;
     endgameTowerLevel = 0;
     fuelGroundPickup = false;
     fuelHumanPickup = false;
+    teleopActiveDefenseTime = 'N/A';
+    teleopActiveDefenseQuality = 'N/A';
+    teleopInactiveDefenseTime = 'N/A';
+    teleopInactiveDefenseQuality = 'N/A';
     matchNotes = '';
-    defenseRating = 0;
     selectedTeamNumber = null;
     if (!wasPractice) matchNumber++;
     notifyListeners();
@@ -99,11 +116,16 @@ class ScoutingProvider extends ChangeNotifier {
       autoHumanStationPickup: autoHumanStationPickup,
       teleopFuelScored: teleopFuelScored,
       teleopFuelMissed: teleopFuelMissed,
+      teleopInactiveScoredFuel: teleopInactiveScoredFuel,
+      teleopInactiveCollectedFuel: teleopInactiveCollectedFuel,
       endgameTowerLevel: endgameTowerLevel,
       fuelGroundPickup: fuelGroundPickup,
       fuelHumanPickup: fuelHumanPickup,
+      teleopActiveDefenseTime: teleopActiveDefenseTime,
+      teleopActiveDefenseQuality: teleopActiveDefenseQuality,
+      teleopInactiveDefenseTime: teleopInactiveDefenseTime,
+      teleopInactiveDefenseQuality: teleopInactiveDefenseQuality,
       matchNotes: matchNotes,
-      defenseRating: defenseRating,
     );
 
     // Always cache first

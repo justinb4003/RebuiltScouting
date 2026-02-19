@@ -20,6 +20,10 @@ class ScoutResult {
   // Teleop phase
   int teleopFuelScored;
   int teleopFuelMissed;
+  // Teleop Inactive
+  bool teleopInactiveScoredFuel;
+  bool teleopInactiveCollectedFuel;
+
   // Endgame
   int endgameTowerLevel; // 0=none, 1=L1, 2=L2, 3=L3
 
@@ -27,9 +31,16 @@ class ScoutResult {
   bool fuelGroundPickup;
   bool fuelHumanPickup;
 
+  // Defense - Teleop Active
+  String teleopActiveDefenseTime;
+  String teleopActiveDefenseQuality;
+
+  // Defense - Teleop Inactive
+  String teleopInactiveDefenseTime;
+  String teleopInactiveDefenseQuality;
+
   // General
   String matchNotes;
-  int defenseRating; // 0-5
 
   final DateTime timestamp;
 
@@ -49,11 +60,16 @@ class ScoutResult {
     this.autoHumanStationPickup = 0,
     this.teleopFuelScored = 0,
     this.teleopFuelMissed = 0,
+    this.teleopInactiveScoredFuel = false,
+    this.teleopInactiveCollectedFuel = false,
     this.endgameTowerLevel = 0,
     this.fuelGroundPickup = false,
     this.fuelHumanPickup = false,
+    this.teleopActiveDefenseTime = 'N/A',
+    this.teleopActiveDefenseQuality = 'N/A',
+    this.teleopInactiveDefenseTime = 'N/A',
+    this.teleopInactiveDefenseQuality = 'N/A',
     this.matchNotes = '',
-    this.defenseRating = 0,
     DateTime? timestamp,
   })  : id = id ?? const Uuid().v4(),
         timestamp = timestamp ?? DateTime.now();
@@ -74,11 +90,16 @@ class ScoutResult {
         'auto_human_station_pickup': autoHumanStationPickup,
         'teleop_fuel_scored': teleopFuelScored,
         'teleop_fuel_missed': teleopFuelMissed,
+        'teleop_inactive_scored_fuel': teleopInactiveScoredFuel,
+        'teleop_inactive_collected_fuel': teleopInactiveCollectedFuel,
         'endgame_tower_level': endgameTowerLevel,
         'fuel_ground_pickup': fuelGroundPickup,
         'fuel_human_pickup': fuelHumanPickup,
+        'teleop_active_defense_time': teleopActiveDefenseTime,
+        'teleop_active_defense_quality': teleopActiveDefenseQuality,
+        'teleop_inactive_defense_time': teleopInactiveDefenseTime,
+        'teleop_inactive_defense_quality': teleopInactiveDefenseQuality,
         'match_notes': matchNotes,
-        'defense_rating': defenseRating,
         'timestamp': timestamp.toIso8601String(),
       };
 
@@ -98,11 +119,16 @@ class ScoutResult {
         autoHumanStationPickup: json['auto_human_station_pickup'] ?? 0,
         teleopFuelScored: json['teleop_fuel_scored'] ?? 0,
         teleopFuelMissed: json['teleop_fuel_missed'] ?? 0,
+        teleopInactiveScoredFuel: json['teleop_inactive_scored_fuel'] ?? false,
+        teleopInactiveCollectedFuel: json['teleop_inactive_collected_fuel'] ?? false,
         endgameTowerLevel: json['endgame_tower_level'] ?? 0,
         fuelGroundPickup: json['fuel_ground_pickup'] ?? false,
         fuelHumanPickup: json['fuel_human_pickup'] ?? false,
+        teleopActiveDefenseTime: json['teleop_active_defense_time'] ?? '',
+        teleopActiveDefenseQuality: json['teleop_active_defense_quality'] ?? '',
+        teleopInactiveDefenseTime: json['teleop_inactive_defense_time'] ?? '',
+        teleopInactiveDefenseQuality: json['teleop_inactive_defense_quality'] ?? '',
         matchNotes: json['match_notes'] ?? '',
-        defenseRating: json['defense_rating'] ?? 0,
         timestamp: json['timestamp'] != null
             ? DateTime.parse(json['timestamp'])
             : DateTime.now(),
