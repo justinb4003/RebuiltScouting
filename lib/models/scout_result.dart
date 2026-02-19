@@ -18,8 +18,11 @@ class ScoutResult {
   int autoHumanStationPickup;
 
   // Teleop phase
+  int hopperSize;
   int teleopFuelScored;
   int teleopFuelMissed;
+  List<int> volleyScoredList;
+  List<int> volleyMissedList;
   // Teleop Inactive
   bool teleopInactiveScoredFuel;
   bool teleopInactiveCollectedFuel;
@@ -58,8 +61,11 @@ class ScoutResult {
     this.autoMiddlePickup = 0,
     this.autoDepotPickup = 0,
     this.autoHumanStationPickup = 0,
+    this.hopperSize = 50,
     this.teleopFuelScored = 0,
     this.teleopFuelMissed = 0,
+    List<int>? volleyScoredList,
+    List<int>? volleyMissedList,
     this.teleopInactiveScoredFuel = false,
     this.teleopInactiveCollectedFuel = false,
     this.endgameTowerLevel = 0,
@@ -72,6 +78,8 @@ class ScoutResult {
     this.matchNotes = '',
     DateTime? timestamp,
   })  : id = id ?? const Uuid().v4(),
+        volleyScoredList = volleyScoredList ?? [],
+        volleyMissedList = volleyMissedList ?? [],
         timestamp = timestamp ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
@@ -88,8 +96,11 @@ class ScoutResult {
         'auto_middle_pickup': autoMiddlePickup,
         'auto_depot_pickup': autoDepotPickup,
         'auto_human_station_pickup': autoHumanStationPickup,
+        'hopper_size': hopperSize,
         'teleop_fuel_scored': teleopFuelScored,
         'teleop_fuel_missed': teleopFuelMissed,
+        'volley_scored_list': volleyScoredList,
+        'volley_missed_list': volleyMissedList,
         'teleop_inactive_scored_fuel': teleopInactiveScoredFuel,
         'teleop_inactive_collected_fuel': teleopInactiveCollectedFuel,
         'endgame_tower_level': endgameTowerLevel,
@@ -117,8 +128,11 @@ class ScoutResult {
         autoMiddlePickup: json['auto_middle_pickup'] ?? 0,
         autoDepotPickup: json['auto_depot_pickup'] ?? 0,
         autoHumanStationPickup: json['auto_human_station_pickup'] ?? 0,
+        hopperSize: json['hopper_size'] ?? 50,
         teleopFuelScored: json['teleop_fuel_scored'] ?? 0,
         teleopFuelMissed: json['teleop_fuel_missed'] ?? 0,
+        volleyScoredList: (json['volley_scored_list'] as List?)?.cast<int>(),
+        volleyMissedList: (json['volley_missed_list'] as List?)?.cast<int>(),
         teleopInactiveScoredFuel: json['teleop_inactive_scored_fuel'] ?? false,
         teleopInactiveCollectedFuel: json['teleop_inactive_collected_fuel'] ?? false,
         endgameTowerLevel: json['endgame_tower_level'] ?? 0,

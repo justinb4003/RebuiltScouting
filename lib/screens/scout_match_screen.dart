@@ -639,25 +639,94 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                     style: theme.textTheme.titleMedium
                         ?.copyWith(color: AppTheme.teleopColor)),
                 const SizedBox(height: 12),
-                CounterButton(
-                  label: 'Fuel Scored',
-                  value: scouting.teleopFuelScored,
-                  showBulkButtons: true,
-                  onTap: _fireConfetti,
-                  enableHaptic: appState.settings.hapticEnabled,
+                if (scouting.volleyScoredList.isNotEmpty) ...[
+                  Text('Volley Log', style: theme.textTheme.bodyMedium),
+                  const SizedBox(height: 4),
+                  Text(
+                    scouting.volleyLog,
+                    style: theme.textTheme.bodyLarge
+                        ?.copyWith(fontWeight: FontWeight.bold),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                Text('Hopper Size', style: theme.textTheme.bodyLarge),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    FilledButton.tonal(
+                      onPressed: scouting.hopperSize > 0
+                          ? () {
+                              scouting.updateField(() {
+                                scouting.hopperSize--;
+                                if (scouting.teleopFuelScored > scouting.hopperSize) {
+                                  scouting.teleopFuelScored = scouting.hopperSize;
+                                }
+                                if (scouting.teleopFuelMissed > scouting.hopperSize) {
+                                  scouting.teleopFuelMissed = scouting.hopperSize;
+                                }
+                              });
+                            }
+                          : null,
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(56, 56),
+                        padding: EdgeInsets.zero,
+                      ),
+                      child: const Icon(Icons.remove, size: 28),
+                    ),
+                    SizedBox(
+                      width: 80,
+                      child: Text(
+                        '${scouting.hopperSize}',
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.headlineMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    FilledButton.tonal(
+                      onPressed: () {
+                        scouting.updateField(() => scouting.hopperSize++);
+                      },
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(56, 56),
+                        padding: EdgeInsets.zero,
+                      ),
+                      child: const Icon(Icons.add, size: 28),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text('Fuel Scored: ${scouting.teleopFuelScored}',
+                    style: theme.textTheme.bodyLarge),
+                Slider(
+                  value: scouting.teleopFuelScored.toDouble(),
+                  min: 0,
+                  max: scouting.hopperSize.toDouble(),
+                  divisions: scouting.hopperSize > 0 ? scouting.hopperSize : 1,
+                  label: '${scouting.teleopFuelScored}',
                   onChanged: (v) => scouting
-                      .updateField(() => scouting.teleopFuelScored = v),
+                      .updateField(() => scouting.teleopFuelScored = v.round()),
                 ),
                 const SizedBox(height: 8),
-                CounterButton(
-                  label: 'Fuel Missed',
-                  value: scouting.teleopFuelMissed,
-                  showBulkButtons: true,
-                  onTap: _fireConfetti,
-                  enableHaptic: appState.settings.hapticEnabled,
+                Text('Fuel Missed: ${scouting.teleopFuelMissed}',
+                    style: theme.textTheme.bodyLarge),
+                Slider(
+                  value: scouting.teleopFuelMissed.toDouble(),
+                  min: 0,
+                  max: scouting.hopperSize.toDouble(),
+                  divisions: scouting.hopperSize > 0 ? scouting.hopperSize : 1,
+                  label: '${scouting.teleopFuelMissed}',
                   onChanged: (v) => scouting
-                      .updateField(() => scouting.teleopFuelMissed = v),
+                      .updateField(() => scouting.teleopFuelMissed = v.round()),
                 ),
+                const SizedBox(height: 8),
+                FilledButton.icon(
+                  onPressed: () => scouting.recordVolley(),
+                  icon: const Icon(Icons.add_task),
+                  label: const Text('Record Volley'),
+                ),
+                const SizedBox(height: 8),
                 HighlightedSwitch(
                   title: 'Ground Pickup',
                   value: scouting.fuelGroundPickup,

@@ -23,8 +23,11 @@ class ScoutingProvider extends ChangeNotifier {
   int autoHumanStationPickup = 0;
 
   // Teleop
+  int hopperSize = 50;
   int teleopFuelScored = 0;
   int teleopFuelMissed = 0;
+  List<int> volleyScoredList = [];
+  List<int> volleyMissedList = [];
 
   // Teleop Inactive
   bool teleopInactiveScoredFuel = false;
@@ -67,8 +70,11 @@ class ScoutingProvider extends ChangeNotifier {
     autoMiddlePickup = 0;
     autoDepotPickup = 0;
     autoHumanStationPickup = 0;
+    hopperSize = 50;
     teleopFuelScored = 0;
     teleopFuelMissed = 0;
+    volleyScoredList = [];
+    volleyMissedList = [];
     teleopInactiveScoredFuel = false;
     teleopInactiveCollectedFuel = false;
     endgameTowerLevel = 0;
@@ -82,6 +88,22 @@ class ScoutingProvider extends ChangeNotifier {
     selectedTeamNumber = null;
     if (!wasPractice) matchNumber++;
     notifyListeners();
+  }
+
+  void recordVolley() {
+    volleyScoredList.add(teleopFuelScored);
+    volleyMissedList.add(teleopFuelMissed);
+    teleopFuelScored = 0;
+    teleopFuelMissed = 0;
+    notifyListeners();
+  }
+
+  String get volleyLog {
+    final entries = <String>[];
+    for (var i = 0; i < volleyScoredList.length; i++) {
+      entries.add('${volleyScoredList[i]} in, ${volleyMissedList[i]} missed');
+    }
+    return entries.join(' \u2022 ');
   }
 
   void updateField(VoidCallback update) {
@@ -114,8 +136,11 @@ class ScoutingProvider extends ChangeNotifier {
       autoMiddlePickup: autoMiddlePickup,
       autoDepotPickup: autoDepotPickup,
       autoHumanStationPickup: autoHumanStationPickup,
-      teleopFuelScored: teleopFuelScored,
-      teleopFuelMissed: teleopFuelMissed,
+      hopperSize: hopperSize,
+      teleopFuelScored: volleyScoredList.fold(0, (a, b) => a + b),
+      teleopFuelMissed: volleyMissedList.fold(0, (a, b) => a + b),
+      volleyScoredList: List.of(volleyScoredList),
+      volleyMissedList: List.of(volleyMissedList),
       teleopInactiveScoredFuel: teleopInactiveScoredFuel,
       teleopInactiveCollectedFuel: teleopInactiveCollectedFuel,
       endgameTowerLevel: endgameTowerLevel,
