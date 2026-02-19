@@ -590,24 +590,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   onChanged: (v) => scouting
                       .updateField(() => scouting.teleopFuelMissed = v),
                 ),
-                const SizedBox(height: 8),
-                CounterButton(
-                  label: 'Ramp Crossings',
-                  value: scouting.teleopRampCrossings,
-                  showBulkButtons: false,
-                  enableHaptic: appState.settings.hapticEnabled,
-                  onChanged: (v) => scouting
-                      .updateField(() => scouting.teleopRampCrossings = v),
-                ),
-                const SizedBox(height: 8),
-                CounterButton(
-                  label: 'Trench Crossings',
-                  value: scouting.teleopTrenchCrossings,
-                  showBulkButtons: false,
-                  enableHaptic: appState.settings.hapticEnabled,
-                  onChanged: (v) => scouting
-                      .updateField(() => scouting.teleopTrenchCrossings = v),
-                ),
                 HighlightedSwitch(
                   title: 'Ground Pickup',
                   value: scouting.fuelGroundPickup,

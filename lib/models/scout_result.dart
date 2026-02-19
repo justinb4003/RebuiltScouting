@@ -20,9 +20,6 @@ class ScoutResult {
   // Teleop phase
   int teleopFuelScored;
   int teleopFuelMissed;
-  int teleopRampCrossings;
-  int teleopTrenchCrossings;
-
   // Endgame
   int endgameTowerLevel; // 0=none, 1=L1, 2=L2, 3=L3
 
@@ -52,8 +49,6 @@ class ScoutResult {
     this.autoHumanStationPickup = 0,
     this.teleopFuelScored = 0,
     this.teleopFuelMissed = 0,
-    this.teleopRampCrossings = 0,
-    this.teleopTrenchCrossings = 0,
     this.endgameTowerLevel = 0,
     this.fuelGroundPickup = false,
     this.fuelHumanPickup = false,
@@ -79,8 +74,6 @@ class ScoutResult {
         'auto_human_station_pickup': autoHumanStationPickup,
         'teleop_fuel_scored': teleopFuelScored,
         'teleop_fuel_missed': teleopFuelMissed,
-        'teleop_ramp_crossings': teleopRampCrossings,
-        'teleop_trench_crossings': teleopTrenchCrossings,
         'endgame_tower_level': endgameTowerLevel,
         'fuel_ground_pickup': fuelGroundPickup,
         'fuel_human_pickup': fuelHumanPickup,
@@ -105,8 +98,6 @@ class ScoutResult {
         autoHumanStationPickup: json['auto_human_station_pickup'] ?? 0,
         teleopFuelScored: json['teleop_fuel_scored'] ?? 0,
         teleopFuelMissed: json['teleop_fuel_missed'] ?? 0,
-        teleopRampCrossings: json['teleop_ramp_crossings'] ?? 0,
-        teleopTrenchCrossings: json['teleop_trench_crossings'] ?? 0,
         endgameTowerLevel: json['endgame_tower_level'] ?? 0,
         fuelGroundPickup: json['fuel_ground_pickup'] ?? false,
         fuelHumanPickup: json['fuel_human_pickup'] ?? false,

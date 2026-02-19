@@ -85,18 +85,6 @@ class ScoutPitScreen extends StatelessWidget {
 
             // Capabilities
             HighlightedSwitch(
-              title: 'Can Cross Ramp',
-              value: pit.canCrossRamp,
-              onChanged: (v) =>
-                  pit.updateField(() => pit.canCrossRamp = v),
-            ),
-            HighlightedSwitch(
-              title: 'Can Enter Trench',
-              value: pit.canEnterTrench,
-              onChanged: (v) =>
-                  pit.updateField(() => pit.canEnterTrench = v),
-            ),
-            HighlightedSwitch(
               title: 'Ground Pickup',
               value: pit.groundPickup,
               onChanged: (v) =>

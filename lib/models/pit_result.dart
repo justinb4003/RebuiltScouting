@@ -8,8 +8,6 @@ class PitResult {
   final int teamNumber;
   String driveTrain; // Swerve, Tank, Mecanum, Other
   String driveTrainOther;
-  bool canCrossRamp;
-  bool canEnterTrench;
   bool groundPickup;
   bool humanPlayerPickup;
   int fuelCapacity;
@@ -25,8 +23,6 @@ class PitResult {
     required this.teamNumber,
     this.driveTrain = 'Swerve',
     this.driveTrainOther = '',
-    this.canCrossRamp = false,
-    this.canEnterTrench = false,
     this.groundPickup = false,
     this.humanPlayerPickup = false,
     this.fuelCapacity = 0,
@@ -44,8 +40,6 @@ class PitResult {
         'team_number': teamNumber,
         'drive_train': driveTrain,
         'drive_train_other': driveTrainOther,
-        'can_cross_ramp': canCrossRamp,
-        'can_enter_trench': canEnterTrench,
         'ground_pickup': groundPickup,
         'human_player_pickup': humanPlayerPickup,
         'fuel_capacity': fuelCapacity,
@@ -62,8 +56,6 @@ class PitResult {
         teamNumber: json['team_number'] ?? 0,
         driveTrain: json['drive_train'] ?? 'Swerve',
         driveTrainOther: json['drive_train_other'] ?? '',
-        canCrossRamp: json['can_cross_ramp'] ?? false,
-        canEnterTrench: json['can_enter_trench'] ?? false,
         groundPickup: json['ground_pickup'] ?? false,
         humanPlayerPickup: json['human_player_pickup'] ?? false,
         fuelCapacity: json['fuel_capacity'] ?? 0,

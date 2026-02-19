@@ -13,8 +13,6 @@ class PitProvider extends ChangeNotifier {
   int? selectedTeamNumber;
   String driveTrain = 'Swerve';
   String driveTrainOther = '';
-  bool canCrossRamp = false;
-  bool canEnterTrench = false;
   bool groundPickup = false;
   bool humanPlayerPickup = false;
   int fuelCapacity = 0;
@@ -31,8 +29,6 @@ class PitProvider extends ChangeNotifier {
   void resetForm() {
     driveTrain = 'Swerve';
     driveTrainOther = '';
-    canCrossRamp = false;
-    canEnterTrench = false;
     groundPickup = false;
     humanPlayerPickup = false;
     fuelCapacity = 0;
@@ -106,8 +102,6 @@ class PitProvider extends ChangeNotifier {
       teamNumber: selectedTeamNumber!,
       driveTrain: driveTrain,
       driveTrainOther: driveTrainOther,
-      canCrossRamp: canCrossRamp,
-      canEnterTrench: canEnterTrench,
       groundPickup: groundPickup,
       humanPlayerPickup: humanPlayerPickup,
       fuelCapacity: fuelCapacity,
