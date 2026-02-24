@@ -1,5 +1,3 @@
-import 'dart:math';
-import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/tba_match.dart';
@@ -7,6 +5,7 @@ import '../models/tba_team.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/scouting_provider.dart';
 import '../theme.dart';
+import '../widgets/confetti_overlay.dart';
 import '../widgets/counter_button.dart';
 import '../widgets/fixed_segmented_button.dart';
 import '../widgets/highlighted_switch.dart';
@@ -21,7 +20,7 @@ class ScoutMatchScreen extends StatefulWidget {
 
 class _ScoutMatchScreenState extends State<ScoutMatchScreen>
     with SingleTickerProviderStateMixin {
-  late ConfettiController _confettiController;
+  final _confettiKey = GlobalKey<ConfettiOverlayState>();
   late TabController _tabController;
   final TextEditingController _matchController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
@@ -38,8 +37,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
   @override
   void initState() {
     super.initState();
-    _confettiController =
-        ConfettiController(duration: const Duration(milliseconds: 400));
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
@@ -50,7 +47,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
 
   @override
   void dispose() {
-    _confettiController.dispose();
     _matchController.dispose();
     _notesController.dispose();
     _tabController.dispose();
@@ -60,8 +56,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
   void _fireConfetti() {
     final settings = context.read<AppStateProvider>().settings;
     if (!settings.confettiEnabled) return;
-    _confettiController.stop();
-    _confettiController.play();
+    _confettiKey.currentState?.fire();
   }
 
   TbaMatch? _findMatch(List<TbaMatch> matches, int matchNumber) {
@@ -347,27 +342,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                 ),
               ],
             ),
-          // Confetti overlay
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConfettiWidget(
-              confettiController: _confettiController,
-              blastDirection: pi / 2,
-              blastDirectionality: BlastDirectionality.explosive,
-              numberOfParticles: 15,
-              maxBlastForce: 20,
-              minBlastForce: 5,
-              gravity: 0.3,
-              colors: const [
-                Colors.blue,
-                Colors.green,
-                Colors.orange,
-                Colors.red,
-                Colors.purple,
-                Colors.yellow,
-              ],
-            ),
-          ),
+          ConfettiOverlay(key: _confettiKey),
         ],
       ),
     );

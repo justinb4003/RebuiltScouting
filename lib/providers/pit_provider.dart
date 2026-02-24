@@ -2,12 +2,13 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
 import '../models/pit_result.dart';
+import '../models/submit_result.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 
 class PitProvider extends ChangeNotifier {
-  final ApiService _api = ApiService();
-  final StorageService _storage = StorageService();
+  final ApiService _api = ApiService.instance;
+  final StorageService _storage = StorageService.instance;
   final ImagePicker _picker = ImagePicker();
 
   int? selectedTeamNumber;
@@ -44,24 +45,12 @@ class PitProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> pickPhoto() async {
-    final XFile? image = await _picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1024,
-      maxHeight: 1024,
-      imageQuality: 80,
-    );
-    if (image != null) {
-      final bytes = await image.readAsBytes();
-      photoBytes = bytes;
-      photoBase64 = base64Encode(bytes);
-      notifyListeners();
-    }
-  }
+  Future<void> pickPhoto() => _pickImage(ImageSource.gallery);
+  Future<void> capturePhoto() => _pickImage(ImageSource.camera);
 
-  Future<void> capturePhoto() async {
+  Future<void> _pickImage(ImageSource source) async {
     final XFile? image = await _picker.pickImage(
-      source: ImageSource.camera,
+      source: source,
       maxWidth: 1024,
       maxHeight: 1024,
       imageQuality: 80,
@@ -83,13 +72,13 @@ class PitProvider extends ChangeNotifier {
     }
   }
 
-  Future<SubmitPitResult> submit({
+  Future<SubmitResult> submit({
     required String scouterName,
     required String secretTeamKey,
     required String eventKey,
   }) async {
     if (selectedTeamNumber == null) {
-      return SubmitPitResult(success: false, message: 'No team selected');
+      return SubmitResult(success: false, message: 'No team selected');
     }
 
     _submitting = true;
@@ -117,25 +106,19 @@ class PitProvider extends ChangeNotifier {
         await _storage.removeHeldPitResult(result.id);
         _submitting = false;
         notifyListeners();
-        return SubmitPitResult(
+        return SubmitResult(
             success: true, message: 'Pit data submitted successfully!');
       } else {
         _submitting = false;
         notifyListeners();
-        return SubmitPitResult(
+        return SubmitResult(
             success: false, message: 'API error. Data saved locally.');
       }
     } catch (e) {
       _submitting = false;
       notifyListeners();
-      return SubmitPitResult(
+      return SubmitResult(
           success: false, message: 'Network error. Data saved locally.');
     }
   }
-}
-
-class SubmitPitResult {
-  final bool success;
-  final String message;
-  SubmitPitResult({required this.success, required this.message});
 }

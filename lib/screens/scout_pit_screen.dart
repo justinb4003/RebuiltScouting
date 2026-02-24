@@ -19,17 +19,6 @@ class ScoutPitScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(appState.settings.selectedEventName ?? 'Configure Event to Continue...'),
-        // TODO: Re-enable once scouted teams feature is ready
-        // actions: [
-        //   IconButton(
-        //     icon: const Icon(Icons.refresh),
-        //     tooltip: 'Load scouted teams',
-        //     onPressed: appState.settings.selectedEventKey != null
-        //         ? () =>
-        //             pit.loadScoutedTeams(appState.settings.selectedEventKey!)
-        //         : null,
-        //   ),
-        // ],
       ),
       drawer: const NavDrawer(selectedIndex: 1),
       body: ListView(

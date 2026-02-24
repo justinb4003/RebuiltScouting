@@ -7,6 +7,8 @@ import '../models/scout_result.dart';
 import '../models/pit_result.dart';
 
 class ApiService {
+  static final instance = ApiService();
+
   static const String baseUrl =
       'https://trisonics-scouting-api.azurewebsites.net/api';
   static const _timeout = Duration(seconds: 10);

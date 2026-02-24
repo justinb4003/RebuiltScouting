@@ -8,6 +8,8 @@ import '../models/scout_result.dart';
 import '../models/pit_result.dart';
 
 class StorageService {
+  static final instance = StorageService();
+
   static const String _settingsKey = 'app_settings';
   static const String _eventListKey = 'event_list';
   static const String _eventTeamsCacheKey = 'event_teams_cache';
@@ -62,14 +64,8 @@ class StorageService {
   }
 
   Future<void> cacheTeams(String eventKey, List<TbaTeam> teams) async {
-    final prefs = await SharedPreferences.getInstance();
-    final json = prefs.getString(_eventTeamsCacheKey);
-    Map<String, dynamic> cache = {};
-    if (json != null) {
-      cache = jsonDecode(json);
-    }
-    cache[eventKey] = teams.map((t) => t.toJson()).toList();
-    await prefs.setString(_eventTeamsCacheKey, jsonEncode(cache));
+    await _cachePerEvent(
+        _eventTeamsCacheKey, eventKey, teams.map((t) => t.toJson()).toList());
   }
 
   // Match list cache (per event)
@@ -87,14 +83,20 @@ class StorageService {
   }
 
   Future<void> cacheMatches(String eventKey, List<TbaMatch> matches) async {
+    await _cachePerEvent(_eventMatchesCacheKey, eventKey,
+        matches.map((m) => m.toJson()).toList());
+  }
+
+  Future<void> _cachePerEvent(
+      String cacheKey, String eventKey, List<Map<String, dynamic>> data) async {
     final prefs = await SharedPreferences.getInstance();
-    final json = prefs.getString(_eventMatchesCacheKey);
+    final json = prefs.getString(cacheKey);
     Map<String, dynamic> cache = {};
     if (json != null) {
       cache = jsonDecode(json);
     }
-    cache[eventKey] = matches.map((m) => m.toJson()).toList();
-    await prefs.setString(_eventMatchesCacheKey, jsonEncode(cache));
+    cache[eventKey] = data;
+    await prefs.setString(cacheKey, jsonEncode(cache));
   }
 
   Future<void> clearAll() async {

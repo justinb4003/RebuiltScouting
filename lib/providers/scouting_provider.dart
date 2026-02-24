@@ -1,11 +1,12 @@
 import 'package:flutter/foundation.dart';
 import '../models/scout_result.dart';
+import '../models/submit_result.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 
 class ScoutingProvider extends ChangeNotifier {
-  final ApiService _api = ApiService();
-  final StorageService _storage = StorageService();
+  final ApiService _api = ApiService.instance;
+  final StorageService _storage = StorageService.instance;
 
   // Form state
   int matchNumber = 1;
@@ -176,10 +177,4 @@ class ScoutingProvider extends ChangeNotifier {
           success: false, message: 'Network error. Data saved locally.');
     }
   }
-}
-
-class SubmitResult {
-  final bool success;
-  final String message;
-  SubmitResult({required this.success, required this.message});
 }

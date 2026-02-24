@@ -1,10 +1,9 @@
 import 'dart:async';
-import 'dart:math';
-import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/app_settings.dart';
 import '../models/tba_event.dart';
+import '../widgets/confetti_overlay.dart';
 import '../widgets/fixed_segmented_button.dart';
 import '../providers/app_state_provider.dart';
 import '../theme.dart';
@@ -22,14 +21,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _keyController;
   late TextEditingController _eventSearchController;
   final FocusNode _eventSearchFocusNode = FocusNode();
-  late ConfettiController _confettiController;
+  final _confettiKey = GlobalKey<ConfettiOverlayState>();
   Timer? _saveTimer;
 
   @override
   void initState() {
     super.initState();
-    _confettiController =
-        ConfettiController(duration: const Duration(milliseconds: 400));
     final appState = context.read<AppStateProvider>();
     final settings = appState.settings;
     _nameController = TextEditingController(text: settings.scouterName);
@@ -56,7 +53,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _keyController.dispose();
     _eventSearchController.dispose();
     _eventSearchFocusNode.dispose();
-    _confettiController.dispose();
     super.dispose();
   }
 
@@ -363,8 +359,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               settings.confettiEnabled = value;
               appState.saveAndNotify();
               if (value) {
-                _confettiController.stop();
-                _confettiController.play();
+                _confettiKey.currentState?.fire();
               }
             },
           ),
@@ -380,26 +375,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
-          Align(
-            alignment: Alignment.topCenter,
-            child: ConfettiWidget(
-              confettiController: _confettiController,
-              blastDirection: pi / 2,
-              blastDirectionality: BlastDirectionality.explosive,
-              numberOfParticles: 15,
-              maxBlastForce: 20,
-              minBlastForce: 5,
-              gravity: 0.3,
-              colors: const [
-                Colors.blue,
-                Colors.green,
-                Colors.orange,
-                Colors.red,
-                Colors.purple,
-                Colors.yellow,
-              ],
-            ),
-          ),
+          ConfettiOverlay(key: _confettiKey),
         ],
       ),
     );

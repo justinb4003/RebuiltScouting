@@ -15,8 +15,8 @@ class HeldDataScreen extends StatefulWidget {
 }
 
 class _HeldDataScreenState extends State<HeldDataScreen> {
-  final StorageService _storage = StorageService();
-  final ApiService _api = ApiService();
+  final StorageService _storage = StorageService.instance;
+  final ApiService _api = ApiService.instance;
 
   List<ScoutResult> _heldScout = [];
   List<PitResult> _heldPit = [];
@@ -37,40 +37,38 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
     });
   }
 
+  Future<(int, int)> _uploadItems<T>(
+    List<T> items,
+    Future<bool> Function(T) post,
+    Future<void> Function(String) remove,
+    String Function(T) getId,
+  ) async {
+    int success = 0, fail = 0;
+    for (final item in List.of(items)) {
+      try {
+        if (await post(item)) {
+          await remove(getId(item));
+          success++;
+        } else {
+          fail++;
+        }
+      } catch (_) {
+        fail++;
+      }
+    }
+    return (success, fail);
+  }
+
   Future<void> _uploadAll() async {
     setState(() => _uploading = true);
-    int successCount = 0;
-    int failCount = 0;
 
-    // Upload match scouting
-    for (final result in List.of(_heldScout)) {
-      try {
-        final success = await _api.postResults(result);
-        if (success) {
-          await _storage.removeHeldScoutResult(result.id);
-          successCount++;
-        } else {
-          failCount++;
-        }
-      } catch (_) {
-        failCount++;
-      }
-    }
+    final (s1, f1) = await _uploadItems(
+      _heldScout, _api.postResults, _storage.removeHeldScoutResult, (r) => r.id);
+    final (s2, f2) = await _uploadItems(
+      _heldPit, _api.postPitResults, _storage.removeHeldPitResult, (r) => r.id);
 
-    // Upload pit scouting
-    for (final result in List.of(_heldPit)) {
-      try {
-        final success = await _api.postPitResults(result);
-        if (success) {
-          await _storage.removeHeldPitResult(result.id);
-          successCount++;
-        } else {
-          failCount++;
-        }
-      } catch (_) {
-        failCount++;
-      }
-    }
+    final successCount = s1 + s2;
+    final failCount = f1 + f2;
 
     await _loadData();
     setState(() => _uploading = false);
@@ -85,16 +83,8 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
     }
   }
 
-  Future<void> _deleteScoutResult(String id) async {
-    await _storage.removeHeldScoutResult(id);
-    await _loadData();
-    if (mounted) {
-      context.read<AppStateProvider>().refreshHeldDataCount();
-    }
-  }
-
-  Future<void> _deletePitResult(String id) async {
-    await _storage.removeHeldPitResult(id);
+  Future<void> _deleteResult(Future<void> Function(String) removeFn, String id) async {
+    await removeFn(id);
     await _loadData();
     if (mounted) {
       context.read<AppStateProvider>().refreshHeldDataCount();
@@ -156,7 +146,7 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
                         'Auto: ${r.autoFuelScored} scored | Teleop: ${r.teleopFuelScored} scored'),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _deleteScoutResult(r.id),
+                      onPressed: () => _deleteResult(_storage.removeHeldScoutResult, r.id),
                     ),
                   ),
                 )),
@@ -173,7 +163,7 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
                     subtitle: Text('${r.driveTrain} drive'),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _deletePitResult(r.id),
+                      onPressed: () => _deleteResult(_storage.removeHeldPitResult, r.id),
                     ),
                   ),
                 )),

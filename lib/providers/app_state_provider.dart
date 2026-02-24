@@ -7,8 +7,8 @@ import '../services/api_service.dart';
 import '../services/storage_service.dart';
 
 class AppStateProvider extends ChangeNotifier {
-  final ApiService _api = ApiService();
-  final StorageService _storage = StorageService();
+  final ApiService _api = ApiService.instance;
+  final StorageService _storage = StorageService.instance;
 
   AppSettings _settings = AppSettings();
   List<TbaEvent> _events = [];
