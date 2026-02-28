@@ -22,6 +22,7 @@ class ScoutingProvider extends ChangeNotifier {
   int autoMiddlePickup = 0;
   int autoDepotPickup = 0;
   int autoHumanStationPickup = 0;
+  bool? winAuto;
 
   // Teleop
   int hopperSize = 50;
@@ -71,6 +72,7 @@ class ScoutingProvider extends ChangeNotifier {
     autoMiddlePickup = 0;
     autoDepotPickup = 0;
     autoHumanStationPickup = 0;
+    winAuto = null;
     hopperSize = 50;
     teleopFuelScored = 0;
     teleopFuelMissed = 0;
@@ -137,6 +139,7 @@ class ScoutingProvider extends ChangeNotifier {
       autoMiddlePickup: autoMiddlePickup,
       autoDepotPickup: autoDepotPickup,
       autoHumanStationPickup: autoHumanStationPickup,
+      winAuto: winAuto,
       hopperSize: hopperSize,
       teleopFuelScored: volleyScoredList.fold(0, (a, b) => a + b),
       teleopFuelMissed: volleyMissedList.fold(0, (a, b) => a + b),

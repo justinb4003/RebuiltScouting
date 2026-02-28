@@ -524,6 +524,24 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   onChanged: (v) => scouting
                       .updateField(() => scouting.autoHumanStationPickup = v),
                 ),
+                const SizedBox(height: 8),
+                HighlightedSwitch(
+                  title: 'Win Auto',
+                  value: scouting.winAuto == true,
+                  onChanged: (v) {
+                    scouting.updateField(() => scouting.winAuto = v);
+                    if (v) _tabController.animateTo(2);
+                  },
+                ),
+                const SizedBox(height: 8),
+                HighlightedSwitch(
+                  title: 'Lost Auto',
+                  value: scouting.winAuto == false,
+                  onChanged: (v) {
+                    scouting.updateField(() => scouting.winAuto = !v);
+                    if (v) _tabController.animateTo(1);
+                  },
+                ),
               ],
             ),
           ),

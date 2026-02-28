@@ -16,6 +16,7 @@ class ScoutResult {
   int autoMiddlePickup;
   int autoDepotPickup;
   int autoHumanStationPickup;
+  bool? winAuto;
 
   // Teleop phase
   int hopperSize;
@@ -61,6 +62,7 @@ class ScoutResult {
     this.autoMiddlePickup = 0,
     this.autoDepotPickup = 0,
     this.autoHumanStationPickup = 0,
+    this.winAuto,
     this.hopperSize = 50,
     this.teleopFuelScored = 0,
     this.teleopFuelMissed = 0,
@@ -96,6 +98,7 @@ class ScoutResult {
         'auto_middle_pickup': autoMiddlePickup,
         'auto_depot_pickup': autoDepotPickup,
         'auto_human_station_pickup': autoHumanStationPickup,
+        'win_auto': winAuto,
         'hopper_size': hopperSize,
         'teleop_fuel_scored': teleopFuelScored,
         'teleop_fuel_missed': teleopFuelMissed,
@@ -128,6 +131,7 @@ class ScoutResult {
         autoMiddlePickup: json['auto_middle_pickup'] ?? 0,
         autoDepotPickup: json['auto_depot_pickup'] ?? 0,
         autoHumanStationPickup: json['auto_human_station_pickup'] ?? 0,
+        winAuto: json['win_auto'] ?? false,
         hopperSize: json['hopper_size'] ?? 50,
         teleopFuelScored: json['teleop_fuel_scored'] ?? 0,
         teleopFuelMissed: json['teleop_fuel_missed'] ?? 0,
