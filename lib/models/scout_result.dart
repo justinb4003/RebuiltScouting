@@ -39,11 +39,11 @@ class ScoutResult {
   bool fuelDepotPickup;
 
   // Defense - Teleop Active
-  String teleopActiveDefenseTime;
+  String teleopActiveDefensePenalties;
   String teleopActiveDefenseQuality;
 
   // Defense - Teleop Inactive
-  String teleopInactiveDefenseTime;
+  String teleopInactiveDefensePenalties;
   String teleopInactiveDefenseQuality;
 
   // General
@@ -79,9 +79,9 @@ class ScoutResult {
     this.fuelGroundPickup = false,
     this.fuelHumanPickup = false,
     this.fuelDepotPickup = false,
-    this.teleopActiveDefenseTime = 'N/A',
+    this.teleopActiveDefensePenalties = 'N/A',
     this.teleopActiveDefenseQuality = 'N/A',
-    this.teleopInactiveDefenseTime = 'N/A',
+    this.teleopInactiveDefensePenalties = 'N/A',
     this.teleopInactiveDefenseQuality = 'N/A',
     this.matchNotes = '',
     DateTime? timestamp,
@@ -118,9 +118,9 @@ class ScoutResult {
         'fuel_ground_pickup': fuelGroundPickup,
         'fuel_human_pickup': fuelHumanPickup,
         'fuel_depot_pickup': fuelDepotPickup,
-        'teleop_active_defense_time': teleopActiveDefenseTime,
+        'teleop_active_defense_penalties': teleopActiveDefensePenalties,
         'teleop_active_defense_quality': teleopActiveDefenseQuality,
-        'teleop_inactive_defense_time': teleopInactiveDefenseTime,
+        'teleop_inactive_defense_penalties': teleopInactiveDefensePenalties,
         'teleop_inactive_defense_quality': teleopInactiveDefenseQuality,
         'match_notes': matchNotes,
         'timestamp': timestamp.toIso8601String(),
@@ -154,9 +154,9 @@ class ScoutResult {
         fuelGroundPickup: json['fuel_ground_pickup'] ?? false,
         fuelHumanPickup: json['fuel_human_pickup'] ?? false,
         fuelDepotPickup: json['fuel_depot_pickup'] ?? false,
-        teleopActiveDefenseTime: json['teleop_active_defense_time'] ?? '',
+        teleopActiveDefensePenalties: json['teleop_active_defense_penalties'] ?? '',
         teleopActiveDefenseQuality: json['teleop_active_defense_quality'] ?? '',
-        teleopInactiveDefenseTime: json['teleop_inactive_defense_time'] ?? '',
+        teleopInactiveDefensePenalties: json['teleop_inactive_defense_penalties'] ?? '',
         teleopInactiveDefenseQuality: json['teleop_inactive_defense_quality'] ?? '',
         matchNotes: json['match_notes'] ?? '',
         timestamp: json['timestamp'] != null

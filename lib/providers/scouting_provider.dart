@@ -46,11 +46,11 @@ class ScoutingProvider extends ChangeNotifier {
   bool fuelDepotPickup = false;
 
   // Defense - Teleop Active
-  String teleopActiveDefenseTime = 'N/A';
+  String teleopActiveDefensePenalties = 'N/A';
   String teleopActiveDefenseQuality = 'N/A';
 
   // Defense - Teleop Inactive
-  String teleopInactiveDefenseTime = 'N/A';
+  String teleopInactiveDefensePenalties = 'N/A';
   String teleopInactiveDefenseQuality = 'N/A';
 
   // General
@@ -92,9 +92,9 @@ class ScoutingProvider extends ChangeNotifier {
     fuelGroundPickup = false;
     fuelHumanPickup = false;
     fuelDepotPickup = false;
-    teleopActiveDefenseTime = 'N/A';
+    teleopActiveDefensePenalties = 'N/A';
     teleopActiveDefenseQuality = 'N/A';
-    teleopInactiveDefenseTime = 'N/A';
+    teleopInactiveDefensePenalties = 'N/A';
     teleopInactiveDefenseQuality = 'N/A';
     matchNotes = '';
     selectedTeamNumber = null;
@@ -162,9 +162,9 @@ class ScoutingProvider extends ChangeNotifier {
       fuelGroundPickup: fuelGroundPickup,
       fuelHumanPickup: fuelHumanPickup,
       fuelDepotPickup: fuelDepotPickup,
-      teleopActiveDefenseTime: teleopActiveDefenseTime,
+      teleopActiveDefensePenalties: teleopActiveDefensePenalties,
       teleopActiveDefenseQuality: teleopActiveDefenseQuality,
-      teleopInactiveDefenseTime: teleopInactiveDefenseTime,
+      teleopInactiveDefensePenalties: teleopInactiveDefensePenalties,
       teleopInactiveDefenseQuality: teleopInactiveDefenseQuality,
       matchNotes: matchNotes,
     );

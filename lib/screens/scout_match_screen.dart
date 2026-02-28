@@ -558,8 +558,8 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
   Widget _buildDefenseControls({
     required ScoutingProvider scouting,
     required ThemeData theme,
-    required String defenseTime,
-    required ValueChanged<String> onDefenseTimeChanged,
+    required String defensePenalties,
+    required ValueChanged<String> onDefensePenaltiesChanged,
     required String defenseQuality,
     required ValueChanged<String> onDefenseQualityChanged,
   }) {
@@ -573,17 +573,18 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Defense Time',
+                  Text('Defense Penalties',
                       style: theme.textTheme.titleMedium),
-                  for (final option in const ['N/A', '0%', '25%', '50%', '100%'])
-                    RadioListTile<String>(
-                      title: Text(option),
-                      value: option,
-                      groupValue: defenseTime,
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      onChanged: (v) => onDefenseTimeChanged(v!),
+                  const SizedBox(height: 8),
+                  TextField(
+                    decoration: const InputDecoration(
+                      hintText: '0',
+                      border: OutlineInputBorder(),
                     ),
+                    keyboardType: TextInputType.number,
+                    controller: TextEditingController(text: defensePenalties == 'N/A' ? '' : defensePenalties),
+                    onChanged: (v) => onDefensePenaltiesChanged(v.isEmpty ? 'N/A' : v),
+                  ),
                 ],
               ),
             ),
@@ -747,9 +748,9 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
         _buildDefenseControls(
           scouting: scouting,
           theme: theme,
-          defenseTime: scouting.teleopActiveDefenseTime,
-          onDefenseTimeChanged: (v) => scouting
-              .updateField(() => scouting.teleopActiveDefenseTime = v),
+          defensePenalties: scouting.teleopActiveDefensePenalties,
+          onDefensePenaltiesChanged: (v) => scouting
+              .updateField(() => scouting.teleopActiveDefensePenalties = v),
           defenseQuality: scouting.teleopActiveDefenseQuality,
           onDefenseQualityChanged: (v) => scouting
               .updateField(() => scouting.teleopActiveDefenseQuality = v),
@@ -797,9 +798,9 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
         _buildDefenseControls(
           scouting: scouting,
           theme: theme,
-          defenseTime: scouting.teleopInactiveDefenseTime,
-          onDefenseTimeChanged: (v) => scouting
-              .updateField(() => scouting.teleopInactiveDefenseTime = v),
+          defensePenalties: scouting.teleopInactiveDefensePenalties,
+          onDefensePenaltiesChanged: (v) => scouting
+              .updateField(() => scouting.teleopInactiveDefensePenalties = v),
           defenseQuality: scouting.teleopInactiveDefenseQuality,
           onDefenseQualityChanged: (v) => scouting
               .updateField(() => scouting.teleopInactiveDefenseQuality = v),
