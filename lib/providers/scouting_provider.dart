@@ -37,6 +37,8 @@ class ScoutingProvider extends ChangeNotifier {
 
   // Endgame
   int endgameTowerLevel = 0;
+  int endgameFuelScored = 0;
+  int endgameFuelMissed = 0;
 
   // Pickups
   bool fuelGroundPickup = false;
@@ -85,6 +87,8 @@ class ScoutingProvider extends ChangeNotifier {
     teleopInactiveScoredFuel = false;
     teleopInactiveCollectedFuel = false;
     endgameTowerLevel = 0;
+    endgameFuelScored = 0;
+    endgameFuelMissed = 0;
     fuelGroundPickup = false;
     fuelHumanPickup = false;
     fuelDepotPickup = false;
@@ -153,6 +157,8 @@ class ScoutingProvider extends ChangeNotifier {
       teleopInactiveScoredFuel: teleopInactiveScoredFuel,
       teleopInactiveCollectedFuel: teleopInactiveCollectedFuel,
       endgameTowerLevel: endgameTowerLevel,
+      endgameFuelScored: endgameFuelScored,
+      endgameFuelMissed: endgameFuelMissed,
       fuelGroundPickup: fuelGroundPickup,
       fuelHumanPickup: fuelHumanPickup,
       fuelDepotPickup: fuelDepotPickup,

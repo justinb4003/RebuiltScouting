@@ -695,28 +695,24 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   ],
                 ),
                 const SizedBox(height: 16),
-                Text('Fuel Scored: ${scouting.teleopFuelScored}',
-                    style: theme.textTheme.bodyLarge),
-                Slider(
-                  value: scouting.teleopFuelScored.toDouble(),
-                  min: 0,
-                  max: scouting.hopperSize.toDouble(),
-                  divisions: scouting.hopperSize > 0 ? scouting.hopperSize : 1,
-                  label: '${scouting.teleopFuelScored}',
+                CounterButton(
+                  label: 'Fuel Scored',
+                  value: scouting.teleopFuelScored,
+                  showBulkButtons: true,
+                  onTap: _fireConfetti,
+                  enableHaptic: appState.settings.hapticEnabled,
                   onChanged: (v) => scouting
-                      .updateField(() => scouting.teleopFuelScored = v.round()),
+                      .updateField(() => scouting.teleopFuelScored = v),
                 ),
                 const SizedBox(height: 8),
-                Text('Fuel Missed: ${scouting.teleopFuelMissed}',
-                    style: theme.textTheme.bodyLarge),
-                Slider(
-                  value: scouting.teleopFuelMissed.toDouble(),
-                  min: 0,
-                  max: scouting.hopperSize.toDouble(),
-                  divisions: scouting.hopperSize > 0 ? scouting.hopperSize : 1,
-                  label: '${scouting.teleopFuelMissed}',
+                CounterButton(
+                  label: 'Fuel Missed',
+                  value: scouting.teleopFuelMissed,
+                  showBulkButtons: true,
+                  onTap: _fireConfetti,
+                  enableHaptic: appState.settings.hapticEnabled,
                   onChanged: (v) => scouting
-                      .updateField(() => scouting.teleopFuelMissed = v.round()),
+                      .updateField(() => scouting.teleopFuelMissed = v),
                 ),
                 const SizedBox(height: 8),
                 FilledButton.icon(
@@ -832,6 +828,28 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                     style: theme.textTheme.titleMedium
                         ?.copyWith(color: AppTheme.endgameColor)),
                 const SizedBox(height: 12),
+                CounterButton(
+                  label: 'Fuel Scored',
+                  value: scouting.endgameFuelScored,
+                  showBulkButtons: true,
+                  onTap: _fireConfetti,
+                  enableHaptic: appState.settings.hapticEnabled,
+                  onChanged: (v) => scouting
+                      .updateField(() => scouting.endgameFuelScored = v),
+                ),
+                const SizedBox(height: 8),
+                CounterButton(
+                  label: 'Fuel Missed',
+                  value: scouting.endgameFuelMissed,
+                  showBulkButtons: true,
+                  onTap: _fireConfetti,
+                  enableHaptic: appState.settings.hapticEnabled,
+                  onChanged: (v) => scouting
+                      .updateField(() => scouting.endgameFuelMissed = v),
+                ),
+                const SizedBox(height: 8),
+                Text('Tower Level', style: theme.textTheme.bodyLarge),
+                const SizedBox(height: 4),
                 FixedSegmentedButton<int>(
                   segments: const [
                     ButtonSegment(value: 0, label: Text('None')),
