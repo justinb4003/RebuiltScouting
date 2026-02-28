@@ -240,9 +240,14 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                           const SizedBox(height: 12),
                           FilledButton.icon(
                             onPressed: scouting.selectedTeamNumber != null
-                                ? () {
+                                ? () async {
+                                    final teamNumber = scouting.selectedTeamNumber!;
+                                    final pitResult = await appState.refreshPitResultForTeam(teamNumber);
+                                    final capacity = (pitResult != null && pitResult.fuelCapacity > 0)
+                                        ? pitResult.fuelCapacity
+                                        : 50;
                                     _tabController.index = 0;
-                                    scouting.beginScouting();
+                                    scouting.beginScouting(defaultHopperSize: capacity);
                                   }
                                 : null,
                             icon: const Icon(Icons.play_arrow),

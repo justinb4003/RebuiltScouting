@@ -16,6 +16,7 @@ class StorageService {
   static const String _eventMatchesCacheKey = 'event_matches_cache';
   static const String _heldScoutDataKey = 'held_scout_data';
   static const String _heldPitDataKey = 'held_pit_data';
+  static const String _pitResultsCacheKey = 'pit_results_cache';
 
   // Settings
   Future<AppSettings> loadSettings() async {
@@ -160,5 +161,30 @@ class StorageService {
     final held = await loadHeldPitData();
     held.removeWhere((r) => r.id == id);
     await saveHeldPitData(held);
+  }
+
+  // Pit results cache (per event)
+  Future<List<PitResult>> loadCachedPitResults(String eventKey) async {
+    final prefs = await SharedPreferences.getInstance();
+    final json = prefs.getString(_pitResultsCacheKey);
+    if (json != null) {
+      final Map<String, dynamic> cache = jsonDecode(json);
+      if (cache.containsKey(eventKey)) {
+        final List<dynamic> data = cache[eventKey];
+        return data.map((e) => PitResult.fromJson(e)).toList();
+      }
+    }
+    return [];
+  }
+
+  Future<void> cachePitResults(String eventKey, List<PitResult> results) async {
+    final prefs = await SharedPreferences.getInstance();
+    final json = prefs.getString(_pitResultsCacheKey);
+    Map<String, dynamic> cache = {};
+    if (json != null) {
+      cache = jsonDecode(json);
+    }
+    cache[eventKey] = results.map((r) => r.toJson()).toList();
+    await prefs.setString(_pitResultsCacheKey, jsonEncode(cache));
   }
 }

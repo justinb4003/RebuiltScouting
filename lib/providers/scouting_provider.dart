@@ -57,7 +57,10 @@ class ScoutingProvider extends ChangeNotifier {
   bool _submitting = false;
   bool get submitting => _submitting;
 
-  void beginScouting() {
+  void beginScouting({int? defaultHopperSize}) {
+    if (defaultHopperSize != null) {
+      hopperSize = defaultHopperSize;
+    }
     scoutingActive = true;
     notifyListeners();
   }

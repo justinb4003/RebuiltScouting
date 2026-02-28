@@ -3,6 +3,7 @@ import '../models/app_settings.dart';
 import '../models/tba_event.dart';
 import '../models/tba_match.dart';
 import '../models/tba_team.dart';
+import '../models/pit_result.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 
@@ -14,6 +15,7 @@ class AppStateProvider extends ChangeNotifier {
   List<TbaEvent> _events = [];
   List<TbaTeam> _teams = [];
   List<TbaMatch> _matches = [];
+  List<PitResult> _pitResults = [];
   bool _loading = false;
   String? _error;
   int _heldDataCount = 0;
@@ -22,6 +24,7 @@ class AppStateProvider extends ChangeNotifier {
   List<TbaEvent> get events => _events;
   List<TbaTeam> get teams => _teams;
   List<TbaMatch> get matches => _matches;
+  List<PitResult> get pitResults => _pitResults;
   bool get loading => _loading;
   String? get error => _error;
   int get heldDataCount => _heldDataCount;
@@ -32,6 +35,7 @@ class AppStateProvider extends ChangeNotifier {
     if (_settings.selectedEventKey != null) {
       _teams = await _storage.loadCachedTeams(_settings.selectedEventKey!);
       _matches = await _storage.loadCachedMatches(_settings.selectedEventKey!);
+      _pitResults = await _storage.loadCachedPitResults(_settings.selectedEventKey!);
     }
     await refreshHeldDataCount();
     notifyListeners();
@@ -89,13 +93,14 @@ class AppStateProvider extends ChangeNotifier {
     // Clear old event data immediately so screens don't show stale data
     _teams = [];
     _matches = [];
+    _pitResults = [];
 
     await _persistSettings();
     notifyListeners();
 
     // Auto-load teams and matches when event is set
     if (key.isNotEmpty) {
-      await Future.wait([loadTeams(), loadMatches()]);
+      await Future.wait([loadTeams(), loadMatches(), loadPitResults()]);
     }
   }
 
@@ -143,12 +148,41 @@ class AppStateProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> loadPitResults() async {
+    if (_settings.selectedEventKey == null) return;
+    try {
+      _pitResults = await _api.getPitResults(_settings.selectedEventKey!);
+      await _storage.cachePitResults(_settings.selectedEventKey!, _pitResults);
+      notifyListeners();
+    } catch (e) {
+      // Silently fail — cached data is already loaded
+    }
+  }
+
+  PitResult? getPitResultForTeam(int teamNumber) {
+    final results = _pitResults.where((r) => r.teamNumber == teamNumber);
+    return results.isNotEmpty ? results.first : null;
+  }
+
+  Future<PitResult?> refreshPitResultForTeam(int teamNumber) async {
+    if (_settings.selectedEventKey == null) return getPitResultForTeam(teamNumber);
+    try {
+      _pitResults = await _api.getPitResults(_settings.selectedEventKey!);
+      await _storage.cachePitResults(_settings.selectedEventKey!, _pitResults);
+      notifyListeners();
+    } catch (e) {
+      // Use cached data on failure
+    }
+    return getPitResultForTeam(teamNumber);
+  }
+
   Future<void> resetToDefaults() async {
     await _storage.clearAll();
     _settings = AppSettings();
     _events = [];
     _teams = [];
     _matches = [];
+    _pitResults = [];
     _heldDataCount = 0;
     _error = null;
     notifyListeners();
