@@ -732,6 +732,12 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   onChanged: (v) => scouting
                       .updateField(() => scouting.fuelHumanPickup = v),
                 ),
+                HighlightedSwitch(
+                  title: 'Depot Pickup',
+                  value: scouting.fuelDepotPickup,
+                  onChanged: (v) => scouting
+                      .updateField(() => scouting.fuelDepotPickup = v),
+                ),
               ],
             ),
           ),

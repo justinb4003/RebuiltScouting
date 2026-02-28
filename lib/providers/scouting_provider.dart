@@ -41,6 +41,7 @@ class ScoutingProvider extends ChangeNotifier {
   // Pickups
   bool fuelGroundPickup = false;
   bool fuelHumanPickup = false;
+  bool fuelDepotPickup = false;
 
   // Defense - Teleop Active
   String teleopActiveDefenseTime = 'N/A';
@@ -83,6 +84,7 @@ class ScoutingProvider extends ChangeNotifier {
     endgameTowerLevel = 0;
     fuelGroundPickup = false;
     fuelHumanPickup = false;
+    fuelDepotPickup = false;
     teleopActiveDefenseTime = 'N/A';
     teleopActiveDefenseQuality = 'N/A';
     teleopInactiveDefenseTime = 'N/A';
@@ -150,6 +152,7 @@ class ScoutingProvider extends ChangeNotifier {
       endgameTowerLevel: endgameTowerLevel,
       fuelGroundPickup: fuelGroundPickup,
       fuelHumanPickup: fuelHumanPickup,
+      fuelDepotPickup: fuelDepotPickup,
       teleopActiveDefenseTime: teleopActiveDefenseTime,
       teleopActiveDefenseQuality: teleopActiveDefenseQuality,
       teleopInactiveDefenseTime: teleopInactiveDefenseTime,

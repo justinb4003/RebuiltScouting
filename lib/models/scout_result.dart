@@ -34,6 +34,7 @@ class ScoutResult {
   // Pickups
   bool fuelGroundPickup;
   bool fuelHumanPickup;
+  bool fuelDepotPickup;
 
   // Defense - Teleop Active
   String teleopActiveDefenseTime;
@@ -73,6 +74,7 @@ class ScoutResult {
     this.endgameTowerLevel = 0,
     this.fuelGroundPickup = false,
     this.fuelHumanPickup = false,
+    this.fuelDepotPickup = false,
     this.teleopActiveDefenseTime = 'N/A',
     this.teleopActiveDefenseQuality = 'N/A',
     this.teleopInactiveDefenseTime = 'N/A',
@@ -109,6 +111,7 @@ class ScoutResult {
         'endgame_tower_level': endgameTowerLevel,
         'fuel_ground_pickup': fuelGroundPickup,
         'fuel_human_pickup': fuelHumanPickup,
+        'fuel_depot_pickup': fuelDepotPickup,
         'teleop_active_defense_time': teleopActiveDefenseTime,
         'teleop_active_defense_quality': teleopActiveDefenseQuality,
         'teleop_inactive_defense_time': teleopInactiveDefenseTime,
@@ -142,6 +145,7 @@ class ScoutResult {
         endgameTowerLevel: json['endgame_tower_level'] ?? 0,
         fuelGroundPickup: json['fuel_ground_pickup'] ?? false,
         fuelHumanPickup: json['fuel_human_pickup'] ?? false,
+        fuelDepotPickup: json['fuel_depot_pickup'] ?? false,
         teleopActiveDefenseTime: json['teleop_active_defense_time'] ?? '',
         teleopActiveDefenseQuality: json['teleop_active_defense_quality'] ?? '',
         teleopInactiveDefenseTime: json['teleop_inactive_defense_time'] ?? '',
