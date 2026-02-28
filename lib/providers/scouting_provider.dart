@@ -20,7 +20,7 @@ class ScoutingProvider extends ChangeNotifier {
   int autoFuelMissed = 0;
   int autoTowerLevel = 0;
   int autoMiddlePickup = 0;
-  int autoDepotPickup = 0;
+  bool autoDepotPickup = false;
   int autoHumanStationPickup = 0;
   bool? winAuto;
 
@@ -34,6 +34,8 @@ class ScoutingProvider extends ChangeNotifier {
   // Teleop Inactive
   bool teleopInactiveScoredFuel = false;
   bool teleopInactiveCollectedFuel = false;
+  bool teleopInactiveCollectedFuelHoard = false;
+  bool teleopInactiveCollectedFuelRefill = false;
 
   // Endgame
   int endgameTowerLevel = 0;
@@ -54,6 +56,7 @@ class ScoutingProvider extends ChangeNotifier {
   String teleopInactiveDefenseQuality = 'N/A';
 
   // General
+  String autoNotes = '';
   String matchNotes = '';
 
   bool _submitting = false;
@@ -76,7 +79,7 @@ class ScoutingProvider extends ChangeNotifier {
     autoFuelMissed = 0;
     autoTowerLevel = 0;
     autoMiddlePickup = 0;
-    autoDepotPickup = 0;
+    autoDepotPickup = false;
     autoHumanStationPickup = 0;
     winAuto = null;
     hopperSize = 50;
@@ -86,6 +89,8 @@ class ScoutingProvider extends ChangeNotifier {
     volleyMissedList = [];
     teleopInactiveScoredFuel = false;
     teleopInactiveCollectedFuel = false;
+    teleopInactiveCollectedFuelHoard = false;
+    teleopInactiveCollectedFuelRefill = false;
     endgameTowerLevel = 0;
     endgameFuelScored = 0;
     endgameFuelMissed = 0;
@@ -96,6 +101,7 @@ class ScoutingProvider extends ChangeNotifier {
     teleopActiveDefenseQuality = 'N/A';
     teleopInactiveDefensePenalties = 'N/A';
     teleopInactiveDefenseQuality = 'N/A';
+    autoNotes = '';
     matchNotes = '';
     selectedTeamNumber = null;
     if (!wasPractice) matchNumber++;
@@ -156,6 +162,8 @@ class ScoutingProvider extends ChangeNotifier {
       volleyMissedList: List.of(volleyMissedList),
       teleopInactiveScoredFuel: teleopInactiveScoredFuel,
       teleopInactiveCollectedFuel: teleopInactiveCollectedFuel,
+      teleopInactiveCollectedFuelHoard: teleopInactiveCollectedFuelHoard,
+      teleopInactiveCollectedFuelRefill: teleopInactiveCollectedFuelRefill,
       endgameTowerLevel: endgameTowerLevel,
       endgameFuelScored: endgameFuelScored,
       endgameFuelMissed: endgameFuelMissed,
@@ -166,6 +174,7 @@ class ScoutingProvider extends ChangeNotifier {
       teleopActiveDefenseQuality: teleopActiveDefenseQuality,
       teleopInactiveDefensePenalties: teleopInactiveDefensePenalties,
       teleopInactiveDefenseQuality: teleopInactiveDefenseQuality,
+      autoNotes: autoNotes,
       matchNotes: matchNotes,
     );
 

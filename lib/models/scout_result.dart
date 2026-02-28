@@ -14,7 +14,7 @@ class ScoutResult {
   int autoFuelMissed;
   int autoTowerLevel;
   int autoMiddlePickup;
-  int autoDepotPickup;
+  bool autoDepotPickup;
   int autoHumanStationPickup;
   bool? winAuto;
 
@@ -27,6 +27,8 @@ class ScoutResult {
   // Teleop Inactive
   bool teleopInactiveScoredFuel;
   bool teleopInactiveCollectedFuel;
+  bool teleopInactiveCollectedFuelHoard;
+  bool teleopInactiveCollectedFuelRefill;
 
   // Endgame
   int endgameTowerLevel; // 0=none, 1=L1, 2=L2, 3=L3
@@ -47,6 +49,7 @@ class ScoutResult {
   String teleopInactiveDefenseQuality;
 
   // General
+  String autoNotes;
   String matchNotes;
 
   final DateTime timestamp;
@@ -63,7 +66,7 @@ class ScoutResult {
     this.autoFuelMissed = 0,
     this.autoTowerLevel = 0,
     this.autoMiddlePickup = 0,
-    this.autoDepotPickup = 0,
+    this.autoDepotPickup = false,
     this.autoHumanStationPickup = 0,
     this.winAuto,
     this.hopperSize = 50,
@@ -73,6 +76,8 @@ class ScoutResult {
     List<int>? volleyMissedList,
     this.teleopInactiveScoredFuel = false,
     this.teleopInactiveCollectedFuel = false,
+    this.teleopInactiveCollectedFuelHoard = false,
+    this.teleopInactiveCollectedFuelRefill = false,
     this.endgameTowerLevel = 0,
     this.endgameFuelScored = 0,
     this.endgameFuelMissed = 0,
@@ -83,6 +88,7 @@ class ScoutResult {
     this.teleopActiveDefenseQuality = 'N/A',
     this.teleopInactiveDefensePenalties = 'N/A',
     this.teleopInactiveDefenseQuality = 'N/A',
+    this.autoNotes = '',
     this.matchNotes = '',
     DateTime? timestamp,
   })  : id = id ?? const Uuid().v4(),
@@ -112,6 +118,8 @@ class ScoutResult {
         'volley_missed_list': volleyMissedList,
         'teleop_inactive_scored_fuel': teleopInactiveScoredFuel,
         'teleop_inactive_collected_fuel': teleopInactiveCollectedFuel,
+        'teleop_inactive_collected_fuel_hoard': teleopInactiveCollectedFuelHoard,
+        'teleop_inactive_collected_fuel_refill': teleopInactiveCollectedFuelRefill,
         'endgame_tower_level': endgameTowerLevel,
         'endgame_fuel_scored': endgameFuelScored,
         'endgame_fuel_missed': endgameFuelMissed,
@@ -122,6 +130,7 @@ class ScoutResult {
         'teleop_active_defense_quality': teleopActiveDefenseQuality,
         'teleop_inactive_defense_penalties': teleopInactiveDefensePenalties,
         'teleop_inactive_defense_quality': teleopInactiveDefenseQuality,
+        'auto_notes': autoNotes,
         'match_notes': matchNotes,
         'timestamp': timestamp.toIso8601String(),
       };
@@ -138,7 +147,7 @@ class ScoutResult {
         autoFuelMissed: json['auto_fuel_missed'] ?? 0,
         autoTowerLevel: json['auto_tower_level'] ?? 0,
         autoMiddlePickup: json['auto_middle_pickup'] ?? 0,
-        autoDepotPickup: json['auto_depot_pickup'] ?? 0,
+        autoDepotPickup: json['auto_depot_pickup'] ?? false,
         autoHumanStationPickup: json['auto_human_station_pickup'] ?? 0,
         winAuto: json['win_auto'] ?? false,
         hopperSize: json['hopper_size'] ?? 50,
@@ -148,6 +157,8 @@ class ScoutResult {
         volleyMissedList: (json['volley_missed_list'] as List?)?.cast<int>(),
         teleopInactiveScoredFuel: json['teleop_inactive_scored_fuel'] ?? false,
         teleopInactiveCollectedFuel: json['teleop_inactive_collected_fuel'] ?? false,
+        teleopInactiveCollectedFuelHoard: json['teleop_inactive_collected_fuel_hoard'] ?? false,
+        teleopInactiveCollectedFuelRefill: json['teleop_inactive_collected_fuel_refill'] ?? false,
         endgameTowerLevel: json['endgame_tower_level'] ?? 0,
         endgameFuelScored: json['endgame_fuel_scored'] ?? 0,
         endgameFuelMissed: json['endgame_fuel_missed'] ?? 0,
@@ -158,6 +169,7 @@ class ScoutResult {
         teleopActiveDefenseQuality: json['teleop_active_defense_quality'] ?? '',
         teleopInactiveDefensePenalties: json['teleop_inactive_defense_penalties'] ?? '',
         teleopInactiveDefenseQuality: json['teleop_inactive_defense_quality'] ?? '',
+        autoNotes: json['auto_notes'] ?? '',
         matchNotes: json['match_notes'] ?? '',
         timestamp: json['timestamp'] != null
             ? DateTime.parse(json['timestamp'])

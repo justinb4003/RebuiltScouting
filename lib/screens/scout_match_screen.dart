@@ -23,6 +23,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
   final _confettiKey = GlobalKey<ConfettiOverlayState>();
   late TabController _tabController;
   final TextEditingController _matchController = TextEditingController();
+  final TextEditingController _autoNotesController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
   TbaMatch? _selectedMatch;
   int? _selectedRobotIndex; // 0-2 red, 3-5 blue
@@ -48,6 +49,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
   @override
   void dispose() {
     _matchController.dispose();
+    _autoNotesController.dispose();
     _notesController.dispose();
     _tabController.dispose();
     super.dispose();
@@ -283,6 +285,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                           ),
                           TextButton(
                             onPressed: () {
+                              _autoNotesController.clear();
                               _notesController.clear();
                               scouting.resetForm();
                             },
@@ -504,7 +507,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                 ),
                 const SizedBox(height: 8),
                 CounterButton(
-                  label: 'Middle Pickup',
+                  label: 'Middle Pickup Cycle',
                   value: scouting.autoMiddlePickup,
                   showBulkButtons: false,
                   enableHaptic: appState.settings.hapticEnabled,
@@ -512,17 +515,15 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                       .updateField(() => scouting.autoMiddlePickup = v),
                 ),
                 const SizedBox(height: 8),
-                CounterButton(
-                  label: 'Depot Pickup',
+                HighlightedSwitch(
+                  title: 'Depot Pickup',
                   value: scouting.autoDepotPickup,
-                  showBulkButtons: false,
-                  enableHaptic: appState.settings.hapticEnabled,
                   onChanged: (v) => scouting
                       .updateField(() => scouting.autoDepotPickup = v),
                 ),
                 const SizedBox(height: 8),
                 CounterButton(
-                  label: 'Human Station Pickup',
+                  label: 'Human Station Pickup Cycle',
                   value: scouting.autoHumanStationPickup,
                   showBulkButtons: false,
                   enableHaptic: appState.settings.hapticEnabled,
@@ -551,6 +552,17 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
             ),
           ),
         ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _autoNotesController,
+          decoration: const InputDecoration(
+            labelText: 'Auto Notes',
+            border: OutlineInputBorder(),
+          ),
+          maxLines: 3,
+          onChanged: (v) =>
+              scouting.updateField(() => scouting.autoNotes = v),
+        ),
       ],
     );
   }
@@ -578,7 +590,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   const SizedBox(height: 8),
                   TextField(
                     decoration: const InputDecoration(
-                      hintText: '0',
+                      hintText: '',
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
@@ -699,6 +711,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                 CounterButton(
                   label: 'Fuel Scored',
                   value: scouting.teleopFuelScored,
+                  max: scouting.hopperSize,
                   showBulkButtons: true,
                   onTap: _fireConfetti,
                   enableHaptic: appState.settings.hapticEnabled,
@@ -709,6 +722,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                 CounterButton(
                   label: 'Fuel Missed',
                   value: scouting.teleopFuelMissed,
+                  max: scouting.hopperSize,
                   showBulkButtons: true,
                   onTap: _fireConfetti,
                   enableHaptic: appState.settings.hapticEnabled,
@@ -787,9 +801,30 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                 HighlightedSwitch(
                   title: 'Collected Fuel',
                   value: scouting.teleopInactiveCollectedFuel,
-                  onChanged: (v) => scouting
-                      .updateField(() => scouting.teleopInactiveCollectedFuel = v),
+                  onChanged: (v) => scouting.updateField(() {
+                    scouting.teleopInactiveCollectedFuel = v;
+                    if (!v) {
+                      scouting.teleopInactiveCollectedFuelHoard = false;
+                      scouting.teleopInactiveCollectedFuelRefill = false;
+                    }
+                  }),
                 ),
+                if (scouting.teleopInactiveCollectedFuel) ...[
+                  HighlightedSwitch(
+                    title: 'Hoard',
+                    value: scouting.teleopInactiveCollectedFuelHoard,
+                    dense: true,
+                    onChanged: (v) => scouting.updateField(
+                        () => scouting.teleopInactiveCollectedFuelHoard = v),
+                  ),
+                  HighlightedSwitch(
+                    title: 'Refill',
+                    value: scouting.teleopInactiveCollectedFuelRefill,
+                    dense: true,
+                    onChanged: (v) => scouting.updateField(
+                        () => scouting.teleopInactiveCollectedFuelRefill = v),
+                  ),
+                ],
               ],
             ),
           ),
@@ -890,6 +925,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
         if (scouting.practiceMode)
           FilledButton.icon(
             onPressed: () {
+              _autoNotesController.clear();
               _notesController.clear();
               scouting.resetForm();
             },
