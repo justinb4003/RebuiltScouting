@@ -21,25 +21,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _keyController;
   late TextEditingController _eventSearchController;
   final FocusNode _eventSearchFocusNode = FocusNode();
-<<<<<<< HEAD
   final _confettiKey = GlobalKey<ConfettiOverlayState>();
-=======
-  late ConfettiController _confettiController;
   late AppStateProvider _appState;
->>>>>>> 072574f (ommit)
   Timer? _saveTimer;
 
   @override
   void initState() {
     super.initState();
-<<<<<<< HEAD
-    final appState = context.read<AppStateProvider>();
-=======
-    _confettiController =
-        ConfettiController(duration: const Duration(milliseconds: 400));
     _appState = context.read<AppStateProvider>();
     final appState = _appState;
->>>>>>> 072574f (ommit)
     final settings = appState.settings;
     _nameController = TextEditingController(text: settings.scouterName);
     _keyController = TextEditingController(text: settings.secretTeamKey);

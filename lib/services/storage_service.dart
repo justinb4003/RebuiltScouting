@@ -178,13 +178,7 @@ class StorageService {
   }
 
   Future<void> cachePitResults(String eventKey, List<PitResult> results) async {
-    final prefs = await SharedPreferences.getInstance();
-    final json = prefs.getString(_pitResultsCacheKey);
-    Map<String, dynamic> cache = {};
-    if (json != null) {
-      cache = jsonDecode(json);
-    }
-    cache[eventKey] = results.map((r) => r.toJson()).toList();
-    await prefs.setString(_pitResultsCacheKey, jsonEncode(cache));
+    await _cachePerEvent(
+        _pitResultsCacheKey, eventKey, results.map((r) => r.toJson()).toList());
   }
 }

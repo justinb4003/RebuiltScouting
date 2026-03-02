@@ -25,6 +25,8 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
   final TextEditingController _matchController = TextEditingController();
   final TextEditingController _autoNotesController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
+  final TextEditingController _activeDefensePenaltiesController = TextEditingController();
+  final TextEditingController _inactiveDefensePenaltiesController = TextEditingController();
   TbaMatch? _selectedMatch;
   int? _selectedRobotIndex; // 0-2 red, 3-5 blue
 
@@ -51,6 +53,8 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
     _matchController.dispose();
     _autoNotesController.dispose();
     _notesController.dispose();
+    _activeDefensePenaltiesController.dispose();
+    _inactiveDefensePenaltiesController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -269,24 +273,26 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                 if (scouting.practiceMode)
                   Card(
                     margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-                    color: Colors.orange.shade50,
+                    color: theme.colorScheme.tertiaryContainer,
                     child: Padding(
                       padding: const EdgeInsets.all(12),
                       child: Row(
                         children: [
-                          Icon(Icons.science, color: Colors.orange.shade700),
+                          Icon(Icons.science, color: theme.colorScheme.onTertiaryContainer),
                           const SizedBox(width: 8),
                           Expanded(
                             child: Text(
                               'Practice Mode — data will not be submitted',
                               style: theme.textTheme.bodyMedium
-                                  ?.copyWith(color: Colors.orange.shade900),
+                                  ?.copyWith(color: theme.colorScheme.onTertiaryContainer),
                             ),
                           ),
                           TextButton(
                             onPressed: () {
                               _autoNotesController.clear();
                               _notesController.clear();
+                              _activeDefensePenaltiesController.clear();
+                              _inactiveDefensePenaltiesController.clear();
                               scouting.resetForm();
                             },
                             child: const Text('Exit'),
@@ -486,7 +492,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   label: 'Fuel Missed',
                   value: scouting.autoFuelMissed,
                   showBulkButtons: true,
-                  onTap: _fireConfetti,
                   enableHaptic: appState.settings.hapticEnabled,
                   onChanged: (v) => scouting
                       .updateField(() => scouting.autoFuelMissed = v),
@@ -570,7 +575,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
   Widget _buildDefenseControls({
     required ScoutingProvider scouting,
     required ThemeData theme,
-    required String defensePenalties,
+    required TextEditingController penaltiesController,
     required ValueChanged<String> onDefensePenaltiesChanged,
     required String defenseQuality,
     required ValueChanged<String> onDefenseQualityChanged,
@@ -594,7 +599,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                       border: OutlineInputBorder(),
                     ),
                     keyboardType: TextInputType.number,
-                    controller: TextEditingController(text: defensePenalties == 'N/A' ? '' : defensePenalties),
+                    controller: penaltiesController,
                     onChanged: (v) => onDefensePenaltiesChanged(v.isEmpty ? 'N/A' : v),
                   ),
                 ],
@@ -606,22 +611,28 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                 children: [
                   Text('Defense Quality',
                       style: theme.textTheme.titleMedium),
-                  for (final option in const [
-                    'N/A',
-                    'Non-effective',
-                    'Poor',
-                    'OK',
-                    'Good',
-                    'Great'
-                  ])
-                    RadioListTile<String>(
-                      title: Text(option),
-                      value: option,
-                      groupValue: defenseQuality,
-                      dense: true,
-                      contentPadding: EdgeInsets.zero,
-                      onChanged: (v) => onDefenseQualityChanged(v!),
+                  RadioGroup<String>(
+                    groupValue: defenseQuality,
+                    onChanged: (v) { if (v != null) onDefenseQualityChanged(v); },
+                    child: Column(
+                      children: [
+                        for (final option in const [
+                          'N/A',
+                          'Non-effective',
+                          'Poor',
+                          'OK',
+                          'Good',
+                          'Great'
+                        ])
+                          RadioListTile<String>(
+                            title: Text(option),
+                            value: option,
+                            dense: true,
+                            contentPadding: EdgeInsets.zero,
+                          ),
+                      ],
                     ),
+                  ),
                 ],
               ),
             ),
@@ -724,7 +735,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   value: scouting.teleopFuelMissed,
                   max: scouting.hopperSize,
                   showBulkButtons: true,
-                  onTap: _fireConfetti,
                   enableHaptic: appState.settings.hapticEnabled,
                   onChanged: (v) => scouting
                       .updateField(() => scouting.teleopFuelMissed = v),
@@ -762,7 +772,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
         _buildDefenseControls(
           scouting: scouting,
           theme: theme,
-          defensePenalties: scouting.teleopActiveDefensePenalties,
+          penaltiesController: _activeDefensePenaltiesController,
           onDefensePenaltiesChanged: (v) => scouting
               .updateField(() => scouting.teleopActiveDefensePenalties = v),
           defenseQuality: scouting.teleopActiveDefenseQuality,
@@ -833,7 +843,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
         _buildDefenseControls(
           scouting: scouting,
           theme: theme,
-          defensePenalties: scouting.teleopInactiveDefensePenalties,
+          penaltiesController: _inactiveDefensePenaltiesController,
           onDefensePenaltiesChanged: (v) => scouting
               .updateField(() => scouting.teleopInactiveDefensePenalties = v),
           defenseQuality: scouting.teleopInactiveDefenseQuality,
@@ -878,7 +888,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   label: 'Fuel Missed',
                   value: scouting.endgameFuelMissed,
                   showBulkButtons: true,
-                  onTap: _fireConfetti,
                   enableHaptic: appState.settings.hapticEnabled,
                   onChanged: (v) => scouting
                       .updateField(() => scouting.endgameFuelMissed = v),
@@ -914,11 +923,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
           onChanged: (v) =>
               scouting.updateField(() => scouting.matchNotes = v),
         ),
-        const SizedBox(height: 8),
-        Text(
-          'Instructions placeholder: detailed scouting guidelines will go here.',
-          style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey),
-        ),
         const SizedBox(height: 16),
 
         // Submit / Reset
@@ -927,6 +931,8 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
             onPressed: () {
               _autoNotesController.clear();
               _notesController.clear();
+              _activeDefensePenaltiesController.clear();
+              _inactiveDefensePenaltiesController.clear();
               scouting.resetForm();
             },
             icon: const Icon(Icons.refresh),
@@ -977,7 +983,10 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                     if (result.success) {
                       final nextMatch = scouting.matchNumber + 1;
                       final prevRobotIndex = _selectedRobotIndex;
+                      _autoNotesController.clear();
                       _notesController.clear();
+                      _activeDefensePenaltiesController.clear();
+                      _inactiveDefensePenaltiesController.clear();
                       scouting.resetForm();
                       _matchController.text = '$nextMatch';
                       final nextMatchData = _findMatch(
