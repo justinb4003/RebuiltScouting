@@ -1012,6 +1012,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                       _autoNotesController.clear();
                       _notesController.clear();
                       scouting.resetForm();
+                      scouting.matchNumber = nextMatch;
                       _matchController.text = '$nextMatch';
                       final nextMatchData = _findMatch(
                           appState.matches, nextMatch);
@@ -1019,13 +1020,24 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                         _selectedMatch = nextMatchData;
                         _selectedRobotIndex = prevRobotIndex;
                       });
-                      // Auto-select the same robot position in the next match
+                      // Pause so the user can see the transition
+                      await Future.delayed(const Duration(seconds: 2));
+                      if (!mounted) return;
+                      // Auto-select same robot position and re-enter scouting
                       if (nextMatchData != null && prevRobotIndex != null) {
                         final teamStr = _teamAtIndex(prevRobotIndex, nextMatchData);
                         if (teamStr != null) {
                           final teamNum = int.tryParse(teamStr);
                           scouting.updateField(
                               () => scouting.selectedTeamNumber = teamNum);
+                          if (teamNum != null) {
+                            final pitResult = await appState.refreshPitResultForTeam(teamNum);
+                            final capacity = (pitResult != null && pitResult.fuelCapacity > 0)
+                                ? pitResult.fuelCapacity
+                                : 50;
+                            _tabController.index = 0;
+                            scouting.beginScouting(defaultHopperSize: capacity);
+                          }
                         }
                       }
                     }
