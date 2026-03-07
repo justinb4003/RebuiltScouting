@@ -26,7 +26,10 @@ class PitProvider extends ChangeNotifier {
   String hangingHow = '';
   String teleopActivePlan = '';
   String teleopInactivePlan = '';
+  bool willingToPlayDefense = false;
+  bool ratherPlayDefense = false;
   bool shootOnMove = false;
+  String hopperEmptyTime = '';
   String funQuestion = '';
   String notes = '';
   String? photoBase64;
@@ -53,7 +56,10 @@ class PitProvider extends ChangeNotifier {
     hangingHow = '';
     teleopActivePlan = '';
     teleopInactivePlan = '';
+    willingToPlayDefense = false;
+    ratherPlayDefense = false;
     shootOnMove = false;
+    hopperEmptyTime = '';
     funQuestion = '';
     notes = '';
     photoBase64 = null;
@@ -125,7 +131,10 @@ class PitProvider extends ChangeNotifier {
       hangingHow: hangingHow,
       teleopActivePlan: teleopActivePlan,
       teleopInactivePlan: teleopInactivePlan,
+      willingToPlayDefense: willingToPlayDefense,
+      ratherPlayDefense: ratherPlayDefense,
       shootOnMove: shootOnMove,
+      hopperEmptyTime: hopperEmptyTime,
       funQuestion: funQuestion,
       notes: notes,
       photoBase64: photoBase64,

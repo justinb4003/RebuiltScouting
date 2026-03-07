@@ -20,7 +20,10 @@ class PitResult {
   String hangingHow;
   String teleopActivePlan;
   String teleopInactivePlan;
+  bool willingToPlayDefense;
+  bool ratherPlayDefense;
   bool shootOnMove;
+  String hopperEmptyTime;
   String funQuestion;
   String notes;
   String? photoBase64;
@@ -46,7 +49,10 @@ class PitResult {
     this.hangingHow = '',
     this.teleopActivePlan = '',
     this.teleopInactivePlan = '',
+    this.willingToPlayDefense = false,
+    this.ratherPlayDefense = false,
     this.shootOnMove = false,
+    this.hopperEmptyTime = '',
     this.funQuestion = '',
     this.notes = '',
     this.photoBase64,
@@ -74,7 +80,10 @@ class PitResult {
         'hanging_how': hangingHow,
         'teleop_active_plan': teleopActivePlan,
         'teleop_inactive_plan': teleopInactivePlan,
+        'willing_to_play_defense': willingToPlayDefense,
+        'rather_play_defense': ratherPlayDefense,
         'shoot_on_move': shootOnMove,
+        'hopper_empty_time': hopperEmptyTime,
         'fun_question': funQuestion,
         'notes': notes,
         'photo_base64': photoBase64,
@@ -101,7 +110,10 @@ class PitResult {
         hangingHow: json['hanging_how'] ?? '',
         teleopActivePlan: json['teleop_active_plan'] ?? '',
         teleopInactivePlan: json['teleop_inactive_plan'] ?? '',
+        willingToPlayDefense: json['willing_to_play_defense'] ?? false,
+        ratherPlayDefense: json['rather_play_defense'] ?? false,
         shootOnMove: json['shoot_on_move'] ?? false,
+        hopperEmptyTime: json['hopper_empty_time'] ?? '',
         funQuestion: json['fun_question'] ?? '',
         notes: json['notes'] ?? '',
         photoBase64: json['photo_base64'],

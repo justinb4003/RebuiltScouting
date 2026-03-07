@@ -256,6 +256,33 @@ class ScoutPitScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
+            // Defense
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Defense', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 12),
+                    HighlightedSwitch(
+                      title: 'Would you be willing to play defense?',
+                      value: pit.willingToPlayDefense,
+                      onChanged: (v) =>
+                          pit.updateField(() => pit.willingToPlayDefense = v),
+                    ),
+                    HighlightedSwitch(
+                      title: 'Would you rather play defense?',
+                      value: pit.ratherPlayDefense,
+                      onChanged: (v) =>
+                          pit.updateField(() => pit.ratherPlayDefense = v),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
             // Overall
             Card(
               child: Padding(
@@ -270,6 +297,17 @@ class ScoutPitScreen extends StatelessWidget {
                       value: pit.shootOnMove,
                       onChanged: (v) =>
                           pit.updateField(() => pit.shootOnMove = v),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Hopper Empty Time',
+                        hintText: 'How long does it take for you to empty your hopper?',
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (v) =>
+                          pit.updateField(() => pit.hopperEmptyTime = v),
                     ),
                     const SizedBox(height: 12),
                     TextField(
