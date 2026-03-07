@@ -100,14 +100,191 @@ class ScoutPitScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
 
-            // Notes
-            TextField(
-              decoration: const InputDecoration(
-                labelText: 'Notes',
-                border: OutlineInputBorder(),
+            // Auton
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Auton', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 12),
+                    Text('Starting Spot', style: theme.textTheme.bodyLarge),
+                    const SizedBox(height: 4),
+                    FixedSegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'Left', label: Text('Left')),
+                        ButtonSegment(value: 'Center', label: Text('Center')),
+                        ButtonSegment(value: 'Right', label: Text('Right')),
+                      ],
+                      selected: {pit.autoStartingSpot},
+                      onSelectionChanged: (v) =>
+                          pit.updateField(() => pit.autoStartingSpot = v.first),
+                    ),
+                    const SizedBox(height: 12),
+                    HighlightedSwitch(
+                      title: 'Hang in Auto',
+                      value: pit.autoHang,
+                      onChanged: (v) =>
+                          pit.updateField(() => pit.autoHang = v),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Auton Notes',
+                        hintText: 'What does the auton accomplish?',
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                      onChanged: (v) =>
+                          pit.updateField(() => pit.autoNotes = v),
+                    ),
+                  ],
+                ),
               ),
-              maxLines: 3,
-              onChanged: (v) => pit.updateField(() => pit.notes = v),
+            ),
+            const SizedBox(height: 16),
+
+            // Hanging
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Hanging', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 12),
+                    HighlightedSwitch(
+                      title: 'Does it work?',
+                      value: pit.hangingWorks,
+                      onChanged: (v) => pit.updateField(() {
+                        pit.hangingWorks = v;
+                        if (!v) pit.hangingLevel = 1;
+                      }),
+                    ),
+                    if (pit.hangingWorks) ...[
+                      const SizedBox(height: 8),
+                      FixedSegmentedButton<int>(
+                        segments: const [
+                          ButtonSegment(value: 1, label: Text('L1')),
+                          ButtonSegment(value: 2, label: Text('L2')),
+                          ButtonSegment(value: 3, label: Text('L3')),
+                        ],
+                        selected: {pit.hangingLevel},
+                        onSelectionChanged: (v) =>
+                            pit.updateField(() => pit.hangingLevel = v.first),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Hanging Time',
+                        hintText: 'How much time does it take?',
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (v) =>
+                          pit.updateField(() => pit.hangingTime = v),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Hanging Method',
+                        hintText: 'How does it work?',
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (v) =>
+                          pit.updateField(() => pit.hangingHow = v),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Teleop A
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Teleop A', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 12),
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Teleop Active',
+                        hintText: 'Goal/plan',
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                      onChanged: (v) =>
+                          pit.updateField(() => pit.teleopActivePlan = v),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Teleop I
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Teleop I', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 12),
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Teleop Inactive',
+                        hintText: 'Goal/plan',
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                      onChanged: (v) =>
+                          pit.updateField(() => pit.teleopInactivePlan = v),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Overall
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Overall', style: theme.textTheme.titleMedium),
+                    const SizedBox(height: 12),
+                    HighlightedSwitch(
+                      title: 'Can you shoot on the move?',
+                      value: pit.shootOnMove,
+                      onChanged: (v) =>
+                          pit.updateField(() => pit.shootOnMove = v),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      decoration: const InputDecoration(
+                        labelText: 'Fun Question',
+                        hintText: 'Dont be stupid',
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (v) =>
+                          pit.updateField(() => pit.funQuestion = v),
+                    ),
+                  ],
+                ),
+              ),
             ),
             const SizedBox(height: 16),
 

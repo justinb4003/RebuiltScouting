@@ -11,6 +11,17 @@ class PitResult {
   bool groundPickup;
   bool humanPlayerPickup;
   int fuelCapacity;
+  String autoStartingSpot; // Left, Center, Right
+  bool autoHang;
+  String autoNotes;
+  bool hangingWorks;
+  int hangingLevel; // 1=L1, 2=L2, 3=L3
+  String hangingTime;
+  String hangingHow;
+  String teleopActivePlan;
+  String teleopInactivePlan;
+  bool shootOnMove;
+  String funQuestion;
   String notes;
   String? photoBase64;
   final DateTime timestamp;
@@ -26,6 +37,17 @@ class PitResult {
     this.groundPickup = false,
     this.humanPlayerPickup = false,
     this.fuelCapacity = 0,
+    this.autoStartingSpot = 'Left',
+    this.autoHang = false,
+    this.autoNotes = '',
+    this.hangingWorks = false,
+    this.hangingLevel = 1,
+    this.hangingTime = '',
+    this.hangingHow = '',
+    this.teleopActivePlan = '',
+    this.teleopInactivePlan = '',
+    this.shootOnMove = false,
+    this.funQuestion = '',
     this.notes = '',
     this.photoBase64,
     DateTime? timestamp,
@@ -43,6 +65,17 @@ class PitResult {
         'ground_pickup': groundPickup,
         'human_player_pickup': humanPlayerPickup,
         'fuel_capacity': fuelCapacity,
+        'auto_starting_spot': autoStartingSpot,
+        'auto_hang': autoHang,
+        'auto_notes': autoNotes,
+        'hanging_works': hangingWorks,
+        'hanging_level': hangingLevel,
+        'hanging_time': hangingTime,
+        'hanging_how': hangingHow,
+        'teleop_active_plan': teleopActivePlan,
+        'teleop_inactive_plan': teleopInactivePlan,
+        'shoot_on_move': shootOnMove,
+        'fun_question': funQuestion,
         'notes': notes,
         'photo_base64': photoBase64,
         'timestamp': timestamp.toIso8601String(),
@@ -59,6 +92,17 @@ class PitResult {
         groundPickup: json['ground_pickup'] ?? false,
         humanPlayerPickup: json['human_player_pickup'] ?? false,
         fuelCapacity: json['fuel_capacity'] ?? 0,
+        autoStartingSpot: json['auto_starting_spot'] ?? 'Left',
+        autoHang: json['auto_hang'] ?? false,
+        autoNotes: json['auto_notes'] ?? '',
+        hangingWorks: json['hanging_works'] ?? false,
+        hangingLevel: json['hanging_level'] ?? 1,
+        hangingTime: json['hanging_time'] ?? '',
+        hangingHow: json['hanging_how'] ?? '',
+        teleopActivePlan: json['teleop_active_plan'] ?? '',
+        teleopInactivePlan: json['teleop_inactive_plan'] ?? '',
+        shootOnMove: json['shoot_on_move'] ?? false,
+        funQuestion: json['fun_question'] ?? '',
         notes: json['notes'] ?? '',
         photoBase64: json['photo_base64'],
         timestamp: json['timestamp'] != null

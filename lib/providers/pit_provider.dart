@@ -17,6 +17,17 @@ class PitProvider extends ChangeNotifier {
   bool groundPickup = false;
   bool humanPlayerPickup = false;
   int fuelCapacity = 0;
+  String autoStartingSpot = 'Left';
+  bool autoHang = false;
+  String autoNotes = '';
+  bool hangingWorks = false;
+  int hangingLevel = 1;
+  String hangingTime = '';
+  String hangingHow = '';
+  String teleopActivePlan = '';
+  String teleopInactivePlan = '';
+  bool shootOnMove = false;
+  String funQuestion = '';
   String notes = '';
   String? photoBase64;
   Uint8List? photoBytes;
@@ -33,6 +44,17 @@ class PitProvider extends ChangeNotifier {
     groundPickup = false;
     humanPlayerPickup = false;
     fuelCapacity = 0;
+    autoStartingSpot = 'Left';
+    autoHang = false;
+    autoNotes = '';
+    hangingWorks = false;
+    hangingLevel = 1;
+    hangingTime = '';
+    hangingHow = '';
+    teleopActivePlan = '';
+    teleopInactivePlan = '';
+    shootOnMove = false;
+    funQuestion = '';
     notes = '';
     photoBase64 = null;
     photoBytes = null;
@@ -94,6 +116,17 @@ class PitProvider extends ChangeNotifier {
       groundPickup: groundPickup,
       humanPlayerPickup: humanPlayerPickup,
       fuelCapacity: fuelCapacity,
+      autoStartingSpot: autoStartingSpot,
+      autoHang: autoHang,
+      autoNotes: autoNotes,
+      hangingWorks: hangingWorks,
+      hangingLevel: hangingLevel,
+      hangingTime: hangingTime,
+      hangingHow: hangingHow,
+      teleopActivePlan: teleopActivePlan,
+      teleopInactivePlan: teleopInactivePlan,
+      shootOnMove: shootOnMove,
+      funQuestion: funQuestion,
       notes: notes,
       photoBase64: photoBase64,
     );
