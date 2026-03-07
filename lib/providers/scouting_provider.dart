@@ -27,6 +27,7 @@ class ScoutingProvider extends ChangeNotifier {
   // Teleop
   int hopperSize = 50;
   int teleopFuelScored = 0;
+  bool teleopShootOnFly = false;
   double teleopFuelAccuracy = 50;
   List<int> volleyScoredList = [];
   List<int> volleyMissedList = [];
@@ -85,6 +86,7 @@ class ScoutingProvider extends ChangeNotifier {
     winAuto = null;
     hopperSize = 50;
     teleopFuelScored = 0;
+    teleopShootOnFly = false;
     teleopFuelAccuracy = 50;
     volleyScoredList = [];
     volleyMissedList = [];
@@ -119,7 +121,7 @@ class ScoutingProvider extends ChangeNotifier {
   String get volleyLog {
     final entries = <String>[];
     for (var i = 0; i < volleyScoredList.length; i++) {
-      entries.add('${volleyScoredList[i]} in, ${volleyMissedList[i]} missed');
+      entries.add('${volleyScoredList[i]} scored, ${teleopFuelAccuracy.round()}% acc');
     }
     return entries.join(' \u2022 ');
   }
@@ -157,6 +159,7 @@ class ScoutingProvider extends ChangeNotifier {
       winAuto: winAuto,
       hopperSize: hopperSize,
       teleopFuelScored: volleyScoredList.fold(0, (a, b) => a + b),
+      teleopShootOnFly: teleopShootOnFly,
       teleopFuelAccuracy: teleopFuelAccuracy,
       volleyScoredList: List.of(volleyScoredList),
       volleyMissedList: List.of(volleyMissedList),

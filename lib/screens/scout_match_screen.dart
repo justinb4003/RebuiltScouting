@@ -473,7 +473,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                       scouting.updateField(() => scouting.autoDidNothing = v),
                 ),
                 CounterButton(
-                  label: 'Fuel Scored',
+                  label: 'Fuel Shot',
                   value: scouting.autoFuelScored,
                   showBulkButtons: true,
                   onTap: _fireConfetti,
@@ -670,6 +670,13 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                     style: theme.textTheme.titleMedium
                         ?.copyWith(color: AppTheme.teleopColor)),
                 const SizedBox(height: 12),
+                HighlightedSwitch(
+                  title: 'Shoot on the Fly',
+                  value: scouting.teleopShootOnFly,
+                  onChanged: (v) =>
+                      scouting.updateField(() => scouting.teleopShootOnFly = v),
+                ),
+                const SizedBox(height: 12),
                 if (scouting.volleyScoredList.isNotEmpty) ...[
                   Text('Volley Log', style: theme.textTheme.bodyMedium),
                   const SizedBox(height: 4),
@@ -726,9 +733,9 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                 ),
                 const SizedBox(height: 16),
                 CounterButton(
-                  label: 'Fuel Scored',
+                  label: 'Fuel Shot',
                   value: scouting.teleopFuelScored,
-                  max: scouting.hopperSize,
+                  max: scouting.teleopShootOnFly ? 999 : scouting.hopperSize,
                   showBulkButtons: true,
                   onTap: _fireConfetti,
                   enableHaptic: appState.settings.hapticEnabled,
@@ -891,7 +898,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                         ?.copyWith(color: AppTheme.endgameColor)),
                 const SizedBox(height: 12),
                 CounterButton(
-                  label: 'Fuel Scored',
+                  label: 'Fuel Shot',
                   value: scouting.endgameFuelScored,
                   showBulkButtons: true,
                   onTap: _fireConfetti,

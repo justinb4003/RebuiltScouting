@@ -21,6 +21,7 @@ class ScoutResult {
   // Teleop phase
   int hopperSize;
   int teleopFuelScored;
+  bool teleopShootOnFly;
   double teleopFuelAccuracy;
   List<int> volleyScoredList;
   List<int> volleyMissedList;
@@ -72,6 +73,7 @@ class ScoutResult {
     this.winAuto,
     this.hopperSize = 50,
     this.teleopFuelScored = 0,
+    this.teleopShootOnFly = false,
     this.teleopFuelAccuracy = 50,
     List<int>? volleyScoredList,
     List<int>? volleyMissedList,
@@ -115,6 +117,7 @@ class ScoutResult {
         'win_auto': winAuto,
         'hopper_size': hopperSize,
         'teleop_fuel_scored': teleopFuelScored,
+        'teleop_shoot_on_fly': teleopShootOnFly,
         'teleop_fuel_accuracy': teleopFuelAccuracy,
         'volley_scored_list': volleyScoredList,
         'volley_missed_list': volleyMissedList,
@@ -155,6 +158,7 @@ class ScoutResult {
         winAuto: json['win_auto'],
         hopperSize: json['hopper_size'] ?? 50,
         teleopFuelScored: json['teleop_fuel_scored'] ?? 0,
+        teleopShootOnFly: json['teleop_shoot_on_fly'] ?? false,
         teleopFuelAccuracy: (json['teleop_fuel_accuracy'] ?? 50).toDouble(),
         volleyScoredList: (json['volley_scored_list'] as List?)?.cast<int>(),
         volleyMissedList: (json['volley_missed_list'] as List?)?.cast<int>(),

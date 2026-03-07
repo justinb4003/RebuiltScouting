@@ -28,7 +28,7 @@ class App extends StatelessWidget {
       theme: AppTheme.lightTheme(fontFamily: fontFamily, seedColor: seedColor),
       darkTheme: AppTheme.darkTheme(fontFamily: fontFamily, seedColor: seedColor),
       themeMode: themeMode,
-      initialRoute: '/settings',
+      home: const SettingsScreen(),
       routes: {
         '/scout': (context) => const ScoutMatchScreen(),
         '/pit': (context) => const ScoutPitScreen(),
