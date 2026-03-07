@@ -35,7 +35,7 @@ class CounterButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    const btnSize = Size(56, 56);
+    const btnSize = Size(72, 72);
     const bulkBtnSize = Size(64, 48);
 
     return Column(
@@ -51,7 +51,7 @@ class CounterButton extends StatelessWidget {
                 minimumSize: btnSize,
                 padding: EdgeInsets.zero,
               ),
-              child: const Icon(Icons.remove, size: 28),
+              child: const Icon(Icons.remove, size: 36),
             ),
             SizedBox(
               width: 80,
@@ -68,7 +68,7 @@ class CounterButton extends StatelessWidget {
                 minimumSize: btnSize,
                 padding: EdgeInsets.zero,
               ),
-              child: const Icon(Icons.add, size: 28),
+              child: const Icon(Icons.add, size: 36),
             ),
           ],
         ),

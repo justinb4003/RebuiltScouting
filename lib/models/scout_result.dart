@@ -11,7 +11,7 @@ class ScoutResult {
   // Auto phase
   bool autoDidNothing;
   int autoFuelScored;
-  int autoFuelMissed;
+  double autoFuelAccuracy;
   int autoTowerLevel;
   int autoMiddlePickup;
   bool autoDepotPickup;
@@ -21,19 +21,20 @@ class ScoutResult {
   // Teleop phase
   int hopperSize;
   int teleopFuelScored;
-  int teleopFuelMissed;
+  double teleopFuelAccuracy;
   List<int> volleyScoredList;
   List<int> volleyMissedList;
   // Teleop Inactive
   bool teleopInactiveScoredFuel;
   bool teleopInactiveCollectedFuel;
-  bool teleopInactiveCollectedFuelHoard;
+  bool teleopInactiveCollectedFuelPush;
+  bool teleopInactiveCollectedFuelLobby;
   bool teleopInactiveCollectedFuelRefill;
 
   // Endgame
   int endgameTowerLevel; // 0=none, 1=L1, 2=L2, 3=L3
   int endgameFuelScored;
-  int endgameFuelMissed;
+  double endgameFuelAccuracy;
 
   // Pickups
   bool fuelGroundPickup;
@@ -41,11 +42,11 @@ class ScoutResult {
   bool fuelDepotPickup;
 
   // Defense - Teleop Active
-  String teleopActiveDefensePenalties;
+  bool teleopActiveDefensePenalties;
   String teleopActiveDefenseQuality;
 
   // Defense - Teleop Inactive
-  String teleopInactiveDefensePenalties;
+  bool teleopInactiveDefensePenalties;
   String teleopInactiveDefenseQuality;
 
   // General
@@ -63,7 +64,7 @@ class ScoutResult {
     required this.teamNumber,
     this.autoDidNothing = false,
     this.autoFuelScored = 0,
-    this.autoFuelMissed = 0,
+    this.autoFuelAccuracy = 50,
     this.autoTowerLevel = 0,
     this.autoMiddlePickup = 0,
     this.autoDepotPickup = false,
@@ -71,22 +72,23 @@ class ScoutResult {
     this.winAuto,
     this.hopperSize = 50,
     this.teleopFuelScored = 0,
-    this.teleopFuelMissed = 0,
+    this.teleopFuelAccuracy = 50,
     List<int>? volleyScoredList,
     List<int>? volleyMissedList,
     this.teleopInactiveScoredFuel = false,
     this.teleopInactiveCollectedFuel = false,
-    this.teleopInactiveCollectedFuelHoard = false,
+    this.teleopInactiveCollectedFuelPush = false,
+    this.teleopInactiveCollectedFuelLobby = false,
     this.teleopInactiveCollectedFuelRefill = false,
     this.endgameTowerLevel = 0,
     this.endgameFuelScored = 0,
-    this.endgameFuelMissed = 0,
+    this.endgameFuelAccuracy = 50,
     this.fuelGroundPickup = false,
     this.fuelHumanPickup = false,
     this.fuelDepotPickup = false,
-    this.teleopActiveDefensePenalties = 'N/A',
+    this.teleopActiveDefensePenalties = false,
     this.teleopActiveDefenseQuality = 'N/A',
-    this.teleopInactiveDefensePenalties = 'N/A',
+    this.teleopInactiveDefensePenalties = false,
     this.teleopInactiveDefenseQuality = 'N/A',
     this.autoNotes = '',
     this.matchNotes = '',
@@ -105,7 +107,7 @@ class ScoutResult {
         'team_number': teamNumber,
         'auto_did_nothing': autoDidNothing,
         'auto_fuel_scored': autoFuelScored,
-        'auto_fuel_missed': autoFuelMissed,
+        'auto_fuel_accuracy': autoFuelAccuracy,
         'auto_tower_level': autoTowerLevel,
         'auto_middle_pickup': autoMiddlePickup,
         'auto_depot_pickup': autoDepotPickup,
@@ -113,16 +115,17 @@ class ScoutResult {
         'win_auto': winAuto,
         'hopper_size': hopperSize,
         'teleop_fuel_scored': teleopFuelScored,
-        'teleop_fuel_missed': teleopFuelMissed,
+        'teleop_fuel_accuracy': teleopFuelAccuracy,
         'volley_scored_list': volleyScoredList,
         'volley_missed_list': volleyMissedList,
         'teleop_inactive_scored_fuel': teleopInactiveScoredFuel,
         'teleop_inactive_collected_fuel': teleopInactiveCollectedFuel,
-        'teleop_inactive_collected_fuel_hoard': teleopInactiveCollectedFuelHoard,
+        'teleop_inactive_collected_fuel_push': teleopInactiveCollectedFuelPush,
+        'teleop_inactive_collected_fuel_lobby': teleopInactiveCollectedFuelLobby,
         'teleop_inactive_collected_fuel_refill': teleopInactiveCollectedFuelRefill,
         'endgame_tower_level': endgameTowerLevel,
         'endgame_fuel_scored': endgameFuelScored,
-        'endgame_fuel_missed': endgameFuelMissed,
+        'endgame_fuel_accuracy': endgameFuelAccuracy,
         'fuel_ground_pickup': fuelGroundPickup,
         'fuel_human_pickup': fuelHumanPickup,
         'fuel_depot_pickup': fuelDepotPickup,
@@ -144,7 +147,7 @@ class ScoutResult {
         teamNumber: json['team_number'] ?? 0,
         autoDidNothing: json['auto_did_nothing'] ?? false,
         autoFuelScored: json['auto_fuel_scored'] ?? 0,
-        autoFuelMissed: json['auto_fuel_missed'] ?? 0,
+        autoFuelAccuracy: (json['auto_fuel_accuracy'] ?? 50).toDouble(),
         autoTowerLevel: json['auto_tower_level'] ?? 0,
         autoMiddlePickup: json['auto_middle_pickup'] ?? 0,
         autoDepotPickup: json['auto_depot_pickup'] ?? false,
@@ -152,22 +155,23 @@ class ScoutResult {
         winAuto: json['win_auto'],
         hopperSize: json['hopper_size'] ?? 50,
         teleopFuelScored: json['teleop_fuel_scored'] ?? 0,
-        teleopFuelMissed: json['teleop_fuel_missed'] ?? 0,
+        teleopFuelAccuracy: (json['teleop_fuel_accuracy'] ?? 50).toDouble(),
         volleyScoredList: (json['volley_scored_list'] as List?)?.cast<int>(),
         volleyMissedList: (json['volley_missed_list'] as List?)?.cast<int>(),
         teleopInactiveScoredFuel: json['teleop_inactive_scored_fuel'] ?? false,
         teleopInactiveCollectedFuel: json['teleop_inactive_collected_fuel'] ?? false,
-        teleopInactiveCollectedFuelHoard: json['teleop_inactive_collected_fuel_hoard'] ?? false,
+        teleopInactiveCollectedFuelPush: json['teleop_inactive_collected_fuel_push'] ?? false,
+        teleopInactiveCollectedFuelLobby: json['teleop_inactive_collected_fuel_lobby'] ?? false,
         teleopInactiveCollectedFuelRefill: json['teleop_inactive_collected_fuel_refill'] ?? false,
         endgameTowerLevel: json['endgame_tower_level'] ?? 0,
         endgameFuelScored: json['endgame_fuel_scored'] ?? 0,
-        endgameFuelMissed: json['endgame_fuel_missed'] ?? 0,
+        endgameFuelAccuracy: (json['endgame_fuel_accuracy'] ?? 50).toDouble(),
         fuelGroundPickup: json['fuel_ground_pickup'] ?? false,
         fuelHumanPickup: json['fuel_human_pickup'] ?? false,
         fuelDepotPickup: json['fuel_depot_pickup'] ?? false,
-        teleopActiveDefensePenalties: json['teleop_active_defense_penalties'] ?? 'N/A',
+        teleopActiveDefensePenalties: json['teleop_active_defense_penalties'] ?? false,
         teleopActiveDefenseQuality: json['teleop_active_defense_quality'] ?? 'N/A',
-        teleopInactiveDefensePenalties: json['teleop_inactive_defense_penalties'] ?? 'N/A',
+        teleopInactiveDefensePenalties: json['teleop_inactive_defense_penalties'] ?? false,
         teleopInactiveDefenseQuality: json['teleop_inactive_defense_quality'] ?? 'N/A',
         autoNotes: json['auto_notes'] ?? '',
         matchNotes: json['match_notes'] ?? '',

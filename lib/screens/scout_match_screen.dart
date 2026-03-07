@@ -25,8 +25,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
   final TextEditingController _matchController = TextEditingController();
   final TextEditingController _autoNotesController = TextEditingController();
   final TextEditingController _notesController = TextEditingController();
-  final TextEditingController _activeDefensePenaltiesController = TextEditingController();
-  final TextEditingController _inactiveDefensePenaltiesController = TextEditingController();
   TbaMatch? _selectedMatch;
   int? _selectedRobotIndex; // 0-2 red, 3-5 blue
 
@@ -53,8 +51,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
     _matchController.dispose();
     _autoNotesController.dispose();
     _notesController.dispose();
-    _activeDefensePenaltiesController.dispose();
-    _inactiveDefensePenaltiesController.dispose();
     _tabController.dispose();
     super.dispose();
   }
@@ -291,8 +287,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                             onPressed: () {
                               _autoNotesController.clear();
                               _notesController.clear();
-                              _activeDefensePenaltiesController.clear();
-                              _inactiveDefensePenaltiesController.clear();
                               scouting.resetForm();
                             },
                             child: const Text('Exit'),
@@ -488,13 +482,16 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                       .updateField(() => scouting.autoFuelScored = v),
                 ),
                 const SizedBox(height: 8),
-                CounterButton(
-                  label: 'Fuel Missed',
-                  value: scouting.autoFuelMissed,
-                  showBulkButtons: true,
-                  enableHaptic: appState.settings.hapticEnabled,
+                Text('Accuracy: ${scouting.autoFuelAccuracy.round()}%',
+                    style: theme.textTheme.bodyLarge),
+                Slider(
+                  value: scouting.autoFuelAccuracy,
+                  min: 0,
+                  max: 100,
+                  divisions: 100,
+                  label: '${scouting.autoFuelAccuracy.round()}%',
                   onChanged: (v) => scouting
-                      .updateField(() => scouting.autoFuelMissed = v),
+                      .updateField(() => scouting.autoFuelAccuracy = v),
                 ),
                 const SizedBox(height: 8),
                 Text('Tower Level', style: theme.textTheme.bodyLarge),
@@ -562,6 +559,8 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
           controller: _autoNotesController,
           decoration: const InputDecoration(
             labelText: 'Auto Notes',
+            hintText: 'Is the auton note worthy?\nDid anything happen that caused the auton to not work?',
+            floatingLabelBehavior: FloatingLabelBehavior.always,
             border: OutlineInputBorder(),
           ),
           maxLines: 3,
@@ -575,8 +574,8 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
   Widget _buildDefenseControls({
     required ScoutingProvider scouting,
     required ThemeData theme,
-    required TextEditingController penaltiesController,
-    required ValueChanged<String> onDefensePenaltiesChanged,
+    required bool defensePenalties,
+    required ValueChanged<bool> onDefensePenaltiesChanged,
     required String defenseQuality,
     required ValueChanged<String> onDefenseQualityChanged,
   }) {
@@ -592,15 +591,25 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                 children: [
                   Text('Defense Penalties',
                       style: theme.textTheme.titleMedium),
-                  const SizedBox(height: 8),
-                  TextField(
-                    decoration: const InputDecoration(
-                      hintText: '',
-                      border: OutlineInputBorder(),
+                  RadioGroup<bool>(
+                    groupValue: defensePenalties,
+                    onChanged: (v) { if (v != null) onDefensePenaltiesChanged(v); },
+                    child: Column(
+                      children: [
+                        RadioListTile<bool>(
+                          title: const Text('Yes'),
+                          value: true,
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        RadioListTile<bool>(
+                          title: const Text('No'),
+                          value: false,
+                          dense: true,
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                      ],
                     ),
-                    keyboardType: TextInputType.number,
-                    controller: penaltiesController,
-                    onChanged: (v) => onDefensePenaltiesChanged(v.isEmpty ? 'N/A' : v),
                   ),
                 ],
               ),
@@ -685,9 +694,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                                 if (scouting.teleopFuelScored > scouting.hopperSize) {
                                   scouting.teleopFuelScored = scouting.hopperSize;
                                 }
-                                if (scouting.teleopFuelMissed > scouting.hopperSize) {
-                                  scouting.teleopFuelMissed = scouting.hopperSize;
-                                }
                               });
                             }
                           : null,
@@ -730,14 +736,16 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                       .updateField(() => scouting.teleopFuelScored = v),
                 ),
                 const SizedBox(height: 8),
-                CounterButton(
-                  label: 'Fuel Missed',
-                  value: scouting.teleopFuelMissed,
-                  max: scouting.hopperSize,
-                  showBulkButtons: true,
-                  enableHaptic: appState.settings.hapticEnabled,
+                Text('Accuracy: ${scouting.teleopFuelAccuracy.round()}%',
+                    style: theme.textTheme.bodyLarge),
+                Slider(
+                  value: scouting.teleopFuelAccuracy,
+                  min: 0,
+                  max: 100,
+                  divisions: 100,
+                  label: '${scouting.teleopFuelAccuracy.round()}%',
                   onChanged: (v) => scouting
-                      .updateField(() => scouting.teleopFuelMissed = v),
+                      .updateField(() => scouting.teleopFuelAccuracy = v),
                 ),
                 const SizedBox(height: 8),
                 FilledButton.icon(
@@ -772,7 +780,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
         _buildDefenseControls(
           scouting: scouting,
           theme: theme,
-          penaltiesController: _activeDefensePenaltiesController,
+          defensePenalties: scouting.teleopActiveDefensePenalties,
           onDefensePenaltiesChanged: (v) => scouting
               .updateField(() => scouting.teleopActiveDefensePenalties = v),
           defenseQuality: scouting.teleopActiveDefenseQuality,
@@ -814,18 +822,26 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   onChanged: (v) => scouting.updateField(() {
                     scouting.teleopInactiveCollectedFuel = v;
                     if (!v) {
-                      scouting.teleopInactiveCollectedFuelHoard = false;
+                      scouting.teleopInactiveCollectedFuelPush = false;
+                      scouting.teleopInactiveCollectedFuelLobby = false;
                       scouting.teleopInactiveCollectedFuelRefill = false;
                     }
                   }),
                 ),
                 if (scouting.teleopInactiveCollectedFuel) ...[
                   HighlightedSwitch(
-                    title: 'Hoard',
-                    value: scouting.teleopInactiveCollectedFuelHoard,
+                    title: 'Push',
+                    value: scouting.teleopInactiveCollectedFuelPush,
                     dense: true,
                     onChanged: (v) => scouting.updateField(
-                        () => scouting.teleopInactiveCollectedFuelHoard = v),
+                        () => scouting.teleopInactiveCollectedFuelPush = v),
+                  ),
+                  HighlightedSwitch(
+                    title: 'Lobby',
+                    value: scouting.teleopInactiveCollectedFuelLobby,
+                    dense: true,
+                    onChanged: (v) => scouting.updateField(
+                        () => scouting.teleopInactiveCollectedFuelLobby = v),
                   ),
                   HighlightedSwitch(
                     title: 'Refill',
@@ -843,7 +859,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
         _buildDefenseControls(
           scouting: scouting,
           theme: theme,
-          penaltiesController: _inactiveDefensePenaltiesController,
+          defensePenalties: scouting.teleopInactiveDefensePenalties,
           onDefensePenaltiesChanged: (v) => scouting
               .updateField(() => scouting.teleopInactiveDefensePenalties = v),
           defenseQuality: scouting.teleopInactiveDefenseQuality,
@@ -884,13 +900,16 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                       .updateField(() => scouting.endgameFuelScored = v),
                 ),
                 const SizedBox(height: 8),
-                CounterButton(
-                  label: 'Fuel Missed',
-                  value: scouting.endgameFuelMissed,
-                  showBulkButtons: true,
-                  enableHaptic: appState.settings.hapticEnabled,
+                Text('Accuracy: ${scouting.endgameFuelAccuracy.round()}%',
+                    style: theme.textTheme.bodyLarge),
+                Slider(
+                  value: scouting.endgameFuelAccuracy,
+                  min: 0,
+                  max: 100,
+                  divisions: 100,
+                  label: '${scouting.endgameFuelAccuracy.round()}%',
                   onChanged: (v) => scouting
-                      .updateField(() => scouting.endgameFuelMissed = v),
+                      .updateField(() => scouting.endgameFuelAccuracy = v),
                 ),
                 const SizedBox(height: 8),
                 Text('Tower Level', style: theme.textTheme.bodyLarge),
@@ -917,6 +936,8 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
           controller: _notesController,
           decoration: const InputDecoration(
             labelText: 'Match Notes',
+            hintText: 'Any reason for the way they performed (ex. broke down)\nShould we look into anything of theirs?\nPlease note if you had any problems during the match',
+            floatingLabelBehavior: FloatingLabelBehavior.always,
             border: OutlineInputBorder(),
           ),
           maxLines: 3,
@@ -931,8 +952,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
             onPressed: () {
               _autoNotesController.clear();
               _notesController.clear();
-              _activeDefensePenaltiesController.clear();
-              _inactiveDefensePenaltiesController.clear();
               scouting.resetForm();
             },
             icon: const Icon(Icons.refresh),
@@ -985,8 +1004,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                       final prevRobotIndex = _selectedRobotIndex;
                       _autoNotesController.clear();
                       _notesController.clear();
-                      _activeDefensePenaltiesController.clear();
-                      _inactiveDefensePenaltiesController.clear();
                       scouting.resetForm();
                       _matchController.text = '$nextMatch';
                       final nextMatchData = _findMatch(

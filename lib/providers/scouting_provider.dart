@@ -17,7 +17,7 @@ class ScoutingProvider extends ChangeNotifier {
   // Auto
   bool autoDidNothing = false;
   int autoFuelScored = 0;
-  int autoFuelMissed = 0;
+  double autoFuelAccuracy = 50;
   int autoTowerLevel = 0;
   int autoMiddlePickup = 0;
   bool autoDepotPickup = false;
@@ -27,20 +27,21 @@ class ScoutingProvider extends ChangeNotifier {
   // Teleop
   int hopperSize = 50;
   int teleopFuelScored = 0;
-  int teleopFuelMissed = 0;
+  double teleopFuelAccuracy = 50;
   List<int> volleyScoredList = [];
   List<int> volleyMissedList = [];
 
   // Teleop Inactive
   bool teleopInactiveScoredFuel = false;
   bool teleopInactiveCollectedFuel = false;
-  bool teleopInactiveCollectedFuelHoard = false;
+  bool teleopInactiveCollectedFuelPush = false;
+  bool teleopInactiveCollectedFuelLobby = false;
   bool teleopInactiveCollectedFuelRefill = false;
 
   // Endgame
   int endgameTowerLevel = 0;
   int endgameFuelScored = 0;
-  int endgameFuelMissed = 0;
+  double endgameFuelAccuracy = 50;
 
   // Pickups
   bool fuelGroundPickup = false;
@@ -48,11 +49,11 @@ class ScoutingProvider extends ChangeNotifier {
   bool fuelDepotPickup = false;
 
   // Defense - Teleop Active
-  String teleopActiveDefensePenalties = 'N/A';
+  bool teleopActiveDefensePenalties = false;
   String teleopActiveDefenseQuality = 'N/A';
 
   // Defense - Teleop Inactive
-  String teleopInactiveDefensePenalties = 'N/A';
+  bool teleopInactiveDefensePenalties = false;
   String teleopInactiveDefenseQuality = 'N/A';
 
   // General
@@ -76,7 +77,7 @@ class ScoutingProvider extends ChangeNotifier {
     practiceMode = false;
     autoDidNothing = false;
     autoFuelScored = 0;
-    autoFuelMissed = 0;
+    autoFuelAccuracy = 50;
     autoTowerLevel = 0;
     autoMiddlePickup = 0;
     autoDepotPickup = false;
@@ -84,22 +85,23 @@ class ScoutingProvider extends ChangeNotifier {
     winAuto = null;
     hopperSize = 50;
     teleopFuelScored = 0;
-    teleopFuelMissed = 0;
+    teleopFuelAccuracy = 50;
     volleyScoredList = [];
     volleyMissedList = [];
     teleopInactiveScoredFuel = false;
     teleopInactiveCollectedFuel = false;
-    teleopInactiveCollectedFuelHoard = false;
+    teleopInactiveCollectedFuelPush = false;
+    teleopInactiveCollectedFuelLobby = false;
     teleopInactiveCollectedFuelRefill = false;
     endgameTowerLevel = 0;
     endgameFuelScored = 0;
-    endgameFuelMissed = 0;
+    endgameFuelAccuracy = 50;
     fuelGroundPickup = false;
     fuelHumanPickup = false;
     fuelDepotPickup = false;
-    teleopActiveDefensePenalties = 'N/A';
+    teleopActiveDefensePenalties = false;
     teleopActiveDefenseQuality = 'N/A';
-    teleopInactiveDefensePenalties = 'N/A';
+    teleopInactiveDefensePenalties = false;
     teleopInactiveDefenseQuality = 'N/A';
     autoNotes = '';
     matchNotes = '';
@@ -110,9 +112,7 @@ class ScoutingProvider extends ChangeNotifier {
 
   void recordVolley() {
     volleyScoredList.add(teleopFuelScored);
-    volleyMissedList.add(teleopFuelMissed);
     teleopFuelScored = 0;
-    teleopFuelMissed = 0;
     notifyListeners();
   }
 
@@ -149,7 +149,7 @@ class ScoutingProvider extends ChangeNotifier {
       teamNumber: selectedTeamNumber!,
       autoDidNothing: autoDidNothing,
       autoFuelScored: autoFuelScored,
-      autoFuelMissed: autoFuelMissed,
+      autoFuelAccuracy: autoFuelAccuracy,
       autoTowerLevel: autoTowerLevel,
       autoMiddlePickup: autoMiddlePickup,
       autoDepotPickup: autoDepotPickup,
@@ -157,16 +157,17 @@ class ScoutingProvider extends ChangeNotifier {
       winAuto: winAuto,
       hopperSize: hopperSize,
       teleopFuelScored: volleyScoredList.fold(0, (a, b) => a + b),
-      teleopFuelMissed: volleyMissedList.fold(0, (a, b) => a + b),
+      teleopFuelAccuracy: teleopFuelAccuracy,
       volleyScoredList: List.of(volleyScoredList),
       volleyMissedList: List.of(volleyMissedList),
       teleopInactiveScoredFuel: teleopInactiveScoredFuel,
       teleopInactiveCollectedFuel: teleopInactiveCollectedFuel,
-      teleopInactiveCollectedFuelHoard: teleopInactiveCollectedFuelHoard,
+      teleopInactiveCollectedFuelPush: teleopInactiveCollectedFuelPush,
+      teleopInactiveCollectedFuelLobby: teleopInactiveCollectedFuelLobby,
       teleopInactiveCollectedFuelRefill: teleopInactiveCollectedFuelRefill,
       endgameTowerLevel: endgameTowerLevel,
       endgameFuelScored: endgameFuelScored,
-      endgameFuelMissed: endgameFuelMissed,
+      endgameFuelAccuracy: endgameFuelAccuracy,
       fuelGroundPickup: fuelGroundPickup,
       fuelHumanPickup: fuelHumanPickup,
       fuelDepotPickup: fuelDepotPickup,
