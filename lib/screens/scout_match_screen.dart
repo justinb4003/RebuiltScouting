@@ -304,9 +304,23 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                         Icon(Icons.sports_score,
                             size: 20, color: theme.colorScheme.primary),
                         const SizedBox(width: 8),
-                        Text(
-                          'Match ${scouting.matchNumber} • Team ${scouting.selectedTeamNumber ?? "???"}',
-                          style: theme.textTheme.titleSmall,
+                        Expanded(
+                          child: Text(
+                            'Match ${scouting.matchNumber} • Team ${scouting.selectedTeamNumber ?? "???"}',
+                            style: theme.textTheme.titleSmall,
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: () {
+                            _autoNotesController.clear();
+                            _notesController.clear();
+                            scouting.resetForm();
+                            setState(() {
+                              _selectedRobotIndex = null;
+                            });
+                          },
+                          icon: const Icon(Icons.arrow_back, size: 18),
+                          label: const Text('Back'),
                         ),
                       ],
                     ),
