@@ -16,7 +16,7 @@ class AppStateProvider extends ChangeNotifier {
   List<TbaTeam> _teams = [];
   List<TbaMatch> _matches = [];
   List<PitResult> _pitResults = [];
-  bool _loading = false;
+  int _loadingCount = 0;
   String? _error;
   int _heldDataCount = 0;
 
@@ -25,7 +25,7 @@ class AppStateProvider extends ChangeNotifier {
   List<TbaTeam> get teams => _teams;
   List<TbaMatch> get matches => _matches;
   List<PitResult> get pitResults => _pitResults;
-  bool get loading => _loading;
+  bool get loading => _loadingCount > 0;
   String? get error => _error;
   int get heldDataCount => _heldDataCount;
 
@@ -54,7 +54,7 @@ class AppStateProvider extends ChangeNotifier {
   }
 
   /// Persist settings to storage without triggering a rebuild.
-  Future<void> _persistSettings() async {
+  Future<void> persistSettings() async {
     await _storage.saveSettings(_settings);
   }
 
@@ -72,14 +72,9 @@ class AppStateProvider extends ChangeNotifier {
     _settings.secretTeamKey = key;
   }
 
-  /// Persist name/key without rebuilding the widget tree.
-  Future<void> persistTextFields() async {
-    await _persistSettings();
-  }
-
   Future<void> setEventYear(int year) async {
     _settings.eventYear = year;
-    await _persistSettings();
+    await persistSettings();
     await loadEvents(year);
   }
 
@@ -95,7 +90,7 @@ class AppStateProvider extends ChangeNotifier {
     _matches = [];
     _pitResults = [];
 
-    await _persistSettings();
+    await persistSettings();
     notifyListeners();
 
     // Auto-load teams and matches when event is set
@@ -105,7 +100,7 @@ class AppStateProvider extends ChangeNotifier {
   }
 
   Future<void> loadEvents(int year) async {
-    _loading = true;
+    _loadingCount++;
     _error = null;
     notifyListeners();
     try {
@@ -114,13 +109,13 @@ class AppStateProvider extends ChangeNotifier {
     } catch (e) {
       _error = 'Failed to load events: $e';
     }
-    _loading = false;
+    _loadingCount--;
     notifyListeners();
   }
 
   Future<void> loadTeams() async {
     if (_settings.selectedEventKey == null) return;
-    _loading = true;
+    _loadingCount++;
     _error = null;
     notifyListeners();
     try {
@@ -129,13 +124,13 @@ class AppStateProvider extends ChangeNotifier {
     } catch (e) {
       _error = 'Failed to load teams: $e';
     }
-    _loading = false;
+    _loadingCount--;
     notifyListeners();
   }
 
   Future<void> loadMatches() async {
     if (_settings.selectedEventKey == null) return;
-    _loading = true;
+    _loadingCount++;
     _error = null;
     notifyListeners();
     try {
@@ -144,7 +139,7 @@ class AppStateProvider extends ChangeNotifier {
     } catch (e) {
       _error = 'Failed to load matches: $e';
     }
-    _loading = false;
+    _loadingCount--;
     notifyListeners();
   }
 

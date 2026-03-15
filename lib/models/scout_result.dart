@@ -25,6 +25,7 @@ class ScoutResult {
   double teleopFuelAccuracy;
   List<int> volleyScoredList;
   List<int> volleyMissedList;
+  List<double> volleyAccuracyList;
   // Teleop Inactive
   bool teleopInactiveScoredFuel;
   bool teleopInactiveCollectedFuel;
@@ -77,6 +78,7 @@ class ScoutResult {
     this.teleopFuelAccuracy = 50,
     List<int>? volleyScoredList,
     List<int>? volleyMissedList,
+    List<double>? volleyAccuracyList,
     this.teleopInactiveScoredFuel = false,
     this.teleopInactiveCollectedFuel = false,
     this.teleopInactiveCollectedFuelPush = false,
@@ -98,6 +100,7 @@ class ScoutResult {
   })  : id = id ?? const Uuid().v4(),
         volleyScoredList = volleyScoredList ?? [],
         volleyMissedList = volleyMissedList ?? [],
+        volleyAccuracyList = volleyAccuracyList ?? [],
         timestamp = timestamp ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
@@ -121,6 +124,7 @@ class ScoutResult {
         'teleop_fuel_accuracy': teleopFuelAccuracy,
         'volley_scored_list': volleyScoredList,
         'volley_missed_list': volleyMissedList,
+        'volley_accuracy_list': volleyAccuracyList,
         'teleop_inactive_scored_fuel': teleopInactiveScoredFuel,
         'teleop_inactive_collected_fuel': teleopInactiveCollectedFuel,
         'teleop_inactive_collected_fuel_push': teleopInactiveCollectedFuelPush,
@@ -162,6 +166,7 @@ class ScoutResult {
         teleopFuelAccuracy: (json['teleop_fuel_accuracy'] ?? 50).toDouble(),
         volleyScoredList: (json['volley_scored_list'] as List?)?.cast<int>(),
         volleyMissedList: (json['volley_missed_list'] as List?)?.cast<int>(),
+        volleyAccuracyList: (json['volley_accuracy_list'] as List?)?.map((e) => (e as num).toDouble()).toList(),
         teleopInactiveScoredFuel: json['teleop_inactive_scored_fuel'] ?? false,
         teleopInactiveCollectedFuel: json['teleop_inactive_collected_fuel'] ?? false,
         teleopInactiveCollectedFuelPush: json['teleop_inactive_collected_fuel_push'] ?? false,

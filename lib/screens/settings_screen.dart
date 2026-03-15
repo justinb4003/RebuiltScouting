@@ -51,7 +51,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // Final save of all text fields on dispose
     _appState.updateScouterName(_nameController.text.trim());
     _appState.updateSecretKey(_keyController.text.trim());
-    _appState.persistTextFields();
+    _appState.persistSettings();
     _nameController.dispose();
     _keyController.dispose();
     _eventSearchController.dispose();
@@ -65,7 +65,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final appState = context.read<AppStateProvider>();
       appState.updateScouterName(_nameController.text.trim());
       appState.updateSecretKey(_keyController.text.trim());
-      appState.persistTextFields();
+      appState.persistSettings();
     });
   }
 

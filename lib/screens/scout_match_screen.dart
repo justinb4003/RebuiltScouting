@@ -1021,12 +1021,11 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                       ),
                     );
                     if (result.success) {
-                      final nextMatch = scouting.matchNumber + 1;
                       final prevRobotIndex = _selectedRobotIndex;
                       _autoNotesController.clear();
                       _notesController.clear();
                       scouting.resetForm();
-                      scouting.matchNumber = nextMatch;
+                      final nextMatch = scouting.matchNumber;
                       _matchController.text = '$nextMatch';
                       final nextMatchData = _findMatch(
                           appState.matches, nextMatch);

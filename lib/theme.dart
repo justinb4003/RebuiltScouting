@@ -19,21 +19,19 @@ class AppTheme {
     'Deep Orange': Colors.deepOrange,
   };
 
-  static ThemeData lightTheme({String? fontFamily, Color? seedColor}) =>
+  static ThemeData _theme(Brightness brightness, {String? fontFamily, Color? seedColor}) =>
       ThemeData(
         useMaterial3: true,
         colorSchemeSeed: seedColor ?? defaultColor,
-        brightness: Brightness.light,
+        brightness: brightness,
         fontFamily: fontFamily,
       );
 
+  static ThemeData lightTheme({String? fontFamily, Color? seedColor}) =>
+      _theme(Brightness.light, fontFamily: fontFamily, seedColor: seedColor);
+
   static ThemeData darkTheme({String? fontFamily, Color? seedColor}) =>
-      ThemeData(
-        useMaterial3: true,
-        colorSchemeSeed: seedColor ?? defaultColor,
-        brightness: Brightness.dark,
-        fontFamily: fontFamily,
-      );
+      _theme(Brightness.dark, fontFamily: fontFamily, seedColor: seedColor);
 
   // Section colors for scouting phases
   static const autoColor = Color(0xFF1565C0); // Blue

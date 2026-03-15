@@ -10,6 +10,9 @@ import '../models/pit_result.dart';
 class StorageService {
   static final instance = StorageService();
 
+  SharedPreferences? _prefs;
+  Future<SharedPreferences> _getPrefs() async => _prefs ??= await SharedPreferences.getInstance();
+
   static const String _settingsKey = 'app_settings';
   static const String _eventListKey = 'event_list';
   static const String _eventTeamsCacheKey = 'event_teams_cache';
@@ -20,7 +23,7 @@ class StorageService {
 
   // Settings
   Future<AppSettings> loadSettings() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final json = prefs.getString(_settingsKey);
     if (json != null) {
       return AppSettings.fromJson(jsonDecode(json));
@@ -29,13 +32,13 @@ class StorageService {
   }
 
   Future<void> saveSettings(AppSettings settings) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.setString(_settingsKey, jsonEncode(settings.toJson()));
   }
 
   // Event list cache
   Future<List<TbaEvent>> loadCachedEvents() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final json = prefs.getString(_eventListKey);
     if (json != null) {
       final List<dynamic> data = jsonDecode(json);
@@ -45,14 +48,14 @@ class StorageService {
   }
 
   Future<void> cacheEvents(List<TbaEvent> events) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.setString(
         _eventListKey, jsonEncode(events.map((e) => e.toJson()).toList()));
   }
 
   // Team list cache (per event)
   Future<List<TbaTeam>> loadCachedTeams(String eventKey) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final json = prefs.getString(_eventTeamsCacheKey);
     if (json != null) {
       final Map<String, dynamic> cache = jsonDecode(json);
@@ -71,7 +74,7 @@ class StorageService {
 
   // Match list cache (per event)
   Future<List<TbaMatch>> loadCachedMatches(String eventKey) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final json = prefs.getString(_eventMatchesCacheKey);
     if (json != null) {
       final Map<String, dynamic> cache = jsonDecode(json);
@@ -90,7 +93,7 @@ class StorageService {
 
   Future<void> _cachePerEvent(
       String cacheKey, String eventKey, List<Map<String, dynamic>> data) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final json = prefs.getString(cacheKey);
     Map<String, dynamic> cache = {};
     if (json != null) {
@@ -101,13 +104,13 @@ class StorageService {
   }
 
   Future<void> clearAll() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.clear();
   }
 
   // Held scout data
   Future<List<ScoutResult>> loadHeldScoutData() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final json = prefs.getString(_heldScoutDataKey);
     if (json != null) {
       final List<dynamic> data = jsonDecode(json);
@@ -117,7 +120,7 @@ class StorageService {
   }
 
   Future<void> saveHeldScoutData(List<ScoutResult> results) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.setString(
         _heldScoutDataKey, jsonEncode(results.map((r) => r.toJson()).toList()));
   }
@@ -136,7 +139,7 @@ class StorageService {
 
   // Held pit data
   Future<List<PitResult>> loadHeldPitData() async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final json = prefs.getString(_heldPitDataKey);
     if (json != null) {
       final List<dynamic> data = jsonDecode(json);
@@ -146,7 +149,7 @@ class StorageService {
   }
 
   Future<void> saveHeldPitData(List<PitResult> results) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     await prefs.setString(
         _heldPitDataKey, jsonEncode(results.map((r) => r.toJson()).toList()));
   }
@@ -165,7 +168,7 @@ class StorageService {
 
   // Pit results cache (per event)
   Future<List<PitResult>> loadCachedPitResults(String eventKey) async {
-    final prefs = await SharedPreferences.getInstance();
+    final prefs = await _getPrefs();
     final json = prefs.getString(_pitResultsCacheKey);
     if (json != null) {
       final Map<String, dynamic> cache = jsonDecode(json);

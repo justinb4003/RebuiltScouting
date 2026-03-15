@@ -31,6 +31,7 @@ class ScoutingProvider extends ChangeNotifier {
   double teleopFuelAccuracy = 50;
   List<int> volleyScoredList = [];
   List<int> volleyMissedList = [];
+  List<double> volleyAccuracyList = [];
 
   // Teleop Inactive
   bool teleopInactiveScoredFuel = false;
@@ -90,6 +91,7 @@ class ScoutingProvider extends ChangeNotifier {
     teleopFuelAccuracy = 50;
     volleyScoredList = [];
     volleyMissedList = [];
+    volleyAccuracyList = [];
     teleopInactiveScoredFuel = false;
     teleopInactiveCollectedFuel = false;
     teleopInactiveCollectedFuelPush = false;
@@ -114,6 +116,7 @@ class ScoutingProvider extends ChangeNotifier {
 
   void recordVolley() {
     volleyScoredList.add(teleopFuelScored);
+    volleyAccuracyList.add(teleopFuelAccuracy);
     teleopFuelScored = 0;
     notifyListeners();
   }
@@ -121,7 +124,8 @@ class ScoutingProvider extends ChangeNotifier {
   String get volleyLog {
     final entries = <String>[];
     for (var i = 0; i < volleyScoredList.length; i++) {
-      entries.add('${volleyScoredList[i]} scored, ${teleopFuelAccuracy.round()}% acc');
+      final acc = volleyAccuracyList[i];
+      entries.add('${volleyScoredList[i]} scored, ${acc.round()}% acc');
     }
     return entries.join(' \u2022 ');
   }
@@ -163,6 +167,7 @@ class ScoutingProvider extends ChangeNotifier {
       teleopFuelAccuracy: teleopFuelAccuracy,
       volleyScoredList: List.of(volleyScoredList),
       volleyMissedList: List.of(volleyMissedList),
+      volleyAccuracyList: List.of(volleyAccuracyList),
       teleopInactiveScoredFuel: teleopInactiveScoredFuel,
       teleopInactiveCollectedFuel: teleopInactiveCollectedFuel,
       teleopInactiveCollectedFuelPush: teleopInactiveCollectedFuelPush,

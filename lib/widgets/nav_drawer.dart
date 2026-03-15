@@ -7,6 +7,8 @@ class NavDrawer extends StatelessWidget {
 
   const NavDrawer({super.key, required this.selectedIndex});
 
+  static const _routes = ['/scout', '/pit', '/held', '/settings'];
+
   @override
   Widget build(BuildContext context) {
     final heldCount = context.watch<AppStateProvider>().heldDataCount;
@@ -15,20 +17,7 @@ class NavDrawer extends StatelessWidget {
       selectedIndex: selectedIndex,
       onDestinationSelected: (index) {
         Navigator.pop(context); // Close drawer
-        switch (index) {
-          case 0:
-            Navigator.pushReplacementNamed(context, '/scout');
-            break;
-          case 1:
-            Navigator.pushReplacementNamed(context, '/pit');
-            break;
-          case 2:
-            Navigator.pushReplacementNamed(context, '/held');
-            break;
-          case 3:
-            Navigator.pushReplacementNamed(context, '/settings');
-            break;
-        }
+        Navigator.pushReplacementNamed(context, _routes[index]);
       },
       children: [
         const Padding(

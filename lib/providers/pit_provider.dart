@@ -156,7 +156,9 @@ class PitProvider extends ChangeNotifier {
         return SubmitResult(
             success: false, message: 'API error. Data saved locally.');
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      debugPrint('Pit submit error: $e');
+      debugPrint('$stackTrace');
       _submitting = false;
       notifyListeners();
       return SubmitResult(

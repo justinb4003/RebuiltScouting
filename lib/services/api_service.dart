@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import '../models/tba_event.dart';
 import '../models/tba_team.dart';
@@ -63,6 +64,9 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(result.toJson()),
     ).timeout(_timeout);
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      debugPrint('postPitResults failed: ${response.statusCode} ${response.body}');
+    }
     return response.statusCode == 200 || response.statusCode == 201;
   }
 
