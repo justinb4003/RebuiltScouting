@@ -28,6 +28,10 @@ jobs:
 
       - run: flutter build web --release --base-href=/RebuiltScouting/
 
+      - name: Generate version.json for cache-busting
+        run: |
+          echo "{\"version\":\"$(date -u +%Y%m%d%H%M%S)-${GITHUB_SHA::8}\"}" > build/web/version.json
+
       - uses: actions/upload-pages-artifact@v3
         with:
           path: build/web

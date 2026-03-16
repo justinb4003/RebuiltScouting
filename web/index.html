@@ -34,14 +34,72 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+  <script>
+    // Force-update mechanism for PWA.
+    // On each load, fetch version.json from the server (cache-busted).
+    // If the version has changed, clear all caches & service workers and hard-reload.
+    // If the server is unreachable, fall back gracefully and load normally.
+    (function() {
+      var STORAGE_KEY = 'app_version';
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
+      function clearAllCaches() {
+        if ('caches' in window) {
+          return caches.keys().then(function(names) {
+            return Promise.all(names.map(function(name) {
+              return caches.delete(name);
+            }));
+          });
+        }
+        return Promise.resolve();
+      }
+
+      function unregisterServiceWorkers() {
+        if ('serviceWorker' in navigator) {
+          return navigator.serviceWorker.getRegistrations().then(function(registrations) {
+            return Promise.all(registrations.map(function(r) {
+              return r.unregister();
+            }));
+          });
+        }
+        return Promise.resolve();
+      }
+
+      function checkForUpdate() {
+        var url = 'version.json?_t=' + Date.now();
+        return fetch(url, { cache: 'no-store' })
+          .then(function(response) {
+            if (!response.ok) throw new Error('version.json not found');
+            return response.json();
+          })
+          .then(function(data) {
+            var serverVersion = data.version;
+            var localVersion = localStorage.getItem(STORAGE_KEY);
+
+            if (localVersion && localVersion !== serverVersion) {
+              console.log('[Update] New version detected: ' + serverVersion + ' (was ' + localVersion + '). Forcing update...');
+              localStorage.setItem(STORAGE_KEY, serverVersion);
+              return Promise.all([clearAllCaches(), unregisterServiceWorkers()])
+                .then(function() {
+                  window.location.reload();
+                });
+            } else {
+              if (!localVersion) {
+                console.log('[Update] First visit. Storing version: ' + serverVersion);
+              } else {
+                console.log('[Update] App is up to date (v' + serverVersion + ').');
+              }
+              localStorage.setItem(STORAGE_KEY, serverVersion);
+            }
+          })
+          .catch(function(err) {
+            console.warn('[Update] Could not check for updates, loading cached version.', err);
+          });
+      }
+
+      checkForUpdate();
+    })();
+  </script>
+
   <script src="flutter_bootstrap.js" async></script>
 </body>
 </html>
