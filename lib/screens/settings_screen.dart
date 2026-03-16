@@ -7,6 +7,7 @@ import '../widgets/confetti_overlay.dart';
 import '../widgets/fixed_segmented_button.dart';
 import '../providers/app_state_provider.dart';
 import '../theme.dart';
+import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -75,7 +76,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final settings = appState.settings;
 
     return Scaffold(
-      appBar: AppBar(title: Text(settings.selectedEventName ?? 'Configure Event to Continue...')),
+      appBar: AppBar(
+        title: Text(settings.selectedEventName ?? 'Configure Event to Continue...'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Text(
+              'Updated $buildTimestamp',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ),
+        ],
+      ),
       drawer: const NavDrawer(selectedIndex: 3),
       body: Stack(
         children: [

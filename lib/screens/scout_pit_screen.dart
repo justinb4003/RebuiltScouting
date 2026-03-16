@@ -4,6 +4,7 @@ import '../providers/app_state_provider.dart';
 import '../providers/pit_provider.dart';
 import '../widgets/fixed_segmented_button.dart';
 import '../widgets/highlighted_switch.dart';
+import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
 import '../widgets/team_selector.dart';
 
@@ -19,6 +20,17 @@ class ScoutPitScreen extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(
         title: Text(appState.settings.selectedEventName ?? 'Configure Event to Continue...'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Text(
+              'Updated $buildTimestamp',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ),
+        ],
       ),
       drawer: const NavDrawer(selectedIndex: 1),
       body: ListView(
