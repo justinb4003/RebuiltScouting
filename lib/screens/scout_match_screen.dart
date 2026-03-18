@@ -9,6 +9,7 @@ import '../widgets/confetti_overlay.dart';
 import '../widgets/counter_button.dart';
 import '../widgets/fixed_segmented_button.dart';
 import '../widgets/highlighted_switch.dart';
+import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
 
 class ScoutMatchScreen extends StatefulWidget {
@@ -111,7 +112,20 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
     }
 
     return Scaffold(
-      appBar: AppBar(title: Text(appState.settings.selectedEventName ?? 'Configure Event to Continue...')),
+      appBar: AppBar(
+        title: Text(appState.settings.selectedEventName ?? 'Configure Event to Continue...'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Text(
+              'Updated $buildTimestamp',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ),
+        ],
+      ),
       drawer: const NavDrawer(selectedIndex: 0),
       body: Stack(
         children: [

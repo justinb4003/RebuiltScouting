@@ -5,6 +5,7 @@ import '../models/pit_result.dart';
 import '../providers/app_state_provider.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
 
 class HeldDataScreen extends StatefulWidget {
@@ -98,7 +99,20 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
     final totalHeld = _heldScout.length + _heldPit.length;
 
     return Scaffold(
-      appBar: AppBar(title: Text(appState.settings.selectedEventName ?? 'Configure Event to Continue...')),
+      appBar: AppBar(
+        title: Text(appState.settings.selectedEventName ?? 'Configure Event to Continue...'),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Text(
+              'Updated $buildTimestamp',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ),
+        ],
+      ),
       drawer: const NavDrawer(selectedIndex: 2),
       body: ListView(
         padding: const EdgeInsets.all(16),
