@@ -6,7 +6,7 @@ import 'dart:io';
 void main() {
   final now = DateTime.now();
   final stamp =
-      '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}';
+      '${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
 
   final content = '''// Auto-generated — do not edit by hand.
 // Regenerate:  dart run tool/update_build_info.dart
