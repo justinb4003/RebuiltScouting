@@ -86,7 +86,7 @@ class PitResult {
         'hopper_empty_time': hopperEmptyTime,
         'fun_question': funQuestion,
         'notes': notes,
-        'photo_base64': photoBase64,
+        'images': photoBase64,
         'timestamp': timestamp.toIso8601String(),
       };
 
@@ -116,7 +116,7 @@ class PitResult {
         hopperEmptyTime: json['hopper_empty_time'] ?? '',
         funQuestion: json['fun_question'] ?? '',
         notes: json['notes'] ?? '',
-        photoBase64: json['photo_base64'],
+        photoBase64: json['images'],
         timestamp: json['timestamp'] != null
             ? DateTime.parse(json['timestamp'])
             : DateTime.now(),
