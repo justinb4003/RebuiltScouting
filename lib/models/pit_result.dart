@@ -86,7 +86,7 @@ class PitResult {
         'hopper_empty_time': hopperEmptyTime,
         'fun_question': funQuestion,
         'notes': notes,
-        'images': photoBase64 != null ? [photoBase64] : [],
+        'images': photoBase64 != null ? ['data:image/jpeg;base64,$photoBase64'] : [],
         'timestamp': timestamp.toIso8601String(),
       };
 
