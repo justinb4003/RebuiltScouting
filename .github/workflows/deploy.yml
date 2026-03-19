@@ -26,6 +26,8 @@ jobs:
 
       - run: flutter pub get
 
+      - run: dart run tool/update_build_info.dart
+
       - run: flutter build web --release --base-href=/RebuiltScouting/
 
       - name: Generate version.json for cache-busting
