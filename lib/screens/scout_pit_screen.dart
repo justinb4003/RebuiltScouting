@@ -8,8 +8,49 @@ import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
 import '../widgets/team_selector.dart';
 
-class ScoutPitScreen extends StatelessWidget {
+class ScoutPitScreen extends StatefulWidget {
   const ScoutPitScreen({super.key});
+
+  @override
+  State<ScoutPitScreen> createState() => _ScoutPitScreenState();
+}
+
+class _ScoutPitScreenState extends State<ScoutPitScreen> {
+  final _driveTrainOtherController = TextEditingController();
+  final _fuelCapacityController = TextEditingController();
+  final _autoNotesController = TextEditingController();
+  final _hangingTimeController = TextEditingController();
+  final _hangingHowController = TextEditingController();
+  final _teleopActiveController = TextEditingController();
+  final _teleopInactiveController = TextEditingController();
+  final _hopperEmptyTimeController = TextEditingController();
+  final _funQuestionController = TextEditingController();
+
+  @override
+  void dispose() {
+    _driveTrainOtherController.dispose();
+    _fuelCapacityController.dispose();
+    _autoNotesController.dispose();
+    _hangingTimeController.dispose();
+    _hangingHowController.dispose();
+    _teleopActiveController.dispose();
+    _teleopInactiveController.dispose();
+    _hopperEmptyTimeController.dispose();
+    _funQuestionController.dispose();
+    super.dispose();
+  }
+
+  void _clearControllers() {
+    _driveTrainOtherController.clear();
+    _fuelCapacityController.clear();
+    _autoNotesController.clear();
+    _hangingTimeController.clear();
+    _hangingHowController.clear();
+    _teleopActiveController.clear();
+    _teleopInactiveController.clear();
+    _hopperEmptyTimeController.clear();
+    _funQuestionController.clear();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -70,6 +111,7 @@ class ScoutPitScreen extends StatelessWidget {
                     if (pit.driveTrain == 'Other') ...[
                       const SizedBox(height: 12),
                       TextField(
+                        controller: _driveTrainOtherController,
                         decoration: const InputDecoration(
                           labelText: 'Specify Drive Train',
                           border: OutlineInputBorder(),
@@ -101,6 +143,7 @@ class ScoutPitScreen extends StatelessWidget {
 
             // Fuel capacity
             TextField(
+              controller: _fuelCapacityController,
               decoration: const InputDecoration(
                 labelText: 'Fuel Cell Capacity',
                 border: OutlineInputBorder(),
@@ -142,6 +185,7 @@ class ScoutPitScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     TextField(
+                      controller: _autoNotesController,
                       decoration: const InputDecoration(
                         labelText: 'Auton Notes',
                         hintText: 'What does the auton accomplish?',
@@ -190,6 +234,7 @@ class ScoutPitScreen extends StatelessWidget {
                     ],
                     const SizedBox(height: 12),
                     TextField(
+                      controller: _hangingTimeController,
                       decoration: const InputDecoration(
                         labelText: 'Hanging Time',
                         hintText: 'How much time does it take?',
@@ -201,6 +246,7 @@ class ScoutPitScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     TextField(
+                      controller: _hangingHowController,
                       decoration: const InputDecoration(
                         labelText: 'Hanging Method',
                         hintText: 'How does it work?',
@@ -226,6 +272,7 @@ class ScoutPitScreen extends StatelessWidget {
                     Text('Teleop A', style: theme.textTheme.titleMedium),
                     const SizedBox(height: 12),
                     TextField(
+                      controller: _teleopActiveController,
                       decoration: const InputDecoration(
                         labelText: 'Teleop Active',
                         hintText: 'Goal/plan',
@@ -252,6 +299,7 @@ class ScoutPitScreen extends StatelessWidget {
                     Text('Teleop I', style: theme.textTheme.titleMedium),
                     const SizedBox(height: 12),
                     TextField(
+                      controller: _teleopInactiveController,
                       decoration: const InputDecoration(
                         labelText: 'Teleop Inactive',
                         hintText: 'Goal/plan',
@@ -312,6 +360,7 @@ class ScoutPitScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     TextField(
+                      controller: _hopperEmptyTimeController,
                       decoration: const InputDecoration(
                         labelText: 'Hopper Empty Time',
                         hintText: 'How long does it take for you to empty your hopper?',
@@ -323,6 +372,7 @@ class ScoutPitScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 12),
                     TextField(
+                      controller: _funQuestionController,
                       decoration: const InputDecoration(
                         labelText: 'Fun Question',
                         hintText: 'Dont be stupid',
@@ -400,6 +450,7 @@ class ScoutPitScreen extends StatelessWidget {
                         );
                         if (result.success) {
                           pit.resetForm();
+                          _clearControllers();
                         }
                       }
                     },
