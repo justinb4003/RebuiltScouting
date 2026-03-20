@@ -11,7 +11,7 @@ class ApiService {
   static final instance = ApiService();
 
   static const String baseUrl =
-      'https://trisonics-scouting-api.azurewebsites.net/api';
+      'http://localhost:7071/api';
   static const _timeout = Duration(seconds: 10);
 
   Future<List<TbaEvent>> getEvents(int year) async {
@@ -68,6 +68,16 @@ class ApiService {
       debugPrint('postPitResults failed: ${response.statusCode} ${response.body}');
     }
     return response.statusCode == 200 || response.statusCode == 201;
+  }
+
+  Future<List<Map<String, dynamic>>> getResults(String eventKey) async {
+    final response = await http
+        .get(Uri.parse('$baseUrl/GetResults?event_key=$eventKey'))
+        .timeout(_timeout);
+    if (response.statusCode == 200) {
+      return List<Map<String, dynamic>>.from(jsonDecode(response.body));
+    }
+    throw Exception('Failed to load results: ${response.statusCode}');
   }
 
   Future<List<PitResult>> getPitResults(String eventKey) async {

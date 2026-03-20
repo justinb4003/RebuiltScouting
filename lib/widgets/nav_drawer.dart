@@ -7,7 +7,7 @@ class NavDrawer extends StatelessWidget {
 
   const NavDrawer({super.key, required this.selectedIndex});
 
-  static const _routes = ['/scout', '/pit', '/held', '/settings'];
+  static const _routes = ['/scout', '/pit', '/held', '/settings', '/scouting-status', '/pit-status'];
 
   @override
   Widget build(BuildContext context) {
@@ -55,6 +55,17 @@ class NavDrawer extends StatelessWidget {
           icon: Icon(Icons.settings_outlined),
           selectedIcon: Icon(Icons.settings),
           label: Text('Settings'),
+        ),
+        const Divider(indent: 28, endIndent: 28),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.grid_on_outlined),
+          selectedIcon: Icon(Icons.grid_on),
+          label: Text('Scouting Status'),
+        ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.fact_check_outlined),
+          selectedIcon: Icon(Icons.fact_check),
+          label: Text('Pit Status'),
         ),
         const Divider(indent: 28, endIndent: 28),
         Padding(

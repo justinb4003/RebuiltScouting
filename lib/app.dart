@@ -6,6 +6,8 @@ import 'screens/scout_match_screen.dart';
 import 'screens/scout_pit_screen.dart';
 import 'screens/held_data_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/scouting_status_screen.dart';
+import 'screens/pit_status_screen.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -34,6 +36,8 @@ class App extends StatelessWidget {
         '/pit': (context) => const ScoutPitScreen(),
         '/held': (context) => const HeldDataScreen(),
         '/settings': (context) => const SettingsScreen(),
+        '/scouting-status': (context) => const ScoutingStatusScreen(),
+        '/pit-status': (context) => const PitStatusScreen(),
       },
     );
   }
