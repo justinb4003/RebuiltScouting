@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/app_state_provider.dart';
 
 class NavDrawer extends StatelessWidget {
@@ -11,7 +12,9 @@ class NavDrawer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final heldCount = context.watch<AppStateProvider>().heldDataCount;
+    final appState = context.watch<AppStateProvider>();
+    final heldCount = appState.heldDataCount;
+    final settings = appState.settings;
 
     return NavigationDrawer(
       selectedIndex: selectedIndex,
@@ -66,6 +69,25 @@ class NavDrawer extends StatelessWidget {
           icon: Icon(Icons.fact_check_outlined),
           selectedIcon: Icon(Icons.fact_check),
           label: Text('Pit Status'),
+        ),
+        const Divider(indent: 28, endIndent: 28),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28),
+          child: TextButton.icon(
+            onPressed: () {
+              final uri = Uri.parse('https://frcscout.streamlit.app').replace(
+                queryParameters: {
+                  if (settings.selectedEventKey != null)
+                    'event_key': settings.selectedEventKey!,
+                  if (settings.secretTeamKey.isNotEmpty)
+                    'secret_key': settings.secretTeamKey,
+                },
+              );
+              launchUrl(uri, mode: LaunchMode.externalApplication);
+            },
+            icon: const Icon(Icons.analytics_outlined),
+            label: const Text('Analytics'),
+          ),
         ),
         const Divider(indent: 28, endIndent: 28),
         Padding(
