@@ -12,7 +12,7 @@ class ApiService {
 
   static const String baseUrl =
       'https://trisonics-scouting-api.azurewebsites.net/api';
-  static const _timeout = Duration(seconds: 10);
+  static const _timeout = Duration(seconds: 30);
 
   Future<List<TbaEvent>> getEvents(int year) async {
     final response = await http
