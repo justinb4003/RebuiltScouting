@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/robot_note.dart';
 import '../models/submit_result.dart';
 import '../providers/app_state_provider.dart';
 import '../services/api_service.dart';
+import '../services/storage_service.dart';
 import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
 import '../widgets/team_selector.dart';
@@ -36,27 +38,40 @@ class _RobotNoteScreenState extends State<RobotNoteScreen> {
     setState(() => _submitting = true);
 
     final api = ApiService.instance;
+    final storage = StorageService.instance;
+
+    final note = RobotNote(
+      scouterName: appState.settings.scouterName,
+      secretTeamKey: appState.settings.secretTeamKey,
+      eventKey: appState.settings.selectedEventKey ?? '',
+      teamNumber: _selectedTeamNumber!,
+      notes: _notesController.text.trim(),
+    );
+
+    await storage.addHeldRobotNote(note);
 
     try {
       final success = await api.postRobotNote(
-        scouterName: appState.settings.scouterName,
-        secretTeamKey: appState.settings.secretTeamKey,
-        eventKey: appState.settings.selectedEventKey ?? '',
-        teamNumber: _selectedTeamNumber!,
-        notes: _notesController.text.trim(),
+        scouterName: note.scouterName,
+        secretTeamKey: note.secretTeamKey,
+        eventKey: note.eventKey,
+        teamNumber: note.teamNumber,
+        notes: note.notes,
       );
-      setState(() => _submitting = false);
       if (success) {
+        await storage.removeHeldRobotNote(note.id);
+        setState(() => _submitting = false);
         return SubmitResult(
             success: true, message: 'Robot note submitted successfully!');
       } else {
+        setState(() => _submitting = false);
         return SubmitResult(
-            success: false, message: 'API error. Note not saved.');
+            success: false, message: 'API error. Note saved locally.');
       }
     } catch (e) {
       setState(() => _submitting = false);
       return SubmitResult(
-          success: false, message: 'Network error. Note not saved.');
+          success: false, message: 'Network error. Note saved locally.');
     }
   }
 

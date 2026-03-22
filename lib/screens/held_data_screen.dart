@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/scout_result.dart';
 import '../models/pit_result.dart';
+import '../models/robot_note.dart';
 import '../providers/app_state_provider.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
@@ -21,6 +22,7 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
 
   List<ScoutResult> _heldScout = [];
   List<PitResult> _heldPit = [];
+  List<RobotNote> _heldNotes = [];
   bool _uploading = false;
 
   @override
@@ -32,9 +34,11 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
   Future<void> _loadData() async {
     final scout = await _storage.loadHeldScoutData();
     final pit = await _storage.loadHeldPitData();
+    final notes = await _storage.loadHeldRobotNotes();
     setState(() {
       _heldScout = scout;
       _heldPit = pit;
+      _heldNotes = notes;
     });
   }
 
@@ -67,9 +71,21 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
       _heldScout, _api.postResults, _storage.removeHeldScoutResult, (r) => r.id);
     final (s2, f2) = await _uploadItems(
       _heldPit, _api.postPitResults, _storage.removeHeldPitResult, (r) => r.id);
+    final (s3, f3) = await _uploadItems(
+      _heldNotes,
+      (n) => _api.postRobotNote(
+        scouterName: n.scouterName,
+        secretTeamKey: n.secretTeamKey,
+        eventKey: n.eventKey,
+        teamNumber: n.teamNumber,
+        notes: n.notes,
+      ),
+      _storage.removeHeldRobotNote,
+      (n) => n.id,
+    );
 
-    final successCount = s1 + s2;
-    final failCount = f1 + f2;
+    final successCount = s1 + s2 + s3;
+    final failCount = f1 + f2 + f3;
 
     await _loadData();
     setState(() => _uploading = false);
@@ -96,7 +112,7 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final appState = context.watch<AppStateProvider>();
-    final totalHeld = _heldScout.length + _heldPit.length;
+    final totalHeld = _heldScout.length + _heldPit.length + _heldNotes.length;
 
     return Scaffold(
       appBar: AppBar(
@@ -129,7 +145,7 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                      '${_heldScout.length} match results, ${_heldPit.length} pit results'),
+                      '${_heldScout.length} match, ${_heldPit.length} pit, ${_heldNotes.length} notes'),
                   const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed:
@@ -178,6 +194,23 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
                       onPressed: () => _deleteResult(_storage.removeHeldPitResult, r.id),
+                    ),
+                  ),
+                )),
+            const SizedBox(height: 16),
+          ],
+
+          // Robot note entries
+          if (_heldNotes.isNotEmpty) ...[
+            Text('Robot Notes', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            ..._heldNotes.map((n) => Card(
+                  child: ListTile(
+                    title: Text('Team ${n.teamNumber}'),
+                    subtitle: Text(n.notes, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    trailing: IconButton(
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () => _deleteResult(_storage.removeHeldRobotNote, n.id),
                     ),
                   ),
                 )),

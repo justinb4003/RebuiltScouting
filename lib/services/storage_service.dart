@@ -6,6 +6,7 @@ import '../models/tba_team.dart';
 import '../models/tba_match.dart';
 import '../models/scout_result.dart';
 import '../models/pit_result.dart';
+import '../models/robot_note.dart';
 
 class StorageService {
   static final instance = StorageService();
@@ -19,6 +20,7 @@ class StorageService {
   static const String _eventMatchesCacheKey = 'event_matches_cache';
   static const String _heldScoutDataKey = 'held_scout_data';
   static const String _heldPitDataKey = 'held_pit_data';
+  static const String _heldRobotNoteKey = 'held_robot_note_data';
   static const String _pitResultsCacheKey = 'pit_results_cache';
 
   // Settings
@@ -164,6 +166,35 @@ class StorageService {
     final held = await loadHeldPitData();
     held.removeWhere((r) => r.id == id);
     await saveHeldPitData(held);
+  }
+
+  // Held robot notes
+  Future<List<RobotNote>> loadHeldRobotNotes() async {
+    final prefs = await _getPrefs();
+    final json = prefs.getString(_heldRobotNoteKey);
+    if (json != null) {
+      final List<dynamic> data = jsonDecode(json);
+      return data.map((e) => RobotNote.fromJson(e)).toList();
+    }
+    return [];
+  }
+
+  Future<void> saveHeldRobotNotes(List<RobotNote> notes) async {
+    final prefs = await _getPrefs();
+    await prefs.setString(
+        _heldRobotNoteKey, jsonEncode(notes.map((n) => n.toJson()).toList()));
+  }
+
+  Future<void> addHeldRobotNote(RobotNote note) async {
+    final held = await loadHeldRobotNotes();
+    held.add(note);
+    await saveHeldRobotNotes(held);
+  }
+
+  Future<void> removeHeldRobotNote(String id) async {
+    final held = await loadHeldRobotNotes();
+    held.removeWhere((n) => n.id == id);
+    await saveHeldRobotNotes(held);
   }
 
   // Pit results cache (per event)

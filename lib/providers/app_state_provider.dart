@@ -49,7 +49,8 @@ class AppStateProvider extends ChangeNotifier {
   Future<void> refreshHeldDataCount() async {
     final scout = await _storage.loadHeldScoutData();
     final pit = await _storage.loadHeldPitData();
-    _heldDataCount = scout.length + pit.length;
+    final notes = await _storage.loadHeldRobotNotes();
+    _heldDataCount = scout.length + pit.length + notes.length;
     notifyListeners();
   }
 
