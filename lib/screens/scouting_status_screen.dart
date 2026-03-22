@@ -100,29 +100,38 @@ class _ScoutingStatusScreenState extends State<ScoutingStatusScreen> {
 
     if (count == 0) {
       return const Center(
-        child: Icon(Icons.cancel, color: Colors.red, size: 20),
+        child: Tooltip(
+          message: 'Not scouted',
+          child: Icon(Icons.cancel, color: Colors.red, size: 20,
+              semanticLabel: 'Not scouted'),
+        ),
       );
     }
 
     return GestureDetector(
       onTap: () => _showScouters(context, matchKey, teamNumber, scouters),
       child: Center(
-        child: count == 1
-            ? const Icon(Icons.check_circle, color: Colors.green, size: 20)
-            : Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.green,
-                  borderRadius: BorderRadius.circular(10),
+        child: Tooltip(
+          message: '$count scouter${count == 1 ? '' : 's'} — tap for details',
+          child: count == 1
+              ? const Icon(Icons.check_circle, color: Colors.green, size: 20,
+                  semanticLabel: 'Scouted')
+              : Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '$count',
+                    semanticsLabel: '$count scouters',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold),
+                  ),
                 ),
-                child: Text(
-                  '$count',
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold),
-                ),
-              ),
+        ),
       ),
     );
   }

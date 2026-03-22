@@ -324,14 +324,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     children: AppTheme.themeColors.entries.map((entry) {
                       final isSelected =
                           settings.themeColor == entry.value.toARGB32();
-                      return GestureDetector(
-                        onTap: () {
-                          settings.themeColor = entry.value.toARGB32();
-                          appState.saveAndNotify();
-                        },
-                        child: Tooltip(
-                          message: entry.key,
-                          child: Container(
+                      return Semantics(
+                        button: true,
+                        label: '${entry.key} theme color${isSelected ? ', selected' : ''}',
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(20),
+                          onTap: () {
+                            settings.themeColor = entry.value.toARGB32();
+                            appState.saveAndNotify();
+                          },
+                          child: Tooltip(
+                            message: entry.key,
+                            child: Container(
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
@@ -355,6 +359,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                         : Colors.black,
                                     size: 20)
                                 : null,
+                            ),
                           ),
                         ),
                       );

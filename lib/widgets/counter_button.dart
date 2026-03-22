@@ -45,30 +45,41 @@ class CounterButton extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            FilledButton.tonal(
-              onPressed: value > min ? () => _change(value - 1) : null,
-              style: FilledButton.styleFrom(
-                minimumSize: btnSize,
-                padding: EdgeInsets.zero,
+            Tooltip(
+              message: 'Decrease $label',
+              child: FilledButton.tonal(
+                onPressed: value > min ? () => _change(value - 1) : null,
+                style: FilledButton.styleFrom(
+                  minimumSize: btnSize,
+                  padding: EdgeInsets.zero,
+                ),
+                child: const Icon(Icons.remove, size: 36,
+                    semanticLabel: 'Decrease'),
               ),
-              child: const Icon(Icons.remove, size: 36),
             ),
             SizedBox(
               width: 80,
-              child: Text(
-                '$value',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.headlineMedium
-                    ?.copyWith(fontWeight: FontWeight.bold),
+              child: Semantics(
+                label: '$label: $value',
+                child: Text(
+                  '$value',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.headlineMedium
+                      ?.copyWith(fontWeight: FontWeight.bold),
+                ),
               ),
             ),
-            FilledButton.tonal(
-              onPressed: value < max ? () => _change(value + 1) : null,
-              style: FilledButton.styleFrom(
-                minimumSize: btnSize,
-                padding: EdgeInsets.zero,
+            Tooltip(
+              message: 'Increase $label',
+              child: FilledButton.tonal(
+                onPressed: value < max ? () => _change(value + 1) : null,
+                style: FilledButton.styleFrom(
+                  minimumSize: btnSize,
+                  padding: EdgeInsets.zero,
+                ),
+                child: const Icon(Icons.add, size: 36,
+                    semanticLabel: 'Increase'),
               ),
-              child: const Icon(Icons.add, size: 36),
             ),
           ],
         ),
@@ -77,44 +88,52 @@ class CounterButton extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              FilledButton(
-                onPressed:
-                    value - 10 >= min ? () => _change(value - 10) : null,
-                style: FilledButton.styleFrom(
-                  minimumSize: bulkBtnSize,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+              Tooltip(
+                message: 'Decrease $label by 10',
+                child: FilledButton(
+                  onPressed: value > min ? () => _change(value - 10) : null,
+                  style: FilledButton.styleFrom(
+                    minimumSize: bulkBtnSize,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: const Text('-10', style: TextStyle(fontSize: 16)),
                 ),
-                child: const Text('-10', style: TextStyle(fontSize: 16)),
               ),
               const SizedBox(width: 12),
-              FilledButton(
-                onPressed:
-                    value - 5 >= min ? () => _change(value - 5) : null,
-                style: FilledButton.styleFrom(
-                  minimumSize: bulkBtnSize,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+              Tooltip(
+                message: 'Decrease $label by 5',
+                child: FilledButton(
+                  onPressed: value > min ? () => _change(value - 5) : null,
+                  style: FilledButton.styleFrom(
+                    minimumSize: bulkBtnSize,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: const Text('-5', style: TextStyle(fontSize: 16)),
                 ),
-                child: const Text('-5', style: TextStyle(fontSize: 16)),
               ),
               const SizedBox(width: 12),
-              FilledButton(
-                onPressed:
-                    value + 5 <= max ? () => _change(value + 5) : null,
-                style: FilledButton.styleFrom(
-                  minimumSize: bulkBtnSize,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+              Tooltip(
+                message: 'Increase $label by 5',
+                child: FilledButton(
+                  onPressed: value < max ? () => _change(value + 5) : null,
+                  style: FilledButton.styleFrom(
+                    minimumSize: bulkBtnSize,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: const Text('+5', style: TextStyle(fontSize: 16)),
                 ),
-                child: const Text('+5', style: TextStyle(fontSize: 16)),
               ),
               const SizedBox(width: 12),
-              FilledButton(
-                onPressed:
-                    value + 10 <= max ? () => _change(value + 10) : null,
-                style: FilledButton.styleFrom(
-                  minimumSize: bulkBtnSize,
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
+              Tooltip(
+                message: 'Increase $label by 10',
+                child: FilledButton(
+                  onPressed: value < max ? () => _change(value + 10) : null,
+                  style: FilledButton.styleFrom(
+                    minimumSize: bulkBtnSize,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                  ),
+                  child: const Text('+10', style: TextStyle(fontSize: 16)),
                 ),
-                child: const Text('+10', style: TextStyle(fontSize: 16)),
               ),
             ],
           ),

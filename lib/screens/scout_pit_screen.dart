@@ -25,6 +25,7 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
   final _teleopInactiveController = TextEditingController();
   final _hopperEmptyTimeController = TextEditingController();
   final _funQuestionController = TextEditingController();
+  final _notesController = TextEditingController();
 
   @override
   void dispose() {
@@ -37,6 +38,7 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
     _teleopInactiveController.dispose();
     _hopperEmptyTimeController.dispose();
     _funQuestionController.dispose();
+    _notesController.dispose();
     super.dispose();
   }
 
@@ -50,6 +52,7 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
     _teleopInactiveController.clear();
     _hopperEmptyTimeController.clear();
     _funQuestionController.clear();
+    _notesController.clear();
   }
 
   @override
@@ -385,6 +388,21 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                   ],
                 ),
               ),
+            ),
+            const SizedBox(height: 16),
+
+            // Notes
+            TextField(
+              controller: _notesController,
+              decoration: const InputDecoration(
+                labelText: 'Notes',
+                hintText: 'Any additional observations about this robot?',
+                floatingLabelBehavior: FloatingLabelBehavior.always,
+                border: OutlineInputBorder(),
+              ),
+              maxLines: 3,
+              onChanged: (v) =>
+                  pit.updateField(() => pit.notes = v),
             ),
             const SizedBox(height: 16),
 

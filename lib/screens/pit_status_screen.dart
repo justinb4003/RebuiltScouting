@@ -156,20 +156,28 @@ class _PitStatusScreenState extends State<PitStatusScreen> {
                       final scouted = results.isNotEmpty;
 
                       return ListTile(
-                        leading: scouted
-                            ? results.length > 1
-                                ? CircleAvatar(
-                                    backgroundColor: Colors.green,
-                                    radius: 14,
-                                    child: Text('${results.length}',
-                                        style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold)),
-                                  )
-                                : const Icon(Icons.check_circle,
-                                    color: Colors.green)
-                            : const Icon(Icons.cancel, color: Colors.red),
+                        leading: Tooltip(
+                          message: scouted
+                              ? '${results.length} result${results.length == 1 ? '' : 's'}'
+                              : 'Not scouted',
+                          child: scouted
+                              ? results.length > 1
+                                  ? CircleAvatar(
+                                      backgroundColor: Colors.green,
+                                      radius: 14,
+                                      child: Text('${results.length}',
+                                          semanticsLabel: '${results.length} results',
+                                          style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.bold)),
+                                    )
+                                  : const Icon(Icons.check_circle,
+                                      color: Colors.green,
+                                      semanticLabel: 'Scouted')
+                              : const Icon(Icons.cancel, color: Colors.red,
+                                  semanticLabel: 'Not scouted'),
+                        ),
                         title: Text('${team.teamNumber}'),
                         subtitle: Text(team.nickname),
                         onTap: scouted

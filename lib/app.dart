@@ -8,6 +8,7 @@ import 'screens/held_data_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/scouting_status_screen.dart';
 import 'screens/pit_status_screen.dart';
+import 'screens/robot_note_screen.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -38,6 +39,7 @@ class App extends StatelessWidget {
         '/settings': (context) => const SettingsScreen(),
         '/scouting-status': (context) => const ScoutingStatusScreen(),
         '/pit-status': (context) => const PitStatusScreen(),
+        '/robot-note': (context) => const RobotNoteScreen(),
       },
     );
   }

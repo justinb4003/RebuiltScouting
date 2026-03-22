@@ -726,9 +726,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                           ? () {
                               scouting.updateField(() {
                                 scouting.hopperSize--;
-                                if (scouting.teleopFuelScored > scouting.hopperSize) {
-                                  scouting.teleopFuelScored = scouting.hopperSize;
-                                }
                               });
                             }
                           : null,
@@ -763,7 +760,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                 CounterButton(
                   label: 'Fuel Shot',
                   value: scouting.teleopFuelScored,
-                  max: scouting.teleopShootOnFly ? 999 : scouting.hopperSize,
                   showBulkButtons: true,
                   onTap: _fireConfetti,
                   enableHaptic: appState.settings.hapticEnabled,
@@ -1025,7 +1021,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                       eventKey:
                           appState.settings.selectedEventKey ?? '',
                     );
-                    if (!mounted) return;
+                    if (!context.mounted) return;
                     context.read<AppStateProvider>().refreshHeldDataCount();
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
@@ -1049,7 +1045,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                       });
                       // Pause so the user can see the transition
                       await Future.delayed(const Duration(seconds: 2));
-                      if (!mounted) return;
+                      if (!context.mounted) return;
                       // Auto-select same robot position and re-enter scouting
                       if (nextMatchData != null && prevRobotIndex != null) {
                         final teamStr = _teamAtIndex(prevRobotIndex, nextMatchData);
