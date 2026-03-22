@@ -80,6 +80,30 @@ class ApiService {
     throw Exception('Failed to load results: ${response.statusCode}');
   }
 
+  Future<bool> postRobotNote({
+    required String scouterName,
+    required String secretTeamKey,
+    required String eventKey,
+    required int teamNumber,
+    required String notes,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/PostPitResults'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'scouter_name': scouterName,
+        'secret_team_key': secretTeamKey,
+        'event_key': eventKey,
+        'team_number': teamNumber,
+        'notes': notes,
+      }),
+    ).timeout(_timeout);
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      debugPrint('postRobotNote failed: ${response.statusCode} ${response.body}');
+    }
+    return response.statusCode == 200 || response.statusCode == 201;
+  }
+
   Future<List<PitResult>> getPitResults(String eventKey) async {
     final response = await http
         .get(Uri.parse('$baseUrl/GetPitResults?event_key=$eventKey'))
