@@ -726,47 +726,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   ),
                   const SizedBox(height: 12),
                 ],
-                Text('Hopper Size', style: theme.textTheme.bodyLarge),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    FilledButton.tonal(
-                      onPressed: scouting.hopperSize > 0
-                          ? () {
-                              scouting.updateField(() {
-                                scouting.hopperSize--;
-                              });
-                            }
-                          : null,
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(56, 56),
-                        padding: EdgeInsets.zero,
-                      ),
-                      child: const Icon(Icons.remove, size: 28),
-                    ),
-                    SizedBox(
-                      width: 80,
-                      child: Text(
-                        '${scouting.hopperSize}',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.headlineMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                    FilledButton.tonal(
-                      onPressed: () {
-                        scouting.updateField(() => scouting.hopperSize++);
-                      },
-                      style: FilledButton.styleFrom(
-                        minimumSize: const Size(56, 56),
-                        padding: EdgeInsets.zero,
-                      ),
-                      child: const Icon(Icons.add, size: 28),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
+                const SizedBox(height: 4),
                 Text('Accuracy: ${scouting.teleopFuelAccuracy.round()}%',
                     style: theme.textTheme.bodyLarge),
                 Slider(
