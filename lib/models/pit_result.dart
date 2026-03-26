@@ -12,6 +12,12 @@ class PitResult {
   bool humanPlayerPickup;
   int fuelCapacity;
   String autoStartingSpot; // Left, Center, Right
+  bool autoStartLeftTrench;
+  bool autoStartLeftBump;
+  bool autoStartHub;
+  bool autoStartRightBump;
+  bool autoStartRightTrench;
+  bool autoCrashConcern;
   bool autoHang;
   String autoNotes;
   bool hangingWorks;
@@ -41,6 +47,12 @@ class PitResult {
     this.humanPlayerPickup = false,
     this.fuelCapacity = 0,
     this.autoStartingSpot = 'Left',
+    this.autoStartLeftTrench = false,
+    this.autoStartLeftBump = false,
+    this.autoStartHub = false,
+    this.autoStartRightBump = false,
+    this.autoStartRightTrench = false,
+    this.autoCrashConcern = false,
     this.autoHang = false,
     this.autoNotes = '',
     this.hangingWorks = false,
@@ -72,6 +84,12 @@ class PitResult {
         'human_player_pickup': humanPlayerPickup,
         'fuel_capacity': fuelCapacity,
         'auto_starting_spot': autoStartingSpot,
+        'auto_start_left_trench': autoStartLeftTrench,
+        'auto_start_left_bump': autoStartLeftBump,
+        'auto_start_hub': autoStartHub,
+        'auto_start_right_bump': autoStartRightBump,
+        'auto_start_right_trench': autoStartRightTrench,
+        'auto_crash_concern': autoCrashConcern,
         'auto_hang': autoHang,
         'auto_notes': autoNotes,
         'hanging_works': hangingWorks,
@@ -102,6 +120,12 @@ class PitResult {
         humanPlayerPickup: json['human_player_pickup'] ?? false,
         fuelCapacity: json['fuel_capacity'] ?? 0,
         autoStartingSpot: json['auto_starting_spot'] ?? 'Left',
+        autoStartLeftTrench: json['auto_start_left_trench'] ?? false,
+        autoStartLeftBump: json['auto_start_left_bump'] ?? false,
+        autoStartHub: json['auto_start_hub'] ?? false,
+        autoStartRightBump: json['auto_start_right_bump'] ?? false,
+        autoStartRightTrench: json['auto_start_right_trench'] ?? false,
+        autoCrashConcern: json['auto_crash_concern'] ?? false,
         autoHang: json['auto_hang'] ?? false,
         autoNotes: json['auto_notes'] ?? '',
         hangingWorks: json['hanging_works'] ?? false,

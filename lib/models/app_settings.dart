@@ -9,6 +9,7 @@ class AppSettings {
   String themeMode;
   bool confettiEnabled;
   bool hapticEnabled;
+  bool scrollableScoutLayout;
 
   AppSettings({
     this.scouterName = '',
@@ -21,6 +22,7 @@ class AppSettings {
     this.themeMode = 'system',
     this.confettiEnabled = true,
     this.hapticEnabled = true,
+    this.scrollableScoutLayout = false,
   });
 
   Map<String, dynamic> toJson() => {
@@ -34,6 +36,7 @@ class AppSettings {
         'themeMode': themeMode,
         'confettiEnabled': confettiEnabled,
         'hapticEnabled': hapticEnabled,
+        'scrollableScoutLayout': scrollableScoutLayout,
       };
 
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
@@ -47,5 +50,6 @@ class AppSettings {
         themeMode: json['themeMode'] ?? 'system',
         confettiEnabled: json['confettiEnabled'] ?? true,
         hapticEnabled: json['hapticEnabled'] ?? true,
+        scrollableScoutLayout: json['scrollableScoutLayout'] ?? false,
       );
 }

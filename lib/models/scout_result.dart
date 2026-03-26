@@ -37,6 +37,8 @@ class ScoutResult {
   int endgameTowerLevel; // 0=none, 1=L1, 2=L2, 3=L3
   int endgameFuelScored;
   double endgameFuelAccuracy;
+  bool endgameCarried;
+  bool? endgameThumbsUp;
 
   // Pickups
   bool fuelGroundPickup;
@@ -87,6 +89,8 @@ class ScoutResult {
     this.endgameTowerLevel = 0,
     this.endgameFuelScored = 0,
     this.endgameFuelAccuracy = 50,
+    this.endgameCarried = false,
+    this.endgameThumbsUp,
     this.fuelGroundPickup = false,
     this.fuelHumanPickup = false,
     this.fuelDepotPickup = false,
@@ -133,6 +137,8 @@ class ScoutResult {
         'endgame_tower_level': endgameTowerLevel,
         'endgame_fuel_scored': endgameFuelScored,
         'endgame_fuel_accuracy': endgameFuelAccuracy,
+        'endgame_carried': endgameCarried,
+        'endgame_thumbs_up': endgameThumbsUp,
         'fuel_ground_pickup': fuelGroundPickup,
         'fuel_human_pickup': fuelHumanPickup,
         'fuel_depot_pickup': fuelDepotPickup,
@@ -175,6 +181,8 @@ class ScoutResult {
         endgameTowerLevel: json['endgame_tower_level'] ?? 0,
         endgameFuelScored: json['endgame_fuel_scored'] ?? 0,
         endgameFuelAccuracy: (json['endgame_fuel_accuracy'] ?? 50).toDouble(),
+        endgameCarried: json['endgame_carried'] ?? false,
+        endgameThumbsUp: json['endgame_thumbs_up'],
         fuelGroundPickup: json['fuel_ground_pickup'] ?? false,
         fuelHumanPickup: json['fuel_human_pickup'] ?? false,
         fuelDepotPickup: json['fuel_depot_pickup'] ?? false,

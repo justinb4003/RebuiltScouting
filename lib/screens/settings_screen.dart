@@ -395,6 +395,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               appState.saveAndNotify();
             },
           ),
+          SwitchListTile(
+            title: const Text('Scrollable scouting layout'),
+            subtitle: const Text('Show match scouting as one scrollable page'),
+            secondary: const Icon(Icons.view_day),
+            value: settings.scrollableScoutLayout,
+            onChanged: (value) {
+              settings.scrollableScoutLayout = value;
+              appState.saveAndNotify();
+            },
+          ),
         ],
       ),
           ConfettiOverlay(key: _confettiKey),

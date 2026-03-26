@@ -339,43 +339,68 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                       ],
                     ),
                   ),
-                // TabBar
-                TabBar(
-                  controller: _tabController,
-                  indicatorColor: _tabColors[_tabController.index],
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.center,
-                  tabs: List.generate(
-                    4,
-                    (i) => Tab(
-                      child: Text(
-                        const ['Auto', 'Teleop Active', 'Teleop Inactive', 'Endgame'][i],
-                        style: TextStyle(
-                          color: _tabColors[i],
-                          fontWeight: _tabController.index == i
-                              ? FontWeight.bold
-                              : FontWeight.normal,
+                if (appState.settings.scrollableScoutLayout)
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.all(16),
+                      children: [
+                        ..._buildAutoContent(scouting, appState, theme),
+                        const SizedBox(height: 16),
+                        ..._buildTeleopActiveContent(scouting, appState, theme),
+                        const SizedBox(height: 16),
+                        ..._buildTeleopInactiveContent(scouting, appState, theme),
+                        const SizedBox(height: 16),
+                        ..._buildEndgameContent(scouting, appState, theme),
+                      ],
+                    ),
+                  )
+                else ...[
+                  // TabBar
+                  TabBar(
+                    controller: _tabController,
+                    indicatorColor: _tabColors[_tabController.index],
+                    isScrollable: true,
+                    tabAlignment: TabAlignment.center,
+                    tabs: List.generate(
+                      4,
+                      (i) => Tab(
+                        child: Text(
+                          const ['Auto', 'Teleop Active', 'Teleop Inactive', 'Endgame'][i],
+                          style: TextStyle(
+                            color: _tabColors[i],
+                            fontWeight: _tabController.index == i
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-                // Tab content
-                Expanded(
-                  child: TabBarView(
-                    controller: _tabController,
-                    children: [
-                      _KeepAliveTab(
-                          child: _buildAutoTab(scouting, appState, theme)),
-                      _KeepAliveTab(
-                          child: _buildTeleopActiveTab(scouting, appState, theme)),
-                      _KeepAliveTab(
-                          child: _buildTeleopInactiveTab(scouting, appState, theme)),
-                      _KeepAliveTab(
-                          child: _buildEndgameTab(scouting, appState, theme)),
-                    ],
+                  // Tab content
+                  Expanded(
+                    child: TabBarView(
+                      controller: _tabController,
+                      children: [
+                        _KeepAliveTab(
+                            child: ListView(
+                                padding: const EdgeInsets.all(16),
+                                children: _buildAutoContent(scouting, appState, theme))),
+                        _KeepAliveTab(
+                            child: ListView(
+                                padding: const EdgeInsets.all(16),
+                                children: _buildTeleopActiveContent(scouting, appState, theme))),
+                        _KeepAliveTab(
+                            child: ListView(
+                                padding: const EdgeInsets.all(16),
+                                children: _buildTeleopInactiveContent(scouting, appState, theme))),
+                        _KeepAliveTab(
+                            child: ListView(
+                                padding: const EdgeInsets.all(16),
+                                children: _buildEndgameContent(scouting, appState, theme))),
+                      ],
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ConfettiOverlay(key: _confettiKey),
@@ -475,11 +500,9 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
     );
   }
 
-  Widget _buildAutoTab(
+  List<Widget> _buildAutoContent(
       ScoutingProvider scouting, AppStateProvider appState, ThemeData theme) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
+    return [
         Card(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -500,23 +523,13 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   onChanged: (v) =>
                       scouting.updateField(() => scouting.autoDidNothing = v),
                 ),
-                CounterButton(
-                  label: 'Fuel Shot',
-                  value: scouting.autoFuelScored,
-                  showBulkButtons: true,
-                  onTap: _fireConfetti,
-                  enableHaptic: appState.settings.hapticEnabled,
-                  onChanged: (v) => scouting
-                      .updateField(() => scouting.autoFuelScored = v),
-                ),
-                const SizedBox(height: 8),
                 Text('Accuracy: ${scouting.autoFuelAccuracy.round()}%',
                     style: theme.textTheme.bodyLarge),
                 Slider(
                   value: scouting.autoFuelAccuracy,
                   min: 0,
                   max: 100,
-                  divisions: 100,
+                  divisions: 10,
                   label: '${scouting.autoFuelAccuracy.round()}%',
                   onChanged: (v) => scouting
                       .updateField(() => scouting.autoFuelAccuracy = v),
@@ -595,8 +608,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
           onChanged: (v) =>
               scouting.updateField(() => scouting.autoNotes = v),
         ),
-      ],
-    );
+      ];
   }
 
   Widget _buildDefenseControls({
@@ -679,11 +691,9 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
     );
   }
 
-  Widget _buildTeleopActiveTab(
+  List<Widget> _buildTeleopActiveContent(
       ScoutingProvider scouting, AppStateProvider appState, ThemeData theme) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
+    return [
         Card(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -757,30 +767,23 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   ],
                 ),
                 const SizedBox(height: 16),
-                CounterButton(
-                  label: 'Fuel Shot',
-                  value: scouting.teleopFuelScored,
-                  showBulkButtons: true,
-                  onTap: _fireConfetti,
-                  enableHaptic: appState.settings.hapticEnabled,
-                  onChanged: (v) => scouting
-                      .updateField(() => scouting.teleopFuelScored = v),
-                ),
-                const SizedBox(height: 8),
                 Text('Accuracy: ${scouting.teleopFuelAccuracy.round()}%',
                     style: theme.textTheme.bodyLarge),
                 Slider(
                   value: scouting.teleopFuelAccuracy,
                   min: 0,
                   max: 100,
-                  divisions: 100,
+                  divisions: 10,
                   label: '${scouting.teleopFuelAccuracy.round()}%',
                   onChanged: (v) => scouting
                       .updateField(() => scouting.teleopFuelAccuracy = v),
                 ),
                 const SizedBox(height: 8),
                 FilledButton.icon(
-                  onPressed: () => scouting.recordVolley(),
+                  onPressed: () {
+                    scouting.recordVolley();
+                    _fireConfetti();
+                  },
                   icon: const Icon(Icons.add_task),
                   label: const Text('Record Volley'),
                 ),
@@ -818,15 +821,12 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
           onDefenseQualityChanged: (v) => scouting
               .updateField(() => scouting.teleopActiveDefenseQuality = v),
         ),
-      ],
-    );
+      ];
   }
 
-  Widget _buildTeleopInactiveTab(
+  List<Widget> _buildTeleopInactiveContent(
       ScoutingProvider scouting, AppStateProvider appState, ThemeData theme) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
+    return [
         Card(
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),
@@ -897,15 +897,12 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
           onDefenseQualityChanged: (v) => scouting
               .updateField(() => scouting.teleopInactiveDefenseQuality = v),
         ),
-      ],
-    );
+      ];
   }
 
-  Widget _buildEndgameTab(
+  List<Widget> _buildEndgameContent(
       ScoutingProvider scouting, AppStateProvider appState, ThemeData theme) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
+    return [
         // Endgame Section
         Card(
           shape: RoundedRectangleBorder(
@@ -921,28 +918,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                     style: theme.textTheme.titleMedium
                         ?.copyWith(color: AppTheme.endgameColor)),
                 const SizedBox(height: 12),
-                CounterButton(
-                  label: 'Fuel Shot',
-                  value: scouting.endgameFuelScored,
-                  showBulkButtons: true,
-                  onTap: _fireConfetti,
-                  enableHaptic: appState.settings.hapticEnabled,
-                  onChanged: (v) => scouting
-                      .updateField(() => scouting.endgameFuelScored = v),
-                ),
-                const SizedBox(height: 8),
-                Text('Accuracy: ${scouting.endgameFuelAccuracy.round()}%',
-                    style: theme.textTheme.bodyLarge),
-                Slider(
-                  value: scouting.endgameFuelAccuracy,
-                  min: 0,
-                  max: 100,
-                  divisions: 100,
-                  label: '${scouting.endgameFuelAccuracy.round()}%',
-                  onChanged: (v) => scouting
-                      .updateField(() => scouting.endgameFuelAccuracy = v),
-                ),
-                const SizedBox(height: 8),
                 Text('Tower Level', style: theme.textTheme.bodyLarge),
                 const SizedBox(height: 4),
                 FixedSegmentedButton<int>(
@@ -955,6 +930,41 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   selected: {scouting.endgameTowerLevel},
                   onSelectionChanged: (v) => scouting.updateField(
                       () => scouting.endgameTowerLevel = v.first),
+                ),
+                const SizedBox(height: 16),
+                Text('Won, but because of their alliance partners',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                HighlightedSwitch(
+                  title: 'Carried',
+                  value: scouting.endgameCarried,
+                  onChanged: (v) => scouting
+                      .updateField(() => scouting.endgameCarried = v),
+                ),
+                const SizedBox(height: 16),
+                Text('Overall Impression', style: theme.textTheme.bodyLarge),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    _ThumbButton(
+                      icon: Icons.thumb_down,
+                      selected: scouting.endgameThumbsUp == false,
+                      color: Colors.red,
+                      onTap: () => scouting.updateField(() =>
+                          scouting.endgameThumbsUp =
+                              scouting.endgameThumbsUp == false ? null : false),
+                    ),
+                    const SizedBox(width: 24),
+                    _ThumbButton(
+                      icon: Icons.thumb_up,
+                      selected: scouting.endgameThumbsUp == true,
+                      color: Colors.green,
+                      onTap: () => scouting.updateField(() =>
+                          scouting.endgameThumbsUp =
+                              scouting.endgameThumbsUp == true ? null : true),
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -1074,7 +1084,44 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
             label: const Text('Submit'),
           ),
         const SizedBox(height: 32),
-      ],
+      ];
+  }
+}
+
+class _ThumbButton extends StatelessWidget {
+  final IconData icon;
+  final bool selected;
+  final Color color;
+  final VoidCallback onTap;
+
+  const _ThumbButton({
+    required this.icon,
+    required this.selected,
+    required this.color,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        width: 64,
+        height: 64,
+        decoration: BoxDecoration(
+          color: selected ? color : Theme.of(context).colorScheme.surfaceContainerHighest,
+          shape: BoxShape.circle,
+          boxShadow: selected
+              ? [BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 12, spreadRadius: 2)]
+              : null,
+        ),
+        child: Icon(
+          icon,
+          size: 32,
+          color: selected ? Colors.white : Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+      ),
     );
   }
 }

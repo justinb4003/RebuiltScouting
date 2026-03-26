@@ -18,6 +18,12 @@ class PitProvider extends ChangeNotifier {
   bool humanPlayerPickup = false;
   int fuelCapacity = 0;
   String autoStartingSpot = 'Left';
+  bool autoStartLeftTrench = false;
+  bool autoStartLeftBump = false;
+  bool autoStartHub = false;
+  bool autoStartRightBump = false;
+  bool autoStartRightTrench = false;
+  bool autoCrashConcern = false;
   bool autoHang = false;
   String autoNotes = '';
   bool hangingWorks = false;
@@ -48,6 +54,12 @@ class PitProvider extends ChangeNotifier {
     humanPlayerPickup = false;
     fuelCapacity = 0;
     autoStartingSpot = 'Left';
+    autoStartLeftTrench = false;
+    autoStartLeftBump = false;
+    autoStartHub = false;
+    autoStartRightBump = false;
+    autoStartRightTrench = false;
+    autoCrashConcern = false;
     autoHang = false;
     autoNotes = '';
     hangingWorks = false;
@@ -123,6 +135,12 @@ class PitProvider extends ChangeNotifier {
       humanPlayerPickup: humanPlayerPickup,
       fuelCapacity: fuelCapacity,
       autoStartingSpot: autoStartingSpot,
+      autoStartLeftTrench: autoStartLeftTrench,
+      autoStartLeftBump: autoStartLeftBump,
+      autoStartHub: autoStartHub,
+      autoStartRightBump: autoStartRightBump,
+      autoStartRightTrench: autoStartRightTrench,
+      autoCrashConcern: autoCrashConcern,
       autoHang: autoHang,
       autoNotes: autoNotes,
       hangingWorks: hangingWorks,

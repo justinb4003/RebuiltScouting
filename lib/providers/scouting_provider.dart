@@ -44,6 +44,8 @@ class ScoutingProvider extends ChangeNotifier {
   int endgameTowerLevel = 0;
   int endgameFuelScored = 0;
   double endgameFuelAccuracy = 50;
+  bool endgameCarried = false;
+  bool? endgameThumbsUp;
 
   // Pickups
   bool fuelGroundPickup = false;
@@ -100,6 +102,8 @@ class ScoutingProvider extends ChangeNotifier {
     endgameTowerLevel = 0;
     endgameFuelScored = 0;
     endgameFuelAccuracy = 50;
+    endgameCarried = false;
+    endgameThumbsUp = null;
     fuelGroundPickup = false;
     fuelHumanPickup = false;
     fuelDepotPickup = false;
@@ -115,17 +119,15 @@ class ScoutingProvider extends ChangeNotifier {
   }
 
   void recordVolley() {
-    volleyScoredList.add(teleopFuelScored);
+    volleyScoredList.add(0);
     volleyAccuracyList.add(teleopFuelAccuracy);
-    teleopFuelScored = 0;
     notifyListeners();
   }
 
   String get volleyLog {
     final entries = <String>[];
-    for (var i = 0; i < volleyScoredList.length; i++) {
-      final acc = volleyAccuracyList[i];
-      entries.add('${volleyScoredList[i]} scored, ${acc.round()}% acc');
+    for (var i = 0; i < volleyAccuracyList.length; i++) {
+      entries.add('${volleyAccuracyList[i].round()}% acc');
     }
     return entries.join(' \u2022 ');
   }
@@ -154,7 +156,7 @@ class ScoutingProvider extends ChangeNotifier {
       matchNumber: matchNumber,
       teamNumber: selectedTeamNumber!,
       autoDidNothing: autoDidNothing,
-      autoFuelScored: autoFuelScored,
+      autoFuelScored: 0,
       autoFuelAccuracy: autoFuelAccuracy,
       autoTowerLevel: autoTowerLevel,
       autoMiddlePickup: autoMiddlePickup,
@@ -162,7 +164,7 @@ class ScoutingProvider extends ChangeNotifier {
       autoHumanStationPickup: autoHumanStationPickup,
       winAuto: winAuto,
       hopperSize: hopperSize,
-      teleopFuelScored: volleyScoredList.fold(0, (a, b) => a + b),
+      teleopFuelScored: 0,
       teleopShootOnFly: teleopShootOnFly,
       teleopFuelAccuracy: teleopFuelAccuracy,
       volleyScoredList: List.of(volleyScoredList),
@@ -174,8 +176,10 @@ class ScoutingProvider extends ChangeNotifier {
       teleopInactiveCollectedFuelLobby: teleopInactiveCollectedFuelLobby,
       teleopInactiveCollectedFuelRefill: teleopInactiveCollectedFuelRefill,
       endgameTowerLevel: endgameTowerLevel,
-      endgameFuelScored: endgameFuelScored,
-      endgameFuelAccuracy: endgameFuelAccuracy,
+      endgameFuelScored: 0,
+      endgameFuelAccuracy: 0,
+      endgameCarried: endgameCarried,
+      endgameThumbsUp: endgameThumbsUp,
       fuelGroundPickup: fuelGroundPickup,
       fuelHumanPickup: fuelHumanPickup,
       fuelDepotPickup: fuelDepotPickup,

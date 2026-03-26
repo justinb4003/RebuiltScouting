@@ -180,6 +180,51 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                           pit.updateField(() => pit.autoStartingSpot = v.first),
                     ),
                     const SizedBox(height: 12),
+                    Text('Auton Start Positions', style: theme.textTheme.bodyLarge),
+                    const SizedBox(height: 4),
+                    HighlightedSwitch(
+                      title: 'Left Trench',
+                      dense: true,
+                      value: pit.autoStartLeftTrench,
+                      onChanged: (v) =>
+                          pit.updateField(() => pit.autoStartLeftTrench = v),
+                    ),
+                    HighlightedSwitch(
+                      title: 'Left Bump',
+                      dense: true,
+                      value: pit.autoStartLeftBump,
+                      onChanged: (v) =>
+                          pit.updateField(() => pit.autoStartLeftBump = v),
+                    ),
+                    HighlightedSwitch(
+                      title: 'Hub',
+                      dense: true,
+                      value: pit.autoStartHub,
+                      onChanged: (v) =>
+                          pit.updateField(() => pit.autoStartHub = v),
+                    ),
+                    HighlightedSwitch(
+                      title: 'Right Bump',
+                      dense: true,
+                      value: pit.autoStartRightBump,
+                      onChanged: (v) =>
+                          pit.updateField(() => pit.autoStartRightBump = v),
+                    ),
+                    HighlightedSwitch(
+                      title: 'Right Trench',
+                      dense: true,
+                      value: pit.autoStartRightTrench,
+                      onChanged: (v) =>
+                          pit.updateField(() => pit.autoStartRightTrench = v),
+                    ),
+                    const SizedBox(height: 12),
+                    HighlightedSwitch(
+                      title: 'Concerned about crashing in auton',
+                      value: pit.autoCrashConcern,
+                      onChanged: (v) =>
+                          pit.updateField(() => pit.autoCrashConcern = v),
+                    ),
+                    const SizedBox(height: 12),
                     HighlightedSwitch(
                       title: 'Hang in Auto',
                       value: pit.autoHang,
