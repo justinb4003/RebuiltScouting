@@ -96,6 +96,8 @@ class ApiService {
         'event_key': eventKey,
         'team_number': teamNumber,
         'notes': notes,
+        'images': <String>[],
+        'timestamp': DateTime.now().toIso8601String(),
       }),
     ).timeout(_timeout);
     if (response.statusCode != 200 && response.statusCode != 201) {
