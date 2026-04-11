@@ -10,6 +10,7 @@ class ScoutResult {
 
   // Auto phase
   bool autoDidNothing;
+  bool autoCompletedSuccessfully;
   int autoFuelScored;
   double autoFuelAccuracy;
   int autoTowerLevel;
@@ -38,7 +39,7 @@ class ScoutResult {
   int endgameFuelScored;
   double endgameFuelAccuracy;
   bool endgameCarried;
-  bool? endgameThumbsUp;
+  int endgameRating; // 1-5 scale
 
   // Pickups
   bool fuelGroundPickup;
@@ -55,6 +56,7 @@ class ScoutResult {
 
   // General
   String autoNotes;
+  bool robotNoShow;
   String matchNotes;
 
   final DateTime timestamp;
@@ -67,6 +69,7 @@ class ScoutResult {
     required this.matchNumber,
     required this.teamNumber,
     this.autoDidNothing = false,
+    this.autoCompletedSuccessfully = false,
     this.autoFuelScored = 0,
     this.autoFuelAccuracy = 50,
     this.autoTowerLevel = 0,
@@ -90,7 +93,7 @@ class ScoutResult {
     this.endgameFuelScored = 0,
     this.endgameFuelAccuracy = 50,
     this.endgameCarried = false,
-    this.endgameThumbsUp,
+    this.endgameRating = 3,
     this.fuelGroundPickup = false,
     this.fuelHumanPickup = false,
     this.fuelDepotPickup = false,
@@ -99,6 +102,7 @@ class ScoutResult {
     this.teleopInactiveDefensePenalties = false,
     this.teleopInactiveDefenseQuality = 'N/A',
     this.autoNotes = '',
+    this.robotNoShow = false,
     this.matchNotes = '',
     DateTime? timestamp,
   })  : id = id ?? const Uuid().v4(),
@@ -115,6 +119,7 @@ class ScoutResult {
         'match_number': matchNumber,
         'team_number': teamNumber,
         'auto_did_nothing': autoDidNothing,
+        'auto_completed_successfully': autoCompletedSuccessfully,
         'auto_fuel_scored': autoFuelScored,
         'auto_fuel_accuracy': autoFuelAccuracy,
         'auto_tower_level': autoTowerLevel,
@@ -138,7 +143,7 @@ class ScoutResult {
         'endgame_fuel_scored': endgameFuelScored,
         'endgame_fuel_accuracy': endgameFuelAccuracy,
         'endgame_carried': endgameCarried,
-        'endgame_thumbs_up': endgameThumbsUp,
+        'endgame_rating': endgameRating,
         'fuel_ground_pickup': fuelGroundPickup,
         'fuel_human_pickup': fuelHumanPickup,
         'fuel_depot_pickup': fuelDepotPickup,
@@ -147,6 +152,7 @@ class ScoutResult {
         'teleop_inactive_defense_penalties': teleopInactiveDefensePenalties,
         'teleop_inactive_defense_quality': teleopInactiveDefenseQuality,
         'auto_notes': autoNotes,
+        'robot_no_show': robotNoShow,
         'match_notes': matchNotes,
         'timestamp': timestamp.toIso8601String(),
       };
@@ -159,6 +165,7 @@ class ScoutResult {
         matchNumber: json['match_number'] ?? 0,
         teamNumber: json['team_number'] ?? 0,
         autoDidNothing: json['auto_did_nothing'] ?? false,
+        autoCompletedSuccessfully: json['auto_completed_successfully'] ?? false,
         autoFuelScored: json['auto_fuel_scored'] ?? 0,
         autoFuelAccuracy: (json['auto_fuel_accuracy'] ?? 50).toDouble(),
         autoTowerLevel: json['auto_tower_level'] ?? 0,
@@ -182,7 +189,7 @@ class ScoutResult {
         endgameFuelScored: json['endgame_fuel_scored'] ?? 0,
         endgameFuelAccuracy: (json['endgame_fuel_accuracy'] ?? 50).toDouble(),
         endgameCarried: json['endgame_carried'] ?? false,
-        endgameThumbsUp: json['endgame_thumbs_up'],
+        endgameRating: json['endgame_rating'] ?? 3,
         fuelGroundPickup: json['fuel_ground_pickup'] ?? false,
         fuelHumanPickup: json['fuel_human_pickup'] ?? false,
         fuelDepotPickup: json['fuel_depot_pickup'] ?? false,
@@ -191,6 +198,7 @@ class ScoutResult {
         teleopInactiveDefensePenalties: json['teleop_inactive_defense_penalties'] ?? false,
         teleopInactiveDefenseQuality: json['teleop_inactive_defense_quality'] ?? 'N/A',
         autoNotes: json['auto_notes'] ?? '',
+        robotNoShow: json['robot_no_show'] ?? false,
         matchNotes: json['match_notes'] ?? '',
         timestamp: json['timestamp'] != null
             ? DateTime.parse(json['timestamp'])

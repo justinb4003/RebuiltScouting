@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/pit_result.dart';
 import '../models/tba_match.dart';
 import '../models/tba_team.dart';
 import '../providers/app_state_provider.dart';
@@ -28,6 +29,8 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
   final TextEditingController _notesController = TextEditingController();
   TbaMatch? _selectedMatch;
   int? _selectedRobotIndex; // 0-2 red, 3-5 blue
+  PitResult? _currentPitResult;
+  String? _selectedAutonPosition;
 
   static const _tabColors = [
     AppTheme.autoColor,
@@ -259,6 +262,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                                 ? () async {
                                     final teamNumber = scouting.selectedTeamNumber!;
                                     final pitResult = await appState.refreshPitResultForTeam(teamNumber);
+                                    _currentPitResult = pitResult;
                                     final capacity = (pitResult != null && pitResult.fuelCapacity > 0)
                                         ? pitResult.fuelCapacity
                                         : 50;
@@ -573,6 +577,101 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   onChanged: (v) => scouting
                       .updateField(() => scouting.autoHumanStationPickup = v),
                 ),
+                if (_currentPitResult != null) ...[
+                  const SizedBox(height: 8),
+                  Builder(builder: (context) {
+                    final pit = _currentPitResult!;
+                    final positionNotes = <String, String>{
+                      if (pit.autoStartLeftTrench) 'Left Trench': pit.autoNotesLeftTrench,
+                      if (pit.autoStartLeftBump) 'Left Bump': pit.autoNotesLeftBump,
+                      if (pit.autoStartHub) 'Hub': pit.autoNotesHub,
+                      if (pit.autoStartRightBump) 'Right Bump': pit.autoNotesRightBump,
+                      if (pit.autoStartRightTrench) 'Right Trench': pit.autoNotesRightTrench,
+                    };
+                    if (positionNotes.isEmpty) {
+                      return Text('Pit: No auton positions recorded',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              fontStyle: FontStyle.italic));
+                    }
+                    return Column(
+                      children: [
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: positionNotes.keys
+                              .map((p) => ChoiceChip(
+                                    label: Text(p, style: const TextStyle(fontSize: 12)),
+                                    selected: _selectedAutonPosition == p,
+                                    visualDensity: VisualDensity.compact,
+                                    onSelected: (selected) {
+                                      setState(() {
+                                        _selectedAutonPosition = selected ? p : null;
+                                      });
+                                    },
+                                  ))
+                              .toList(),
+                        ),
+                        if (_selectedAutonPosition != null &&
+                            positionNotes.containsKey(_selectedAutonPosition)) ...[
+                          const SizedBox(height: 8),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (pit.autoHang && pit.autoHangPosition == _selectedAutonPosition)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 4),
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.star, size: 16, color: theme.colorScheme.primary),
+                                        const SizedBox(width: 4),
+                                        Text('Hangs in auto from this position',
+                                            style: theme.textTheme.bodyMedium?.copyWith(
+                                                fontWeight: FontWeight.bold,
+                                                color: theme.colorScheme.primary)),
+                                      ],
+                                    ),
+                                  ),
+                                Text(
+                                  positionNotes[_selectedAutonPosition]!.isEmpty
+                                      ? 'No notes for this position'
+                                      : positionNotes[_selectedAutonPosition]!,
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                      fontStyle: positionNotes[_selectedAutonPosition]!.isEmpty
+                                          ? FontStyle.italic
+                                          : FontStyle.normal),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
+                    );
+                  }),
+                ],
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    const Expanded(
+                      child: Padding(
+                        padding: EdgeInsets.only(left: 16),
+                        child: Text('Auton completed successfully'),
+                      ),
+                    ),
+                    Checkbox(
+                      value: scouting.autoCompletedSuccessfully,
+                      onChanged: (v) => scouting.updateField(
+                          () => scouting.autoCompletedSuccessfully = v ?? false),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                ),
                 const SizedBox(height: 8),
                 HighlightedSwitch(
                   title: 'Win Auto',
@@ -594,19 +693,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
               ],
             ),
           ),
-        ),
-        const SizedBox(height: 16),
-        TextField(
-          controller: _autoNotesController,
-          decoration: const InputDecoration(
-            labelText: 'Auto Notes',
-            hintText: 'Is the auton note worthy?\nDid anything happen that caused the auton to not work?',
-            floatingLabelBehavior: FloatingLabelBehavior.always,
-            border: OutlineInputBorder(),
-          ),
-          maxLines: 3,
-          onChanged: (v) =>
-              scouting.updateField(() => scouting.autoNotes = v),
         ),
       ];
   }
@@ -904,27 +990,16 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                 const SizedBox(height: 16),
                 Text('Overall Impression', style: theme.textTheme.bodyLarge),
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    _ThumbButton(
-                      icon: Icons.thumb_down,
-                      selected: scouting.endgameThumbsUp == false,
-                      color: Colors.red,
-                      onTap: () => scouting.updateField(() =>
-                          scouting.endgameThumbsUp =
-                              scouting.endgameThumbsUp == false ? null : false),
-                    ),
-                    const SizedBox(width: 24),
-                    _ThumbButton(
-                      icon: Icons.thumb_up,
-                      selected: scouting.endgameThumbsUp == true,
-                      color: Colors.green,
-                      onTap: () => scouting.updateField(() =>
-                          scouting.endgameThumbsUp =
-                              scouting.endgameThumbsUp == true ? null : true),
-                    ),
+                FixedSegmentedButton<int>(
+                  segments: const [
+                    ButtonSegment(value: 1, label: Text('Very Bad')),
+                    ButtonSegment(value: 2, label: Text('Bad')),
+                    ButtonSegment(value: 3, label: Text('Good')),
+                    ButtonSegment(value: 4, label: Text('Very Good')),
                   ],
+                  selected: {scouting.endgameRating},
+                  onSelectionChanged: (v) =>
+                      scouting.updateField(() => scouting.endgameRating = v.first),
                 ),
               ],
             ),
@@ -932,16 +1007,23 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
         ),
         const SizedBox(height: 16),
 
+        HighlightedSwitch(
+          title: 'Robot did not show up for match',
+          value: scouting.robotNoShow,
+          onChanged: (v) =>
+              scouting.updateField(() => scouting.robotNoShow = v),
+        ),
+        const SizedBox(height: 8),
         // Notes
         TextField(
           controller: _notesController,
           decoration: const InputDecoration(
             labelText: 'Match Notes',
-            hintText: 'Any reason for the way they performed (ex. broke down)\nShould we look into anything of theirs?\nPlease note if you had any problems during the match',
+            hintText: 'They were (good/bad) at shooting due to their (shooter type).\nTheir intake was (slow/fast/broken) and fuel was shot in (time taken).\nThis teams defense was (good/bad/okay) and their cycles were (fast/slow).\nRobot broke down due to (reason).\nRobot got stuck on (blank) because of (blank).',
             floatingLabelBehavior: FloatingLabelBehavior.always,
             border: OutlineInputBorder(),
           ),
-          maxLines: 3,
+          maxLines: 6,
           onChanged: (v) =>
               scouting.updateField(() => scouting.matchNotes = v),
         ),
@@ -1025,6 +1107,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                               () => scouting.selectedTeamNumber = teamNum);
                           if (teamNum != null) {
                             final pitResult = await appState.refreshPitResultForTeam(teamNum);
+                            _currentPitResult = pitResult;
                             final capacity = (pitResult != null && pitResult.fuelCapacity > 0)
                                 ? pitResult.fuelCapacity
                                 : 50;
@@ -1048,43 +1131,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
   }
 }
 
-class _ThumbButton extends StatelessWidget {
-  final IconData icon;
-  final bool selected;
-  final Color color;
-  final VoidCallback onTap;
-
-  const _ThumbButton({
-    required this.icon,
-    required this.selected,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        width: 64,
-        height: 64,
-        decoration: BoxDecoration(
-          color: selected ? color : Theme.of(context).colorScheme.surfaceContainerHighest,
-          shape: BoxShape.circle,
-          boxShadow: selected
-              ? [BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 12, spreadRadius: 2)]
-              : null,
-        ),
-        child: Icon(
-          icon,
-          size: 32,
-          color: selected ? Colors.white : Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
-      ),
-    );
-  }
-}
 
 class _KeepAliveTab extends StatefulWidget {
   final Widget child;

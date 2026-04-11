@@ -16,6 +16,7 @@ class ScoutingProvider extends ChangeNotifier {
 
   // Auto
   bool autoDidNothing = false;
+  bool autoCompletedSuccessfully = false;
   int autoFuelScored = 0;
   double autoFuelAccuracy = 50;
   int autoTowerLevel = 0;
@@ -32,6 +33,7 @@ class ScoutingProvider extends ChangeNotifier {
   List<int> volleyScoredList = [];
   List<int> volleyMissedList = [];
   List<double> volleyAccuracyList = [];
+  List<bool> volleyShootOnFlyList = [];
 
   // Teleop Inactive
   bool teleopInactiveScoredFuel = false;
@@ -45,7 +47,7 @@ class ScoutingProvider extends ChangeNotifier {
   int endgameFuelScored = 0;
   double endgameFuelAccuracy = 50;
   bool endgameCarried = false;
-  bool? endgameThumbsUp;
+  int endgameRating = 3;
 
   // Pickups
   bool fuelGroundPickup = false;
@@ -62,6 +64,7 @@ class ScoutingProvider extends ChangeNotifier {
 
   // General
   String autoNotes = '';
+  bool robotNoShow = false;
   String matchNotes = '';
 
   bool _submitting = false;
@@ -80,6 +83,7 @@ class ScoutingProvider extends ChangeNotifier {
     scoutingActive = false;
     practiceMode = false;
     autoDidNothing = false;
+    autoCompletedSuccessfully = false;
     autoFuelScored = 0;
     autoFuelAccuracy = 50;
     autoTowerLevel = 0;
@@ -94,6 +98,7 @@ class ScoutingProvider extends ChangeNotifier {
     volleyScoredList = [];
     volleyMissedList = [];
     volleyAccuracyList = [];
+    volleyShootOnFlyList = [];
     teleopInactiveScoredFuel = false;
     teleopInactiveCollectedFuel = false;
     teleopInactiveCollectedFuelPush = false;
@@ -103,7 +108,7 @@ class ScoutingProvider extends ChangeNotifier {
     endgameFuelScored = 0;
     endgameFuelAccuracy = 50;
     endgameCarried = false;
-    endgameThumbsUp = null;
+    endgameRating = 3;
     fuelGroundPickup = false;
     fuelHumanPickup = false;
     fuelDepotPickup = false;
@@ -112,6 +117,7 @@ class ScoutingProvider extends ChangeNotifier {
     teleopInactiveDefensePenalties = false;
     teleopInactiveDefenseQuality = 'N/A';
     autoNotes = '';
+    robotNoShow = false;
     matchNotes = '';
     selectedTeamNumber = null;
     if (!wasPractice) matchNumber++;
@@ -119,15 +125,20 @@ class ScoutingProvider extends ChangeNotifier {
   }
 
   void recordVolley() {
-    volleyScoredList.add(0);
+    volleyScoredList.add(teleopFuelScored);
     volleyAccuracyList.add(teleopFuelAccuracy);
+    volleyShootOnFlyList.add(teleopShootOnFly);
+    teleopFuelScored = 0;
+    teleopFuelAccuracy = 50;
+    teleopShootOnFly = false;
     notifyListeners();
   }
 
   String get volleyLog {
     final entries = <String>[];
-    for (var i = 0; i < volleyAccuracyList.length; i++) {
-      entries.add('${volleyAccuracyList[i].round()}% acc');
+    for (var i = 0; i < volleyScoredList.length; i++) {
+      final fly = volleyShootOnFlyList[i] ? ', on the fly' : '';
+      entries.add('${volleyAccuracyList[i].round()}% acc$fly');
     }
     return entries.join(' \u2022 ');
   }
@@ -156,6 +167,7 @@ class ScoutingProvider extends ChangeNotifier {
       matchNumber: matchNumber,
       teamNumber: selectedTeamNumber!,
       autoDidNothing: autoDidNothing,
+      autoCompletedSuccessfully: autoCompletedSuccessfully,
       autoFuelScored: 0,
       autoFuelAccuracy: autoFuelAccuracy,
       autoTowerLevel: autoTowerLevel,
@@ -179,7 +191,7 @@ class ScoutingProvider extends ChangeNotifier {
       endgameFuelScored: 0,
       endgameFuelAccuracy: 0,
       endgameCarried: endgameCarried,
-      endgameThumbsUp: endgameThumbsUp,
+      endgameRating: endgameRating,
       fuelGroundPickup: fuelGroundPickup,
       fuelHumanPickup: fuelHumanPickup,
       fuelDepotPickup: fuelDepotPickup,
@@ -188,6 +200,7 @@ class ScoutingProvider extends ChangeNotifier {
       teleopInactiveDefensePenalties: teleopInactiveDefensePenalties,
       teleopInactiveDefenseQuality: teleopInactiveDefenseQuality,
       autoNotes: autoNotes,
+      robotNoShow: robotNoShow,
       matchNotes: matchNotes,
     );
 

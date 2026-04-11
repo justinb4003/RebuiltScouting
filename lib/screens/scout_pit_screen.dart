@@ -18,7 +18,6 @@ class ScoutPitScreen extends StatefulWidget {
 class _ScoutPitScreenState extends State<ScoutPitScreen> {
   final _driveTrainOtherController = TextEditingController();
   final _fuelCapacityController = TextEditingController();
-  final _autoNotesController = TextEditingController();
   final _hangingTimeController = TextEditingController();
   final _hangingHowController = TextEditingController();
   final _teleopActiveController = TextEditingController();
@@ -31,7 +30,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
   void dispose() {
     _driveTrainOtherController.dispose();
     _fuelCapacityController.dispose();
-    _autoNotesController.dispose();
     _hangingTimeController.dispose();
     _hangingHowController.dispose();
     _teleopActiveController.dispose();
@@ -45,7 +43,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
   void _clearControllers() {
     _driveTrainOtherController.clear();
     _fuelCapacityController.clear();
-    _autoNotesController.clear();
     _hangingTimeController.clear();
     _hangingHowController.clear();
     _teleopActiveController.clear();
@@ -167,19 +164,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                   children: [
                     Text('Auton', style: theme.textTheme.titleMedium),
                     const SizedBox(height: 12),
-                    Text('Starting Spot', style: theme.textTheme.bodyLarge),
-                    const SizedBox(height: 4),
-                    FixedSegmentedButton<String>(
-                      segments: const [
-                        ButtonSegment(value: 'Left', label: Text('Left')),
-                        ButtonSegment(value: 'Center', label: Text('Center')),
-                        ButtonSegment(value: 'Right', label: Text('Right')),
-                      ],
-                      selected: {pit.autoStartingSpot},
-                      onSelectionChanged: (v) =>
-                          pit.updateField(() => pit.autoStartingSpot = v.first),
-                    ),
-                    const SizedBox(height: 12),
                     Text('Auton Start Positions', style: theme.textTheme.bodyLarge),
                     const SizedBox(height: 4),
                     HighlightedSwitch(
@@ -189,6 +173,20 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                       onChanged: (v) =>
                           pit.updateField(() => pit.autoStartLeftTrench = v),
                     ),
+                    if (pit.autoStartLeftTrench)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16, bottom: 8),
+                        child: TextField(
+                          decoration: const InputDecoration(
+                            hintText: 'The (auton position) accomplishes (objective) because it does (what it does)',
+                            floatingLabelBehavior: FloatingLabelBehavior.always,
+                            border: OutlineInputBorder(),
+                          ),
+                          maxLines: 2,
+                          onChanged: (v) =>
+                              pit.updateField(() => pit.autoNotesLeftTrench = v),
+                        ),
+                      ),
                     HighlightedSwitch(
                       title: 'Left Bump',
                       dense: true,
@@ -196,6 +194,20 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                       onChanged: (v) =>
                           pit.updateField(() => pit.autoStartLeftBump = v),
                     ),
+                    if (pit.autoStartLeftBump)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16, bottom: 8),
+                        child: TextField(
+                          decoration: const InputDecoration(
+                            hintText: 'The (auton position) accomplishes (objective) because it does (what it does)',
+                            floatingLabelBehavior: FloatingLabelBehavior.always,
+                            border: OutlineInputBorder(),
+                          ),
+                          maxLines: 2,
+                          onChanged: (v) =>
+                              pit.updateField(() => pit.autoNotesLeftBump = v),
+                        ),
+                      ),
                     HighlightedSwitch(
                       title: 'Hub',
                       dense: true,
@@ -203,6 +215,20 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                       onChanged: (v) =>
                           pit.updateField(() => pit.autoStartHub = v),
                     ),
+                    if (pit.autoStartHub)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16, bottom: 8),
+                        child: TextField(
+                          decoration: const InputDecoration(
+                            hintText: 'The (auton position) accomplishes (objective) because it does (what it does)',
+                            floatingLabelBehavior: FloatingLabelBehavior.always,
+                            border: OutlineInputBorder(),
+                          ),
+                          maxLines: 2,
+                          onChanged: (v) =>
+                              pit.updateField(() => pit.autoNotesHub = v),
+                        ),
+                      ),
                     HighlightedSwitch(
                       title: 'Right Bump',
                       dense: true,
@@ -210,6 +236,20 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                       onChanged: (v) =>
                           pit.updateField(() => pit.autoStartRightBump = v),
                     ),
+                    if (pit.autoStartRightBump)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16, bottom: 8),
+                        child: TextField(
+                          decoration: const InputDecoration(
+                            hintText: 'The (auton position) accomplishes (objective) because it does (what it does)',
+                            floatingLabelBehavior: FloatingLabelBehavior.always,
+                            border: OutlineInputBorder(),
+                          ),
+                          maxLines: 2,
+                          onChanged: (v) =>
+                              pit.updateField(() => pit.autoNotesRightBump = v),
+                        ),
+                      ),
                     HighlightedSwitch(
                       title: 'Right Trench',
                       dense: true,
@@ -217,6 +257,20 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                       onChanged: (v) =>
                           pit.updateField(() => pit.autoStartRightTrench = v),
                     ),
+                    if (pit.autoStartRightTrench)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16, bottom: 8),
+                        child: TextField(
+                          decoration: const InputDecoration(
+                            hintText: 'The (auton position) accomplishes (objective) because it does (what it does)',
+                            floatingLabelBehavior: FloatingLabelBehavior.always,
+                            border: OutlineInputBorder(),
+                          ),
+                          maxLines: 2,
+                          onChanged: (v) =>
+                              pit.updateField(() => pit.autoNotesRightTrench = v),
+                        ),
+                      ),
                     const SizedBox(height: 12),
                     HighlightedSwitch(
                       title: 'Concerned about crashing in auton',
@@ -231,19 +285,28 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                       onChanged: (v) =>
                           pit.updateField(() => pit.autoHang = v),
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _autoNotesController,
-                      decoration: const InputDecoration(
-                        labelText: 'Auton Notes',
-                        hintText: 'What does the auton accomplish?',
-                        floatingLabelBehavior: FloatingLabelBehavior.always,
-                        border: OutlineInputBorder(),
+                    if (pit.autoHang) ...[
+                      const SizedBox(height: 8),
+                      Padding(
+                        padding: const EdgeInsets.only(left: 16),
+                        child: DropdownButtonFormField<String>(
+                          decoration: const InputDecoration(
+                            labelText: 'From which start position?',
+                            border: OutlineInputBorder(),
+                          ),
+                          value: pit.autoHangPosition.isEmpty ? null : pit.autoHangPosition,
+                          items: const [
+                            DropdownMenuItem(value: 'Left Trench', child: Text('Left Trench')),
+                            DropdownMenuItem(value: 'Left Bump', child: Text('Left Bump')),
+                            DropdownMenuItem(value: 'Hub', child: Text('Hub')),
+                            DropdownMenuItem(value: 'Right Bump', child: Text('Right Bump')),
+                            DropdownMenuItem(value: 'Right Trench', child: Text('Right Trench')),
+                          ],
+                          onChanged: (v) =>
+                              pit.updateField(() => pit.autoHangPosition = v ?? ''),
+                        ),
                       ),
-                      maxLines: 3,
-                      onChanged: (v) =>
-                          pit.updateField(() => pit.autoNotes = v),
-                    ),
+                    ],
                   ],
                 ),
               ),
@@ -411,7 +474,7 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                       controller: _hopperEmptyTimeController,
                       decoration: const InputDecoration(
                         labelText: 'Hopper Empty Time',
-                        hintText: 'How long does it take for you to empty your hopper?',
+                        hintText: 'How long does it take for you to empty your hopper? (BPS)',
                         floatingLabelBehavior: FloatingLabelBehavior.always,
                         border: OutlineInputBorder(),
                       ),
