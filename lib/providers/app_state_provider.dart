@@ -160,6 +160,10 @@ class AppStateProvider extends ChangeNotifier {
     return results.isNotEmpty ? results.first : null;
   }
 
+  List<PitResult> getAllPitResultsForTeam(int teamNumber) {
+    return _pitResults.where((r) => r.teamNumber == teamNumber).toList();
+  }
+
   Future<PitResult?> refreshPitResultForTeam(int teamNumber) async {
     if (_settings.selectedEventKey == null) return getPitResultForTeam(teamNumber);
     try {

@@ -30,6 +30,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
   TbaMatch? _selectedMatch;
   int? _selectedRobotIndex; // 0-2 red, 3-5 blue
   PitResult? _currentPitResult;
+  List<PitResult> _allPitResults = [];
   String? _selectedAutonPosition;
 
   static const _tabColors = [
@@ -263,6 +264,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                                     final teamNumber = scouting.selectedTeamNumber!;
                                     final pitResult = await appState.refreshPitResultForTeam(teamNumber);
                                     _currentPitResult = pitResult;
+                                    _allPitResults = appState.getAllPitResultsForTeam(teamNumber);
                                     final capacity = (pitResult != null && pitResult.fuelCapacity > 0)
                                         ? pitResult.fuelCapacity
                                         : 50;
@@ -577,17 +579,49 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                   onChanged: (v) => scouting
                       .updateField(() => scouting.autoHumanStationPickup = v),
                 ),
-                if (_currentPitResult != null) ...[
+                if (_allPitResults.isNotEmpty) ...[
                   const SizedBox(height: 8),
                   Builder(builder: (context) {
-                    final pit = _currentPitResult!;
-                    final positionNotes = <String, String>{
-                      if (pit.autoStartLeftTrench) 'Left Trench': pit.autoNotesLeftTrench,
-                      if (pit.autoStartLeftBump) 'Left Bump': pit.autoNotesLeftBump,
-                      if (pit.autoStartHub) 'Hub': pit.autoNotesHub,
-                      if (pit.autoStartRightBump) 'Right Bump': pit.autoNotesRightBump,
-                      if (pit.autoStartRightTrench) 'Right Trench': pit.autoNotesRightTrench,
-                    };
+                    // Merge auton data from all pit results
+                    final positionNotes = <String, List<String>>{};
+                    var anyHang = false;
+                    String hangPosition = '';
+                    for (final pit in _allPitResults) {
+                      if (pit.autoStartLeftTrench) {
+                        positionNotes.putIfAbsent('Left Trench', () => []);
+                        if (pit.autoNotesLeftTrench.isNotEmpty) {
+                          positionNotes['Left Trench']!.add(pit.autoNotesLeftTrench);
+                        }
+                      }
+                      if (pit.autoStartLeftBump) {
+                        positionNotes.putIfAbsent('Left Bump', () => []);
+                        if (pit.autoNotesLeftBump.isNotEmpty) {
+                          positionNotes['Left Bump']!.add(pit.autoNotesLeftBump);
+                        }
+                      }
+                      if (pit.autoStartHub) {
+                        positionNotes.putIfAbsent('Hub', () => []);
+                        if (pit.autoNotesHub.isNotEmpty) {
+                          positionNotes['Hub']!.add(pit.autoNotesHub);
+                        }
+                      }
+                      if (pit.autoStartRightBump) {
+                        positionNotes.putIfAbsent('Right Bump', () => []);
+                        if (pit.autoNotesRightBump.isNotEmpty) {
+                          positionNotes['Right Bump']!.add(pit.autoNotesRightBump);
+                        }
+                      }
+                      if (pit.autoStartRightTrench) {
+                        positionNotes.putIfAbsent('Right Trench', () => []);
+                        if (pit.autoNotesRightTrench.isNotEmpty) {
+                          positionNotes['Right Trench']!.add(pit.autoNotesRightTrench);
+                        }
+                      }
+                      if (pit.autoHang && pit.autoHangPosition.isNotEmpty) {
+                        anyHang = true;
+                        hangPosition = pit.autoHangPosition;
+                      }
+                    }
                     if (positionNotes.isEmpty) {
                       return Text('Pit: No auton positions recorded',
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -620,11 +654,12 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                             decoration: BoxDecoration(
                               color: theme.colorScheme.surfaceContainerHighest,
                               borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: theme.colorScheme.outline.withValues(alpha: 0.5)),
                             ),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                if (pit.autoHang && pit.autoHangPosition == _selectedAutonPosition)
+                                if (anyHang && hangPosition == _selectedAutonPosition)
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 4),
                                     child: Row(
@@ -638,15 +673,20 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                                       ],
                                     ),
                                   ),
-                                Text(
-                                  positionNotes[_selectedAutonPosition]!.isEmpty
-                                      ? 'No notes for this position'
-                                      : positionNotes[_selectedAutonPosition]!,
-                                  style: theme.textTheme.bodyMedium?.copyWith(
-                                      fontStyle: positionNotes[_selectedAutonPosition]!.isEmpty
-                                          ? FontStyle.italic
-                                          : FontStyle.normal),
-                                ),
+                                if (positionNotes[_selectedAutonPosition]!.isNotEmpty)
+                                  ...positionNotes[_selectedAutonPosition]!.map(
+                                    (note) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 4),
+                                      child: Text(note, style: theme.textTheme.bodyMedium),
+                                    ),
+                                  )
+                                else
+                                  Text(
+                                    'No notes for this position',
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                        fontStyle: FontStyle.italic,
+                                        color: theme.colorScheme.onSurfaceVariant),
+                                  ),
                               ],
                             ),
                           ),
@@ -1108,6 +1148,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                           if (teamNum != null) {
                             final pitResult = await appState.refreshPitResultForTeam(teamNum);
                             _currentPitResult = pitResult;
+                            _allPitResults = appState.getAllPitResultsForTeam(teamNum);
                             final capacity = (pitResult != null && pitResult.fuelCapacity > 0)
                                 ? pitResult.fuelCapacity
                                 : 50;
