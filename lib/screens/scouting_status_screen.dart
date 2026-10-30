@@ -4,6 +4,7 @@ import '../providers/app_state_provider.dart';
 import '../services/api_service.dart';
 import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
+import '../widgets/team_details.dart';
 
 class ScoutingStatusScreen extends StatefulWidget {
   const ScoutingStatusScreen({super.key});
@@ -85,6 +86,13 @@ class _ScoutingStatusScreenState extends State<ScoutingStatusScreen> {
           ],
         ),
         actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              openTeamDetails(context, teamNumber);
+            },
+            child: const Text('Team details'),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(ctx),
             child: const Text('Close'),

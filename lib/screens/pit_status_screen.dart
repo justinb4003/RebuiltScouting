@@ -5,6 +5,7 @@ import '../models/pit_result.dart';
 import '../services/api_service.dart';
 import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
+import '../widgets/team_details.dart';
 
 class PitStatusScreen extends StatefulWidget {
   const PitStatusScreen({super.key});
@@ -180,10 +181,15 @@ class _PitStatusScreenState extends State<PitStatusScreen> {
                         ),
                         title: Text('${team.teamNumber}'),
                         subtitle: Text(team.nickname),
-                        onTap: scouted
-                            ? () => _showScouters(
-                                context, team.teamNumber, results)
+                        trailing: scouted
+                            ? IconButton(
+                                tooltip: 'Who scouted',
+                                icon: const Icon(Icons.people_outline),
+                                onPressed: () => _showScouters(
+                                    context, team.teamNumber, results),
+                              )
                             : null,
+                        onTap: () => openTeamDetails(context, team.teamNumber),
                       );
                     },
                   ),

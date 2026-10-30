@@ -155,6 +155,16 @@ class AppStateProvider extends ChangeNotifier {
     }
   }
 
+  // Pit results are cached, so analytics screens only re-fetch them once per
+  // app session per event (the refresh button calls loadPitResults directly).
+  final Set<String> _pitFetchedThisSession = {};
+
+  Future<void> ensurePitResultsLoaded() async {
+    final key = _settings.selectedEventKey;
+    if (key == null || !_pitFetchedThisSession.add(key)) return;
+    await loadPitResults();
+  }
+
   PitResult? getPitResultForTeam(int teamNumber) {
     final results = _pitResults.where((r) => r.teamNumber == teamNumber);
     return results.isNotEmpty ? results.first : null;

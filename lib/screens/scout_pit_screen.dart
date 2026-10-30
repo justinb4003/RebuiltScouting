@@ -7,6 +7,7 @@ import '../widgets/highlighted_switch.dart';
 import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
 import '../widgets/team_selector.dart';
+import '../widgets/team_details.dart';
 
 class ScoutPitScreen extends StatefulWidget {
   const ScoutPitScreen({super.key});
@@ -85,7 +86,16 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                 pit.updateField(() => pit.selectedTeamNumber = v),
           ),
           if (pit.selectedTeamNumber != null) ...[
-            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () => openTeamDetails(context, pit.selectedTeamNumber!),
+                icon: const Icon(Icons.badge_outlined),
+                label: Text(
+                    'View ${appState.getAllPitResultsForTeam(pit.selectedTeamNumber!).isEmpty ? 'team details' : 'existing pit data & team details'}'),
+              ),
+            ),
+            const SizedBox(height: 8),
 
             // Drive Train
             Card(

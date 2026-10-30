@@ -38,6 +38,10 @@ class PitResult {
   String funQuestion;
   String notes;
   String? photoBase64;
+  // Photo URLs from the API's `image_names` (fetched results only).
+  List<String> imageUrls;
+  // False for notes-only records (robot notes), which carry no form fields.
+  bool hasFullData;
   final DateTime timestamp;
 
   PitResult({
@@ -78,8 +82,11 @@ class PitResult {
     this.funQuestion = '',
     this.notes = '',
     this.photoBase64,
+    List<String>? imageUrls,
+    this.hasFullData = true,
     DateTime? timestamp,
   })  : id = id ?? const Uuid().v4(),
+        imageUrls = imageUrls ?? [],
         timestamp = timestamp ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
@@ -120,6 +127,9 @@ class PitResult {
         'fun_question': funQuestion,
         'notes': notes,
         'images': photoBase64 != null ? ['data:image/jpeg;base64,$photoBase64'] : [],
+        // Only set on records fetched from the API, never on ones we post.
+        if (imageUrls.isNotEmpty) 'image_names': imageUrls,
+        if (!hasFullData) 'has_full_data': false,
         'timestamp': timestamp.toIso8601String(),
       };
 
@@ -161,6 +171,11 @@ class PitResult {
         funQuestion: json['fun_question'] ?? '',
         notes: json['notes'] ?? '',
         photoBase64: json['images'] is String ? json['images'] : (json['photo_base64'] is String ? json['photo_base64'] : null),
+        imageUrls: json['image_names'] is List
+            ? [for (final u in json['image_names']) u.toString()]
+            : null,
+        // Robot-note records have no drive_train at all.
+        hasFullData: json['has_full_data'] ?? json['drive_train'] != null,
         timestamp: json['timestamp'] != null
             ? DateTime.parse(json['timestamp'])
             : DateTime.now(),
