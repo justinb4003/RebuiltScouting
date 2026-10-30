@@ -19,7 +19,12 @@ class PitResult {
   bool autoStartRightTrench;
   bool autoCrashConcern;
   bool autoHang;
-  String autoNotes;
+  String autoHangPosition;
+  String autoNotesLeftTrench;
+  String autoNotesLeftBump;
+  String autoNotesHub;
+  String autoNotesRightBump;
+  String autoNotesRightTrench;
   bool hangingWorks;
   int hangingLevel; // 1=L1, 2=L2, 3=L3
   String hangingTime;
@@ -33,6 +38,10 @@ class PitResult {
   String funQuestion;
   String notes;
   String? photoBase64;
+  // Photo URLs from the API's `image_names` (fetched results only).
+  List<String> imageUrls;
+  // False for notes-only records (robot notes), which carry no form fields.
+  bool hasFullData;
   final DateTime timestamp;
 
   PitResult({
@@ -54,7 +63,12 @@ class PitResult {
     this.autoStartRightTrench = false,
     this.autoCrashConcern = false,
     this.autoHang = false,
-    this.autoNotes = '',
+    this.autoHangPosition = '',
+    this.autoNotesLeftTrench = '',
+    this.autoNotesLeftBump = '',
+    this.autoNotesHub = '',
+    this.autoNotesRightBump = '',
+    this.autoNotesRightTrench = '',
     this.hangingWorks = false,
     this.hangingLevel = 1,
     this.hangingTime = '',
@@ -68,8 +82,11 @@ class PitResult {
     this.funQuestion = '',
     this.notes = '',
     this.photoBase64,
+    List<String>? imageUrls,
+    this.hasFullData = true,
     DateTime? timestamp,
   })  : id = id ?? const Uuid().v4(),
+        imageUrls = imageUrls ?? [],
         timestamp = timestamp ?? DateTime.now();
 
   Map<String, dynamic> toJson() => {
@@ -91,7 +108,12 @@ class PitResult {
         'auto_start_right_trench': autoStartRightTrench,
         'auto_crash_concern': autoCrashConcern,
         'auto_hang': autoHang,
-        'auto_notes': autoNotes,
+        'auto_hang_position': autoHangPosition,
+        'auto_notes_left_trench': autoNotesLeftTrench,
+        'auto_notes_left_bump': autoNotesLeftBump,
+        'auto_notes_hub': autoNotesHub,
+        'auto_notes_right_bump': autoNotesRightBump,
+        'auto_notes_right_trench': autoNotesRightTrench,
         'hanging_works': hangingWorks,
         'hanging_level': hangingLevel,
         'hanging_time': hangingTime,
@@ -105,6 +127,9 @@ class PitResult {
         'fun_question': funQuestion,
         'notes': notes,
         'images': photoBase64 != null ? ['data:image/jpeg;base64,$photoBase64'] : [],
+        // Only set on records fetched from the API, never on ones we post.
+        if (imageUrls.isNotEmpty) 'image_names': imageUrls,
+        if (!hasFullData) 'has_full_data': false,
         'timestamp': timestamp.toIso8601String(),
       };
 
@@ -127,7 +152,12 @@ class PitResult {
         autoStartRightTrench: json['auto_start_right_trench'] ?? false,
         autoCrashConcern: json['auto_crash_concern'] ?? false,
         autoHang: json['auto_hang'] ?? false,
-        autoNotes: json['auto_notes'] ?? '',
+        autoHangPosition: json['auto_hang_position'] ?? '',
+        autoNotesLeftTrench: json['auto_notes_left_trench'] ?? '',
+        autoNotesLeftBump: json['auto_notes_left_bump'] ?? '',
+        autoNotesHub: json['auto_notes_hub'] ?? '',
+        autoNotesRightBump: json['auto_notes_right_bump'] ?? '',
+        autoNotesRightTrench: json['auto_notes_right_trench'] ?? '',
         hangingWorks: json['hanging_works'] ?? false,
         hangingLevel: json['hanging_level'] ?? 1,
         hangingTime: json['hanging_time'] ?? '',
@@ -140,7 +170,12 @@ class PitResult {
         hopperEmptyTime: json['hopper_empty_time'] ?? '',
         funQuestion: json['fun_question'] ?? '',
         notes: json['notes'] ?? '',
-        photoBase64: json['images'],
+        photoBase64: json['images'] is String ? json['images'] : (json['photo_base64'] is String ? json['photo_base64'] : null),
+        imageUrls: json['image_names'] is List
+            ? [for (final u in json['image_names']) u.toString()]
+            : null,
+        // Robot-note records have no drive_train at all.
+        hasFullData: json['has_full_data'] ?? json['drive_train'] != null,
         timestamp: json['timestamp'] != null
             ? DateTime.parse(json['timestamp'])
             : DateTime.now(),

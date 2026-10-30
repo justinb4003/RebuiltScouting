@@ -8,7 +8,7 @@ class NavDrawer extends StatelessWidget {
 
   const NavDrawer({super.key, required this.selectedIndex});
 
-  static const _routes = ['/scout', '/pit', '/held', '/settings', '/scouting-status', '/pit-status', '/robot-note'];
+  static const _routes = ['/scout', '/pit', '/held', '/settings', '/scouting-status', '/pit-status', '/robot-note', '/pick-board', '/pick-list', '/clusters', '/rankings', '/team-details', '/match-breakdowns', '/head-to-head'];
 
   @override
   Widget build(BuildContext context) {
@@ -74,6 +74,42 @@ class NavDrawer extends StatelessWidget {
           icon: Icon(Icons.sticky_note_2_outlined),
           selectedIcon: Icon(Icons.sticky_note_2),
           label: Text('Robot Note'),
+        ),
+        const Divider(indent: 28, endIndent: 28),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.how_to_vote_outlined),
+          selectedIcon: Icon(Icons.how_to_vote),
+          label: Text('Pick Board'),
+        ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.format_list_numbered_outlined),
+          selectedIcon: Icon(Icons.format_list_numbered),
+          label: Text('Pick List'),
+        ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.bubble_chart_outlined),
+          selectedIcon: Icon(Icons.bubble_chart),
+          label: Text('Clusters'),
+        ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.leaderboard_outlined),
+          selectedIcon: Icon(Icons.leaderboard),
+          label: Text('Rankings'),
+        ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.badge_outlined),
+          selectedIcon: Icon(Icons.badge),
+          label: Text('Team Details'),
+        ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.sports_esports_outlined),
+          selectedIcon: Icon(Icons.sports_esports),
+          label: Text('Match Breakdowns'),
+        ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.compare_arrows_outlined),
+          selectedIcon: Icon(Icons.compare_arrows),
+          label: Text('Head to Head'),
         ),
         const Divider(indent: 28, endIndent: 28),
         Padding(

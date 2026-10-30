@@ -25,7 +25,12 @@ class PitProvider extends ChangeNotifier {
   bool autoStartRightTrench = false;
   bool autoCrashConcern = false;
   bool autoHang = false;
-  String autoNotes = '';
+  String autoHangPosition = '';
+  String autoNotesLeftTrench = '';
+  String autoNotesLeftBump = '';
+  String autoNotesHub = '';
+  String autoNotesRightBump = '';
+  String autoNotesRightTrench = '';
   bool hangingWorks = false;
   int hangingLevel = 1;
   String hangingTime = '';
@@ -61,7 +66,12 @@ class PitProvider extends ChangeNotifier {
     autoStartRightTrench = false;
     autoCrashConcern = false;
     autoHang = false;
-    autoNotes = '';
+    autoHangPosition = '';
+    autoNotesLeftTrench = '';
+    autoNotesLeftBump = '';
+    autoNotesHub = '';
+    autoNotesRightBump = '';
+    autoNotesRightTrench = '';
     hangingWorks = false;
     hangingLevel = 1;
     hangingTime = '';
@@ -142,7 +152,12 @@ class PitProvider extends ChangeNotifier {
       autoStartRightTrench: autoStartRightTrench,
       autoCrashConcern: autoCrashConcern,
       autoHang: autoHang,
-      autoNotes: autoNotes,
+      autoHangPosition: autoHangPosition,
+      autoNotesLeftTrench: autoNotesLeftTrench,
+      autoNotesLeftBump: autoNotesLeftBump,
+      autoNotesHub: autoNotesHub,
+      autoNotesRightBump: autoNotesRightBump,
+      autoNotesRightTrench: autoNotesRightTrench,
       hangingWorks: hangingWorks,
       hangingLevel: hangingLevel,
       hangingTime: hangingTime,
