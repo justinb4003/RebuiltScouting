@@ -40,13 +40,19 @@ Both workflows run `dart run tool/update_build_info.dart` and generate `version.
 
 ## Architecture
 
-**State management**: Provider (`ChangeNotifierProvider`) with three providers:
+**State management**: Provider (`ChangeNotifierProvider`):
 - `AppStateProvider` — global app state: settings, event/team/match lists, pit results. Initialized in `main.dart` before `runApp`. Orchestrates API calls and caches responses via `StorageService`.
 - `ScoutingProvider` — match scouting form state
 - `PitProvider` — pit scouting form state
+- `PickListProvider` — shared live pick list. Polls `GetScoutingResults` every 3s while a screen calls `watch()` and the tab is visible; edits are applied optimistically and sent one team at a time to `UpdatePickListTeam`. `PickList.apply` in `models/pick_list.dart` must stay in sync with `trisonics-api/pick_list.py` in FRCScout.
+- `PickBoardProvider` — per-person pick lists ("ballots", keyed by scouter name) plus a shared taken list, from the API's `PickVotes` container. Live via Azure Web PubSub: while the Pick Board is on screen and the tab visible it holds a receive-only WebSocket (`NegotiatePickBoard` → `web_socket_channel`) and the API pushes every saved doc; a 60s poll is the safety net (10s while the socket is down; reconnect backs off with jitter). The socket closes when the tab hides or nobody's watching. Optimistic writes as before: your own ballot (`UpdatePickVote`) and taken flags (`SetPickTaken`); incoming docs only replace older versions. The board is built spot by spot (row #k = the team the most people put at #k, ties show every tied team; a team shows once, at the first spot it wins; DNP-only teams are hidden) with agreement = share of voters who have it at exactly that spot; computed client-side in `models/pick_board.dart`. No points/totals.
+- `EventDataProvider` — scouted match rows (`GetResults`, filtered to the secret key) and official match results with score breakdowns (`GetMatchesForEvent` → `MatchResult`). Pure aggregation lives in `lib/analytics/`. Screens call `context.ensureEventData()`.
+- `RankingsProvider` — official TBA rankings via `GetRankings`.
+
+Analytics data policy: show the per-event SharedPreferences cache immediately, fetch from the API at most once automatically per app session, and re-fetch only on the refresh button.
 
 **Services** (singletons via `static final instance`):
-- `ApiService` — all HTTP calls to `trisonics-scouting-api.azurewebsites.net/api`. Uses `package:http` with a global timeout constant.
+- `ApiService` — all HTTP calls to `trisonics-scouting-api.azurewebsites.net/api`. Uses `package:http` with a global timeout constant. Override the base URL for local dev with `--dart-define=API_BASE_URL=http://localhost:7071/api`.
 - `StorageService` — local persistence via `SharedPreferences`. Handles settings, per-event caches (teams/matches/pit results), and held (unsent) scouting data.
 
 **Offline-first pattern**: Scouting results are saved locally as "held data" and batch-uploaded from the Held Data screen. API responses are cached per-event in SharedPreferences so the app works without connectivity.
@@ -58,6 +64,15 @@ Both workflows run `dart run tool/update_build_info.dart` and generate `version.
 - `/held` — queued data awaiting upload
 - `/scouting-status` — table showing which teams have been scouted per match
 - `/pit-status` — table showing pit scouting completion per team
+- `/pick-board` — Board (everyone's ballots, Total, 0–100 agreement bar, DNP/taken badges) and My List (your own drag-and-drop ballot)
+- `/pick-list` — shared drag-and-drop pick order, DNP/Decline, "taken" flags, notes (same doc the Streamlit Scouting Breakdown page uses)
+- `/clusters` — KMeans groups from the API's `GetClusters`, with per-group scatter (fl_chart) and feature profile. Results are cached in memory per request for the app session (refresh button clears); the screen's controls are static so they persist across visits
+- `/rankings` — official event rankings table + ranking-score chart
+- `/team-details` (argument: `int` team number; or `openTeamDetails(context, tn)`) — reusable `TeamDetailView`: pit data, scouted averages, and a `MatchCard` per match
+- `/match-breakdowns` — every match as a `MatchCard` (shared with Team Details), filterable by team
+- `/head-to-head` — 2–6 teams side by side
+
+`NavDrawer(selectedIndex:)` indexes follow `_routes` in `widgets/nav_drawer.dart`; inserting a destination shifts every later screen's index.
 
 **Forced update mechanism**: `web/index.html` fetches `version.json` on each load; if the version changed, it clears all caches/service workers and hard-reloads. No-cache headers are set globally in `staticwebapp.config.json` (Azure deployment).
 
