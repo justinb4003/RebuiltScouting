@@ -14,6 +14,7 @@ import '../models/pick_list.dart';
 import '../models/pick_board.dart';
 import '../models/rankings.dart';
 import '../models/match_result.dart';
+import '../models/opr.dart';
 import '../models/scouted_match.dart';
 
 class StorageService {
@@ -33,9 +34,13 @@ class StorageService {
   static const String _pitResultsCacheKey = 'pit_results_cache';
   static const String _pickListCacheKey = 'pick_list_cache';
   static const String _pickBoardCacheKey = 'pick_board_cache';
+  static const String _boardFiltersKey = 'pick_board_filters';
   static const String _rankingsCacheKey = 'rankings_cache';
   static const String _scoutedCacheKey = 'scouted_matches_cache';
   static const String _matchResultsCacheKey = 'match_results_cache';
+  static const String _oprCacheKey = 'opr_cache';
+  static const String _collapsedSectionsKey = 'team_details_collapsed';
+  static const String _sectionOrderKey = 'team_details_section_order';
 
   // Settings
   Future<AppSettings> loadSettings() async {
@@ -371,6 +376,25 @@ class StorageService {
     await _cachePerEvent(_pickBoardCacheKey, eventKey, [board.toJson()]);
   }
 
+  // Board tab filters (per event): minimum votes and excluded voter keys
+  Future<({int minVotes, Set<String> excluded})> loadBoardFilters(
+      String eventKey) async {
+    final data = await _loadPerEvent(_boardFiltersKey, eventKey);
+    if (data.isEmpty) return (minVotes: 1, excluded: <String>{});
+    final m = Map<String, dynamic>.from(data.first);
+    return (
+      minVotes: (m['minVotes'] as num?)?.toInt() ?? 1,
+      excluded: {for (final k in (m['excluded'] ?? []) as List) k as String},
+    );
+  }
+
+  Future<void> saveBoardFilters(
+      String eventKey, int minVotes, Set<String> excluded) async {
+    await _cachePerEvent(_boardFiltersKey, eventKey, [
+      {'minVotes': minVotes, 'excluded': excluded.toList()..sort()}
+    ]);
+  }
+
   // Rankings cache (per event) so the table is readable offline
   Future<RankingsData?> loadCachedRankings(String eventKey) async {
     final prefs = await _getPrefs();
@@ -408,6 +432,41 @@ class StorageService {
   Future<void> cacheMatchResults(String eventKey, List<MatchResult> matches) async {
     await _cachePerEvent(
         _matchResultsCacheKey, eventKey, matches.map((m) => m.toJson()).toList());
+  }
+
+  // Team Details layout: collapsed sections per team, one section order.
+  Future<Set<String>> loadCollapsedSections(int team) async {
+    final prefs = await _getPrefs();
+    final json = prefs.getString(_collapsedSectionsKey);
+    if (json == null) return {};
+    final List<dynamic>? ids = (jsonDecode(json) as Map<String, dynamic>)['$team'];
+    return {for (final id in ids ?? const []) id as String};
+  }
+
+  Future<void> saveCollapsedSections(int team, Set<String> ids) async {
+    final prefs = await _getPrefs();
+    final json = prefs.getString(_collapsedSectionsKey);
+    final all = json == null ? <String, dynamic>{} : jsonDecode(json) as Map<String, dynamic>;
+    if (ids.isEmpty) {
+      all.remove('$team');
+    } else {
+      all['$team'] = ids.toList()..sort();
+    }
+    await prefs.setString(_collapsedSectionsKey, jsonEncode(all));
+  }
+
+  Future<List<String>> loadSectionOrder() async =>
+      (await _getPrefs()).getStringList(_sectionOrderKey) ?? const [];
+
+  Future<void> saveSectionOrder(List<String> order) async =>
+      (await _getPrefs()).setStringList(_sectionOrderKey, order);
+
+  Future<OprData> loadCachedOpr(String eventKey) async =>
+      oprFromJson(await _loadPerEvent(_oprCacheKey, eventKey));
+
+  Future<void> cacheOpr(String eventKey, OprData opr) async {
+    await _cachePerEvent(_oprCacheKey, eventKey,
+        [for (final e in opr.entries) {'teamNumber': e.key, ...e.value}]);
   }
 
   Future<List<dynamic>> _loadPerEvent(String cacheKey, String eventKey) async {

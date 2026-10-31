@@ -4,9 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/pick_board.dart';
 import '../models/pick_list.dart';
+import '../models/rankings.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/pick_board_provider.dart';
 import '../providers/pick_list_provider.dart' show PickListSync;
+import '../providers/rankings_provider.dart';
+import '../services/storage_service.dart';
+import '../widgets/flip_list.dart';
 import '../widgets/nav_drawer.dart';
 import '../widgets/pick_list_team_sheet.dart' show teamLabel;
 import '../widgets/team_details.dart';
@@ -41,6 +45,9 @@ class _PickBoardScreenState extends State<PickBoardScreen> {
         eventKey: settings.selectedEventKey ?? '',
         voter: settings.scouterName,
       );
+      // Event rank on My List's unranked teams.
+      final eventKey = settings.selectedEventKey;
+      if (eventKey != null) context.read<RankingsProvider>().load(eventKey);
     });
   }
 
@@ -160,22 +167,88 @@ class _BoardView extends StatefulWidget {
 }
 
 class _BoardViewState extends State<_BoardView> {
-  // Session-sticky like the cluster controls.
-  static bool _hideTaken = false;
+  // Persisted per event so they survive a reload.
+  int _minVotes = 1;
+  Set<String> _excluded = {};
+  late final String _eventKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _eventKey =
+        context.read<AppStateProvider>().settings.selectedEventKey ?? '';
+    StorageService.instance.loadBoardFilters(_eventKey).then((f) {
+      if (!mounted) return;
+      setState(() {
+        _minVotes = f.minVotes.clamp(1, 10);
+        _excluded = f.excluded;
+      });
+    });
+  }
+
+  void _saveFilters() =>
+      StorageService.instance.saveBoardFilters(_eventKey, _minVotes, _excluded);
+
+  Future<void> _pickPeople(List<Ballot> all) async {
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) {
+          void set(Set<String> excluded) {
+            setDialog(() {});
+            setState(() => _excluded = excluded);
+            _saveFilters();
+          }
+
+          return AlertDialog(
+            title: const Text('People to include'),
+            contentPadding: const EdgeInsets.only(top: 12),
+            content: SizedBox(
+              width: 320,
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final b in all)
+                    CheckboxListTile(
+                      dense: true,
+                      title: Text(b.voter),
+                      value: !_excluded.contains(b.key),
+                      onChanged: (v) => set(v == true
+                          ? ({..._excluded}..remove(b.key))
+                          : {..._excluded, b.key}),
+                    ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => set({for (final b in all) b.key}),
+                  child: const Text('None')),
+              TextButton(onPressed: () => set({}), child: const Text('All')),
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Done')),
+            ],
+          );
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final p = context.watch<PickBoardProvider>();
     final board = p.board;
-    final voters = board.voters;
-    final allRows = board.rows(_eventTeamCount(context));
-    final rows =
-        _hideTaken ? allRows.where((r) => !r.taken).toList() : allRows;
+    final allVoters = board.voters;
+    final voters =
+        allVoters.where((b) => !_excluded.contains(b.key)).toList();
+    final rows = board.rows(_eventTeamCount(context),
+        minVotes: _minVotes, excluded: _excluded);
     final theme = Theme.of(context);
     final muted = theme.textTheme.bodySmall
         ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
 
-    if (voters.isEmpty) {
+    if (allVoters.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -196,8 +269,13 @@ class _BoardViewState extends State<_BoardView> {
       // Keep the agreement bar near the team names on big screens.
       final sidePad = math.max(0.0,
           (constraints.maxWidth - 700 - shownVoters.length * _voterColumnWidth) / 2);
-      return ListView(
+      // Not a lazy ListView: rows glide to new spots (FlipScope), which
+      // needs them all laid out. A board is at most one row per team.
+      return SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 32),
+        child: FlipScope(
+          child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -206,15 +284,31 @@ class _BoardViewState extends State<_BoardView> {
               runSpacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Text(
-                  '${voters.length} ${voters.length == 1 ? 'person' : 'people'}: '
-                  '${voters.map((b) => b.voter).join(', ')}',
-                  style: theme.textTheme.bodyMedium,
+                ActionChip(
+                  avatar: const Icon(Icons.people_outline, size: 18),
+                  label: Text(
+                      'People: ${voters.length}/${allVoters.length}'),
+                  onPressed: () => _pickPeople(allVoters),
                 ),
-                FilterChip(
-                  label: Text('Hide taken (${board.taken.length})'),
-                  selected: _hideTaken,
-                  onSelected: (v) => setState(() => _hideTaken = v),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text('Min votes', style: theme.textTheme.bodyMedium),
+                    const SizedBox(width: 6),
+                    DropdownButton<int>(
+                      value: _minVotes,
+                      isDense: true,
+                      items: [
+                        for (var i = 1; i <= 10; i++)
+                          DropdownMenuItem(value: i, child: Text('$i')),
+                      ],
+                      onChanged: (v) {
+                        if (v == null) return;
+                        setState(() => _minVotes = v);
+                        _saveFilters();
+                      },
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -230,14 +324,29 @@ class _BoardViewState extends State<_BoardView> {
               style: muted,
             ),
           ),
-          _BoardHeader(voters: shownVoters, myKey: p.myKey),
+          if (voters.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Everyone is excluded. Pick people with the People button.',
+                textAlign: TextAlign.center,
+                style: muted,
+              ),
+            )
+          else
+            _BoardHeader(voters: shownVoters, myKey: p.myKey),
           for (final (i, row) in rows.indexed)
-            _BoardRowTile(
-              row: row,
-              shownVoters: shownVoters,
-              shaded: i.isOdd,
+            FlipItem(
+              key: ValueKey(row.teamNumber),
+              child: _BoardRowTile(
+                row: row,
+                shownVoters: shownVoters,
+                shaded: i.isOdd,
+              ),
             ),
         ],
+          ),
+        ),
       );
     });
   }
@@ -333,16 +442,25 @@ class _BoardRowTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text.rich(
-                    TextSpan(children: [
-                      TextSpan(
-                          text: '$tn',
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                      if (nickname.isNotEmpty) TextSpan(text: '  $nickname'),
-                    ]),
-                    style: strike,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text.rich(
+                          TextSpan(children: [
+                            TextSpan(
+                                text: '$tn',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
+                            if (nickname.isNotEmpty)
+                              TextSpan(text: '  $nickname'),
+                          ]),
+                          style: strike,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      TeamInfoButton(tn),
+                    ],
                   ),
                   if (badges.isNotEmpty)
                     Padding(
@@ -460,8 +578,7 @@ sealed class _Row {
 
 class _Header extends _Row {
   final PickStatus section;
-  final int count;
-  _Header(this.section, this.count);
+  _Header(this.section);
   @override
   Key get key => ValueKey('header-${section.name}');
 }
@@ -517,7 +634,7 @@ class _MyListViewState extends State<_MyListView> {
     }
     return [
       for (final s in _mySections) ...[
-        _Header(s, bySection[s]!.length),
+        _Header(s),
         if (bySection[s]!.isEmpty) _Placeholder(s),
         ...bySection[s]!,
       ],
@@ -554,11 +671,20 @@ class _MyListViewState extends State<_MyListView> {
   }
 
   Widget _teamTile(_TeamRow row, Set<int> taken, Map<int, int> boardPos,
+      Map<int, RankingRow> eventRanks,
       {int? dragIndex}) {
     final scheme = Theme.of(context).colorScheme;
     final isTaken = taken.contains(row.teamNumber);
     final notes = row.entry?.notes ?? '';
     final pos = boardPos[row.teamNumber];
+    // Unranked teams need more to go on: event rank and record.
+    final eventRank = row.section == PickStatus.unranked
+        ? eventRanks[row.teamNumber]
+        : null;
+    final facts = [
+      if (eventRank != null) 'Rank #${eventRank.rank} · ${eventRank.record}',
+      if (pos != null) 'Board #$pos',
+    ].join(' · ');
     final tile = ListTile(
       dense: true,
       leading: switch (row.section) {
@@ -573,39 +699,33 @@ class _MyListViewState extends State<_MyListView> {
         PickStatus.dnp => Icon(Icons.block, color: scheme.error),
         _ => const SizedBox(width: 32),
       },
-      title: Text(
-        teamLabel(context, row.teamNumber),
-        style: isTaken
-            ? const TextStyle(decoration: TextDecoration.lineThrough)
-            : null,
+      title: Row(
+        children: [
+          Flexible(
+            child: Text(
+              teamLabel(context, row.teamNumber),
+              style: isTaken
+                  ? const TextStyle(decoration: TextDecoration.lineThrough)
+                  : null,
+            ),
+          ),
+          TeamInfoButton(row.teamNumber),
+        ],
       ),
       subtitle: notes.isNotEmpty
           ? Text(notes, maxLines: 1, overflow: TextOverflow.ellipsis)
-          : pos != null
-              ? Text('Board #$pos')
+          : facts.isNotEmpty
+              ? Text(facts)
               : null,
       onTap: () => showPickBoardTeamSheet(context, row.teamNumber),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (row.section == PickStatus.ranked)
-            IconButton(
+      trailing: row.section == PickStatus.ranked
+          ? IconButton(
               tooltip: isTaken ? 'Mark available' : 'Mark taken',
               icon: Icon(
                   isTaken ? Icons.check_box : Icons.check_box_outline_blank),
               onPressed: () => _setTaken(context, row.teamNumber, !isTaken),
-            ),
-          if (dragIndex != null)
-            ReorderableDragStartListener(
-              index: dragIndex,
-              child: const SizedBox(
-                width: 48,
-                height: 48,
-                child: Icon(Icons.drag_handle),
-              ),
-            ),
-        ],
-      ),
+            )
+          : null,
     );
     final shown = isTaken ? Opacity(opacity: 0.5, child: tile) : tile;
     // The whole row drags: right away with a mouse, after a long press on
@@ -626,11 +746,11 @@ class _MyListViewState extends State<_MyListView> {
     );
   }
 
-  Widget _buildRow(
-      _Row row, int index, Set<int> taken, Map<int, int> boardPos) {
+  Widget _buildRow(_Row row, int index, Set<int> taken,
+      Map<int, int> boardPos, Map<int, RankingRow> eventRanks) {
     final theme = Theme.of(context);
     return switch (row) {
-      _Header(:final section, :final count) => Padding(
+      _Header(:final section) => Padding(
           key: row.key,
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
           child: Row(
@@ -638,8 +758,6 @@ class _MyListViewState extends State<_MyListView> {
               Text(_sectionTitles[section]!,
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(width: 8),
-              Text('$count', style: theme.textTheme.bodySmall),
               const SizedBox(width: 8),
               const Expanded(child: Divider()),
             ],
@@ -655,7 +773,8 @@ class _MyListViewState extends State<_MyListView> {
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
         ),
-      _TeamRow() => _teamTile(row, taken, boardPos, dragIndex: index),
+      _TeamRow() =>
+          _teamTile(row, taken, boardPos, eventRanks, dragIndex: index),
     };
   }
 
@@ -669,6 +788,11 @@ class _MyListViewState extends State<_MyListView> {
       for (final r in p.board.rows(appState.teams.length))
         if (r.agreedRank != null) r.teamNumber: r.agreedRank!,
     };
+    final eventRanks = {
+      for (final r in context.watch<RankingsProvider>().data?.rows ??
+          const <RankingRow>[])
+        r.teamNumber: r,
+    };
     final taken = p.board.taken;
     final query = _search.text.trim().toLowerCase();
 
@@ -680,7 +804,7 @@ class _MyListViewState extends State<_MyListView> {
               teamLabel(context, r.teamNumber).toLowerCase().contains(query))
           .toList();
       list = ListView(children: [
-        for (final r in matches) _teamTile(r, taken, boardPos),
+        for (final r in matches) _teamTile(r, taken, boardPos, eventRanks),
       ]);
     } else {
       list = ReorderableListView.builder(
@@ -690,7 +814,8 @@ class _MyListViewState extends State<_MyListView> {
         onReorderStart: (_) => p.holdUpdates(true),
         onReorderEnd: (_) => p.holdUpdates(false),
         onReorderItem: (o, n) => _onReorder(rows, o, n),
-        itemBuilder: (context, i) => _buildRow(rows[i], i, taken, boardPos),
+        itemBuilder: (context, i) =>
+            _buildRow(rows[i], i, taken, boardPos, eventRanks),
       );
     }
 
@@ -740,31 +865,39 @@ class _OtherListsView extends StatefulWidget {
   State<_OtherListsView> createState() => _OtherListsViewState();
 }
 
-class _OtherListsViewState extends State<_OtherListsView> {
-  PageController? _pages;
+class _OtherListsViewState extends State<_OtherListsView>
+    with AutomaticKeepAliveClientMixin {
+  final _hScroll = ScrollController();
+  // One vertical controller per ballot; kept here so offsets survive tab
+  // switches (the state itself is kept alive below).
+  final _vScrolls = <String, ScrollController>{};
+  double _colWidth = 360;
   int _page = 0;
 
   @override
-  void dispose() {
-    _pages?.dispose();
-    super.dispose();
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _hScroll.addListener(() {
+      final i = (_hScroll.offset / _colWidth).round();
+      if (i != _page) setState(() => _page = i);
+    });
   }
 
-  /// Columns are a fixed width, so the page fraction depends on the screen;
-  /// swap controllers when it changes (the old one is disposed after its
-  /// PageView is gone).
-  PageController _controllerFor(double fraction) {
-    final old = _pages;
-    if (old != null && old.viewportFraction == fraction) return old;
-    _pages = PageController(viewportFraction: fraction, initialPage: _page);
-    if (old != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+  @override
+  void dispose() {
+    _hScroll.dispose();
+    for (final c in _vScrolls.values) {
+      c.dispose();
     }
-    return _pages!;
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    super.build(context);
     final p = context.watch<PickBoardProvider>();
     final others = p.board.voters.where((b) => b.key != p.myKey).toList();
     final taken = p.board.taken;
@@ -783,9 +916,7 @@ class _OtherListsViewState extends State<_OtherListsView> {
     return LayoutBuilder(builder: (context, constraints) {
       final width = constraints.maxWidth;
       // ~360px columns; on a phone one column plus a peek at the next.
-      final fraction =
-          (math.min(360.0, width * 0.9) / width * 100).roundToDouble() / 100;
-      final pages = _controllerFor(fraction);
+      _colWidth = math.min(360.0, width * 0.9);
       return Column(
         children: [
           SizedBox(
@@ -800,7 +931,9 @@ class _OtherListsViewState extends State<_OtherListsView> {
                     child: ChoiceChip(
                       label: Text(b.voter),
                       selected: i == page,
-                      onSelected: (_) => pages.animateToPage(i,
+                      onSelected: (_) => _hScroll.animateTo(
+                          math.min(i * _colWidth,
+                              _hScroll.position.maxScrollExtent),
                           duration: const Duration(milliseconds: 250),
                           curve: Curves.easeOut),
                     ),
@@ -814,14 +947,24 @@ class _OtherListsViewState extends State<_OtherListsView> {
               behavior: ScrollConfiguration.of(context).copyWith(
                 dragDevices: {...PointerDeviceKind.values},
               ),
-              child: PageView.builder(
-                key: ValueKey(fraction),
-                controller: pages,
-                padEnds: false,
-                itemCount: others.length,
-                onPageChanged: (i) => setState(() => _page = i),
-                itemBuilder: (context, i) =>
-                    _BallotColumn(ballot: others[i], taken: taken),
+              child: SingleChildScrollView(
+                controller: _hScroll,
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final b in others)
+                      SizedBox(
+                        width: _colWidth,
+                        child: _BallotColumn(
+                          ballot: b,
+                          taken: taken,
+                          controller:
+                              _vScrolls.putIfAbsent(b.key, ScrollController.new),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -844,8 +987,10 @@ class _OtherListsViewState extends State<_OtherListsView> {
 class _BallotColumn extends StatelessWidget {
   final Ballot ballot;
   final Set<int> taken;
+  final ScrollController controller;
 
-  const _BallotColumn({required this.ballot, required this.taken});
+  const _BallotColumn(
+      {required this.ballot, required this.taken, required this.controller});
 
   @override
   Widget build(BuildContext context) {
@@ -857,41 +1002,58 @@ class _BallotColumn extends StatelessWidget {
       ..sort((a, b) => a.teamNumber.compareTo(b.teamNumber));
     final updated = list.updatedAt == null
         ? ''
-        : ' · updated ${TimeOfDay.fromDateTime(list.updatedAt!.toLocal()).format(context)}';
+        : 'Updated ${TimeOfDay.fromDateTime(list.updatedAt!.toLocal()).format(context)}';
 
     Widget tile(PickListEntry e, Widget leading) {
       final isTaken = taken.contains(e.teamNumber);
       final t = ListTile(
         dense: true,
         leading: leading,
-        title: Text(
-          teamLabel(context, e.teamNumber),
-          style: isTaken
-              ? const TextStyle(decoration: TextDecoration.lineThrough)
-              : null,
+        title: Row(
+          children: [
+            Flexible(
+              child: Text(
+                teamLabel(context, e.teamNumber),
+                style: isTaken
+                    ? const TextStyle(decoration: TextDecoration.lineThrough)
+                    : null,
+              ),
+            ),
+            TeamInfoButton(e.teamNumber),
+          ],
         ),
         subtitle: e.notes.isEmpty
             ? null
             : Text(e.notes, maxLines: 2, overflow: TextOverflow.ellipsis),
         onTap: () => showPickBoardTeamSheet(context, e.teamNumber),
       );
-      return isTaken ? Opacity(opacity: 0.5, child: t) : t;
+      return FlipItem(
+        key: ValueKey(e.teamNumber),
+        child: isTaken ? Opacity(opacity: 0.5, child: t) : t,
+      );
     }
 
     return Card(
       margin: const EdgeInsets.fromLTRB(12, 0, 4, 4),
       clipBehavior: Clip.antiAlias,
-      child: ListView(
-        padding: const EdgeInsets.only(bottom: 16),
+      // Header sits outside the ListView so it stays put while the list scrolls.
+      child: Column(
         children: [
           ListTile(
             title: Text(ballot.voter,
                 style: theme.textTheme.titleMedium
                     ?.copyWith(fontWeight: FontWeight.bold)),
-            subtitle: Text(
-                '${ranked.length} ${ranked.length == 1 ? 'pick' : 'picks'}$updated'),
+            subtitle: updated.isEmpty ? null : Text(updated),
           ),
           const Divider(height: 1),
+          Expanded(
+            child: SingleChildScrollView(
+              controller: controller,
+              padding: const EdgeInsets.only(bottom: 16),
+              child: FlipScope(
+                child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
           for (final e in ranked)
             tile(
               e,
@@ -914,6 +1076,11 @@ class _BallotColumn extends StatelessWidget {
             ),
             for (final e in dnp) tile(e, Icon(Icons.block, color: scheme.error)),
           ],
+              ],
+                ),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -1000,10 +1167,7 @@ class _TeamSheetState extends State<_TeamSheet> {
                 TextButton.icon(
                   icon: const Icon(Icons.badge_outlined),
                   label: const Text('Details'),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    openTeamDetails(context, tn);
-                  },
+                  onPressed: () => showTeamDetailsDialog(context, tn),
                 ),
               ],
             ),

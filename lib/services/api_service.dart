@@ -12,6 +12,7 @@ import '../models/pick_board.dart';
 import '../models/cluster_result.dart';
 import '../models/rankings.dart';
 import '../models/match_result.dart';
+import '../models/opr.dart';
 import '../models/scouted_match.dart';
 
 /// The API answered with an error status (the request did get through).
@@ -345,4 +346,18 @@ class ApiService {
     return [for (final m in data) MatchResult.fromTba(Map<String, dynamic>.from(m))]
       ..sort((a, b) => a.sortKey.compareTo(b.sortKey));
   }
+
+  /// OPR per team for every numeric score-breakdown field (qual matches
+  /// only), keyed by team number: field -> contribution.
+  Future<OprData> getOprData(String eventKey) async {
+    final response = await http
+        .get(Uri.parse('$baseUrl/GetOPRData?event_key=$eventKey'))
+        .timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint('getOprData failed: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load OPR: ${response.statusCode}');
+    }
+    return oprFromJson(jsonDecode(response.body) as List);
+  }
 }
+

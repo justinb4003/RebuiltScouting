@@ -2,39 +2,205 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../analytics/match_stats.dart';
 import '../analytics/scout_stats.dart';
+import '../models/opr.dart';
 import '../models/pit_result.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/event_data_provider.dart';
+import '../services/storage_service.dart';
 import 'match_card.dart';
+import 'page_dialog.dart';
+import 'pick_list_team_sheet.dart' show teamLabel;
 
 /// Open the Team Details screen for [teamNumber].
 void openTeamDetails(BuildContext context, int teamNumber) {
   Navigator.of(context).pushNamed('/team-details', arguments: teamNumber);
 }
 
+/// Small ⓘ next to a team name that opens [showTeamDetailsDialog].
+class TeamInfoButton extends StatelessWidget {
+  final int teamNumber;
+
+  const TeamInfoButton(this.teamNumber, {super.key});
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+        tooltip: 'Team details',
+        icon: const Icon(Icons.info_outline, size: 18),
+        visualDensity: VisualDensity.compact,
+        constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+        padding: EdgeInsets.zero,
+        onPressed: () => showTeamDetailsDialog(context, teamNumber),
+      );
+}
+
+/// Team Details over the current screen; closing returns right where the
+/// user was. The open-in-new icon goes to the full page instead.
+Future<void> showTeamDetailsDialog(BuildContext context, int teamNumber) {
+  return showPageDialog(
+    context,
+    title: teamLabel(context, teamNumber),
+    actions: [
+      Builder(
+        builder: (dialogContext) => IconButton(
+          tooltip: 'Open Team Details page',
+          icon: const Icon(Icons.open_in_new),
+          onPressed: () {
+            Navigator.pop(dialogContext);
+            openTeamDetails(context, teamNumber);
+          },
+        ),
+      ),
+    ],
+    body: CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.all(16),
+          sliver: TeamDetailView(teamNumber: teamNumber, showName: false),
+        ),
+      ],
+    ),
+  );
+}
+
 /// Everything we know about one team at the selected event: pit scouting,
-/// scouted averages and every match they're in. A plain column (not
-/// scrollable) so it can sit inside any screen or sheet that scrolls.
+/// scouted averages, OPR and every match they're in. A sliver, so put it in
+/// a CustomScrollView; match cards build lazily as they scroll into view.
+/// Each section collapses
+/// (remembered per team) and can be moved up or down (one order for every
+/// team).
 class TeamDetailView extends StatefulWidget {
   final int teamNumber;
-  const TeamDetailView({super.key, required this.teamNumber});
+
+  /// Off where the number and name are already in a title bar.
+  final bool showName;
+
+  const TeamDetailView(
+      {super.key, required this.teamNumber, this.showName = true});
 
   @override
   State<TeamDetailView> createState() => _TeamDetailViewState();
 }
 
+enum _Section {
+  pit('Pit scouting'),
+  scouted('Scouted averages'),
+  opr('OPR'),
+  matches('Matches');
+
+  final String title;
+  const _Section(this.title);
+}
+
 class _TeamDetailViewState extends State<TeamDetailView> {
+  // Prefs are async; keep what's been read so reopening doesn't flash.
+  static final Map<int, Set<String>> _collapsedCache = {};
+  static List<String>? _orderCache;
+
+  Set<String> _collapsed = {};
+  List<_Section> _order = _Section.values;
+
   @override
   void initState() {
     super.initState();
+    final team = widget.teamNumber;
+    final cached = _collapsedCache[team];
+    if (cached != null) _collapsed = cached;
+    if (_orderCache != null) _order = _orderFrom(_orderCache!);
+    final storage = StorageService.instance;
+    if (cached == null) {
+      storage.loadCollapsedSections(team).then((v) {
+        _collapsedCache[team] = v;
+        if (mounted) setState(() => _collapsed = v);
+      });
+    }
+    if (_orderCache == null) {
+      storage.loadSectionOrder().then((v) {
+        _orderCache = v;
+        if (mounted) setState(() => _order = _orderFrom(v));
+      });
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) context.ensureEventData();
     });
   }
 
+  /// Saved names in saved order; sections added since go at the end.
+  static List<_Section> _orderFrom(List<String> names) => [
+        for (final n in names)
+          ..._Section.values.where((s) => s.name == n),
+        for (final s in _Section.values)
+          if (!names.contains(s.name)) s,
+      ];
+
+  void _toggle(_Section s) {
+    setState(() {
+      _collapsed = {..._collapsed};
+      if (!_collapsed.remove(s.name)) _collapsed.add(s.name);
+    });
+    _collapsedCache[widget.teamNumber] = _collapsed;
+    StorageService.instance
+        .saveCollapsedSections(widget.teamNumber, _collapsed);
+  }
+
+  void _move(_Section s, int by) {
+    final i = _order.indexOf(s);
+    final j = i + by;
+    if (j < 0 || j >= _order.length) return;
+    setState(() {
+      _order = [..._order]
+        ..removeAt(i)
+        ..insert(j, s);
+    });
+    _orderCache = [for (final s in _order) s.name];
+    StorageService.instance.saveSectionOrder(_orderCache!);
+  }
+
   Future<void> _refresh() async {
     final app = context.read<AppStateProvider>();
     await Future.wait([context.read<EventDataProvider>().refresh(), app.loadPitResults()]);
+  }
+
+  Widget _header(_Section s, String title) {
+    final theme = Theme.of(context);
+    final open = !_collapsed.contains(s.name);
+    final i = _order.indexOf(s);
+    return Padding(
+      padding: const EdgeInsets.only(top: 16, bottom: 8),
+      child: Material(
+        color: theme.colorScheme.surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(12),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: () => _toggle(s),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 4, 4),
+            child: Row(
+              children: [
+                Expanded(child: Text(title, style: theme.textTheme.titleLarge)),
+                PopupMenuButton<int>(
+                  tooltip: 'Move section',
+                  icon: const Icon(Icons.swap_vert),
+                  onSelected: (by) => _move(s, by),
+                  itemBuilder: (_) => [
+                    PopupMenuItem(value: -1, enabled: i > 0, child: const Text('Move up')),
+                    PopupMenuItem(
+                        value: 1, enabled: i < _order.length - 1, child: const Text('Move down')),
+                  ],
+                ),
+                AnimatedRotation(
+                  turns: open ? 0.5 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: const Padding(
+                    padding: EdgeInsets.all(8),
+                    child: Icon(Icons.expand_more),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -55,10 +221,9 @@ class _TeamDetailViewState extends State<TeamDetailView> {
     final record = teamRecord(data.matches, team);
     final stats = data.statsFor(team);
 
-    return Column(
+    final heading = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Header
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -66,8 +231,14 @@ class _TeamDetailViewState extends State<TeamDetailView> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('$team', style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
-                  if (nickname.isNotEmpty) Text(nickname, style: theme.textTheme.titleMedium),
+                  if (widget.showName)
+                    Text.rich(
+                      TextSpan(children: [
+                        TextSpan(text: '$team', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        if (nickname.isNotEmpty) TextSpan(text: '  $nickname'),
+                      ]),
+                      style: theme.textTheme.headlineSmall,
+                    ),
                   if (location.isNotEmpty)
                     Text(location,
                         style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
@@ -106,38 +277,55 @@ class _TeamDetailViewState extends State<TeamDetailView> {
             padding: const EdgeInsets.only(top: 4),
             child: Text(data.error!, style: TextStyle(color: theme.colorScheme.error)),
           ),
-
-        _SectionTitle('Pit scouting'),
-        _PitSection(records: pit),
-
-        _SectionTitle('Scouted averages'),
-        if (stats == null || stats.rows.isEmpty)
-          const Text('No matches scouted for this team yet.')
-        else
-          _SummaryTiles(stats: stats, all: data.teamStats),
-
-        _SectionTitle('Matches (${matches.length})'),
-        if (matches.isEmpty)
-          const Text('No matches found for this team at this event.')
-        else
-          for (final m in matches) MatchCard(key: ValueKey(m.key), match: m, focusTeam: team),
       ],
     );
+
+    Widget body(_Section s) => switch (s) {
+          _Section.pit => _PitSection(records: pit),
+          _Section.scouted => stats == null || stats.rows.isEmpty
+              ? const Text('No matches scouted for this team yet.')
+              : _SummaryTiles(stats: stats, all: data.teamStats),
+          _Section.opr => data.opr[team] == null
+              ? const Text('No OPR yet; it needs qualification match results.')
+              : _OprTiles(team: team, opr: data.opr),
+          _Section.matches => const Text('No matches found for this team at this event.'),
+        };
+
+    return SliverMainAxisGroup(slivers: [
+      SliverToBoxAdapter(child: heading),
+      for (final s in _order) ...[
+        SliverToBoxAdapter(
+          child: _header(s, s == _Section.matches ? '${s.title} (${matches.length})' : s.title),
+        ),
+        if (s == _Section.matches && matches.isNotEmpty)
+          // Match cards build only as they scroll into view.
+          if (_collapsed.contains(s.name))
+            const SliverToBoxAdapter(child: SizedBox.shrink())
+          else
+            SliverList.builder(
+              itemCount: matches.length,
+              itemBuilder: (context, i) {
+                final m = matches[i];
+                return MatchCard(key: ValueKey(m.key), match: m, focusTeam: team);
+              },
+            )
+        else
+          SliverToBoxAdapter(
+            child: AnimatedSize(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              alignment: Alignment.topCenter,
+              child: _collapsed.contains(s.name)
+                  ? const SizedBox(width: double.infinity)
+                  : Align(alignment: Alignment.centerLeft, child: body(s)),
+            ),
+          ),
+      ],
+    ]);
   }
 
   static String _hm(DateTime t) =>
       '${t.hour % 12 == 0 ? 12 : t.hour % 12}:${t.minute.toString().padLeft(2, '0')} ${t.hour < 12 ? 'AM' : 'PM'}';
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String text;
-  const _SectionTitle(this.text);
-
-  @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(top: 20, bottom: 8),
-        child: Text(text, style: Theme.of(context).textTheme.titleLarge),
-      );
 }
 
 // ---------------------------------------------------------------- Scouted
@@ -232,6 +420,77 @@ class _StatTile extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+// -------------------------------------------------------------------- OPR
+
+/// GetOPRData fields worth a tile, with labels; the API returns every
+/// numeric score-breakdown field.
+const _oprFields = [
+  ('totalPoints', 'Total points'),
+  ('totalAutoPoints', 'Auto points'),
+  ('totalTeleopPoints', 'Teleop points'),
+  ('hubScore_totalCount', 'Fuel scored'),
+  ('totalTowerPoints', 'Tower points'),
+  ('rp', 'Ranking points'),
+  ('foulPoints', 'Foul points drawn'),
+];
+
+class _OprTiles extends StatelessWidget {
+  final int team;
+  final OprData opr;
+  const _OprTiles({required this.team, required this.opr});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final mine = opr[team]!;
+    final muted = theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    return LayoutBuilder(builder: (context, c) {
+      final cols = (c.maxWidth / 130).floor().clamp(2, 6);
+      const gap = 8.0;
+      final width = (c.maxWidth - gap * (cols - 1)) / cols;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(spacing: gap, runSpacing: gap, children: [
+            for (final (field, label) in _oprFields)
+              if (mine[field] != null)
+                SizedBox(
+                  width: width,
+                  child: Builder(builder: (context) {
+                    final v = mine[field]!;
+                    final all = [for (final t in opr.values) t[field] ?? 0];
+                    final rank = all.where((x) => x > v).length + 1;
+                    final mean = all.reduce((a, b) => a + b) / all.length;
+                    final digits = field == 'rp' ? 2 : 1;
+                    return Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(label, maxLines: 2, overflow: TextOverflow.ellipsis, style: muted),
+                          const SizedBox(height: 2),
+                          Text(v.toStringAsFixed(digits),
+                              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                          Text('evt ${mean.toStringAsFixed(digits)} · #$rank of ${all.length}', style: muted),
+                        ],
+                      ),
+                    );
+                  }),
+                ),
+          ]),
+          const SizedBox(height: 8),
+          Text('Estimated contribution to the alliance score in qualification matches.',
+              style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        ],
+      );
+    });
   }
 }
 
