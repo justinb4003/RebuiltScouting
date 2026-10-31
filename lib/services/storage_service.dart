@@ -115,97 +115,75 @@ class StorageService {
     await prefs.setString(cacheKey, jsonEncode(cache));
   }
 
-  Future<void> clearAll() async {
-    final prefs = await _getPrefs();
-    await prefs.clear();
+  Future<void> clearAll() => _locked(() async {
+        final prefs = await _getPrefs();
+        await prefs.clear();
+      });
+
+  // Held (unsent) data. Every change is a read-modify-write of one list, so
+  // they all run one at a time through _locked; otherwise a submit and an
+  // upload removing another item could each save a stale copy and drop data.
+  Future<void> _heldLock = Future.value();
+
+  Future<T> _locked<T>(Future<T> Function() action) {
+    final result = _heldLock.then((_) => action());
+    _heldLock = result.then((_) {}, onError: (_) {});
+    return result;
   }
+
+  Future<List<T>> _loadHeld<T>(
+      String key, T Function(Map<String, dynamic>) fromJson) async {
+    final prefs = await _getPrefs();
+    final json = prefs.getString(key);
+    if (json == null) return [];
+    final List<dynamic> data = jsonDecode(json);
+    return [for (final e in data) fromJson(Map<String, dynamic>.from(e))];
+  }
+
+  Future<void> _editHeld(String key, void Function(List<dynamic> items) edit) =>
+      _locked(() async {
+        final prefs = await _getPrefs();
+        final json = prefs.getString(key);
+        final List<dynamic> items = json == null ? [] : jsonDecode(json);
+        edit(items);
+        await prefs.setString(key, jsonEncode(items));
+      });
+
+  Future<void> _addHeld(String key, Map<String, dynamic> item) =>
+      _editHeld(key, (items) => items.add(item));
+
+  Future<void> _removeHeld(String key, String id) =>
+      _editHeld(key, (items) => items.removeWhere((e) => e['id'] == id));
 
   // Held scout data
-  Future<List<ScoutResult>> loadHeldScoutData() async {
-    final prefs = await _getPrefs();
-    final json = prefs.getString(_heldScoutDataKey);
-    if (json != null) {
-      final List<dynamic> data = jsonDecode(json);
-      return data.map((e) => ScoutResult.fromJson(e)).toList();
-    }
-    return [];
-  }
+  Future<List<ScoutResult>> loadHeldScoutData() =>
+      _loadHeld(_heldScoutDataKey, ScoutResult.fromJson);
 
-  Future<void> saveHeldScoutData(List<ScoutResult> results) async {
-    final prefs = await _getPrefs();
-    await prefs.setString(
-        _heldScoutDataKey, jsonEncode(results.map((r) => r.toJson()).toList()));
-  }
+  Future<void> addHeldScoutResult(ScoutResult result) =>
+      _addHeld(_heldScoutDataKey, result.toJson());
 
-  Future<void> addHeldScoutResult(ScoutResult result) async {
-    final held = await loadHeldScoutData();
-    held.add(result);
-    await saveHeldScoutData(held);
-  }
-
-  Future<void> removeHeldScoutResult(String id) async {
-    final held = await loadHeldScoutData();
-    held.removeWhere((r) => r.id == id);
-    await saveHeldScoutData(held);
-  }
+  Future<void> removeHeldScoutResult(String id) =>
+      _removeHeld(_heldScoutDataKey, id);
 
   // Held pit data
-  Future<List<PitResult>> loadHeldPitData() async {
-    final prefs = await _getPrefs();
-    final json = prefs.getString(_heldPitDataKey);
-    if (json != null) {
-      final List<dynamic> data = jsonDecode(json);
-      return data.map((e) => PitResult.fromJson(e)).toList();
-    }
-    return [];
-  }
+  Future<List<PitResult>> loadHeldPitData() =>
+      _loadHeld(_heldPitDataKey, PitResult.fromJson);
 
-  Future<void> saveHeldPitData(List<PitResult> results) async {
-    final prefs = await _getPrefs();
-    await prefs.setString(
-        _heldPitDataKey, jsonEncode(results.map((r) => r.toJson()).toList()));
-  }
+  Future<void> addHeldPitResult(PitResult result) =>
+      _addHeld(_heldPitDataKey, result.toJson());
 
-  Future<void> addHeldPitResult(PitResult result) async {
-    final held = await loadHeldPitData();
-    held.add(result);
-    await saveHeldPitData(held);
-  }
-
-  Future<void> removeHeldPitResult(String id) async {
-    final held = await loadHeldPitData();
-    held.removeWhere((r) => r.id == id);
-    await saveHeldPitData(held);
-  }
+  Future<void> removeHeldPitResult(String id) =>
+      _removeHeld(_heldPitDataKey, id);
 
   // Held robot notes
-  Future<List<RobotNote>> loadHeldRobotNotes() async {
-    final prefs = await _getPrefs();
-    final json = prefs.getString(_heldRobotNoteKey);
-    if (json != null) {
-      final List<dynamic> data = jsonDecode(json);
-      return data.map((e) => RobotNote.fromJson(e)).toList();
-    }
-    return [];
-  }
+  Future<List<RobotNote>> loadHeldRobotNotes() =>
+      _loadHeld(_heldRobotNoteKey, RobotNote.fromJson);
 
-  Future<void> saveHeldRobotNotes(List<RobotNote> notes) async {
-    final prefs = await _getPrefs();
-    await prefs.setString(
-        _heldRobotNoteKey, jsonEncode(notes.map((n) => n.toJson()).toList()));
-  }
+  Future<void> addHeldRobotNote(RobotNote note) =>
+      _addHeld(_heldRobotNoteKey, note.toJson());
 
-  Future<void> addHeldRobotNote(RobotNote note) async {
-    final held = await loadHeldRobotNotes();
-    held.add(note);
-    await saveHeldRobotNotes(held);
-  }
-
-  Future<void> removeHeldRobotNote(String id) async {
-    final held = await loadHeldRobotNotes();
-    held.removeWhere((n) => n.id == id);
-    await saveHeldRobotNotes(held);
-  }
+  Future<void> removeHeldRobotNote(String id) =>
+      _removeHeld(_heldRobotNoteKey, id);
 
   // Pit results cache (per event)
   Future<List<PitResult>> loadCachedPitResults(String eventKey) async {
