@@ -86,10 +86,17 @@ class AppStateProvider extends ChangeNotifier {
     final match = _events.where((e) => e.key == key);
     _settings.selectedEventName = match.isNotEmpty ? match.first.name : null;
 
-    // Clear old event data immediately so screens don't show stale data
-    _teams = [];
-    _matches = [];
-    _pitResults = [];
+    // Swap in the new event's cache (empty if never loaded) so screens don't
+    // show the old event, and so it stays usable if the fetch below fails.
+    if (key.isEmpty) {
+      _teams = [];
+      _matches = [];
+      _pitResults = [];
+    } else {
+      _teams = await _storage.loadCachedTeams(key);
+      _matches = await _storage.loadCachedMatches(key);
+      _pitResults = await _storage.loadCachedPitResults(key);
+    }
 
     await persistSettings();
     notifyListeners();
