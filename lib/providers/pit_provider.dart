@@ -188,17 +188,15 @@ class PitProvider extends ChangeNotifier {
         if (await _api.postPitResults(result)) {
           if (saved) await _removeHeld(result.id);
           return SubmitResult(
-              success: true, message: 'Pit data submitted successfully!');
+              success: true, uploaded: true, message: uploadedMessage);
         }
       } catch (e, stackTrace) {
         debugPrint('Pit submit error: $e');
         debugPrint('$stackTrace');
       }
       return SubmitResult(
-          success: false,
-          message: saved
-              ? 'Upload failed. Data saved locally.'
-              : notSavedMessage);
+          success: saved,
+          message: saved ? savedLocallyMessage : notSavedMessage);
     } finally {
       _submitting = false;
       notifyListeners();

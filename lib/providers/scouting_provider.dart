@@ -217,16 +217,15 @@ class ScoutingProvider extends ChangeNotifier {
       try {
         if (await _api.postResults(result)) {
           if (saved) await _removeHeld(result.id);
-          return SubmitResult(success: true, message: 'Submitted successfully!');
+          return SubmitResult(
+              success: true, uploaded: true, message: uploadedMessage);
         }
       } catch (e) {
         debugPrint('Match submit error: $e');
       }
       return SubmitResult(
-          success: false,
-          message: saved
-              ? 'Upload failed. Data saved locally.'
-              : notSavedMessage);
+          success: saved,
+          message: saved ? savedLocallyMessage : notSavedMessage);
     } finally {
       _submitting = false;
       notifyListeners();

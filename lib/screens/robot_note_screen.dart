@@ -72,16 +72,14 @@ class _RobotNoteScreenState extends State<RobotNoteScreen> {
             });
           }
           return SubmitResult(
-              success: true, message: 'Robot note submitted successfully!');
+              success: true, uploaded: true, message: uploadedMessage);
         }
       } catch (e) {
         debugPrint('Robot note submit error: $e');
       }
       return SubmitResult(
-          success: false,
-          message: saved
-              ? 'Upload failed. Note saved locally.'
-              : notSavedMessage);
+          success: saved,
+          message: saved ? savedLocallyMessage : notSavedMessage);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -140,7 +138,11 @@ class _RobotNoteScreenState extends State<RobotNoteScreen> {
                           SnackBar(
                             content: Text(result.message),
                             backgroundColor:
-                                result.success ? Colors.green : Colors.red,
+                                result.uploaded
+                                ? Colors.green
+                                : result.success
+                                    ? Colors.orange
+                                    : Colors.red,
                           ),
                         );
                         if (result.success) {

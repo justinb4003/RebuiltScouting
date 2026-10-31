@@ -581,7 +581,11 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                           SnackBar(
                             content: Text(result.message),
                             backgroundColor:
-                                result.success ? Colors.green : Colors.red,
+                                result.uploaded
+                                ? Colors.green
+                                : result.success
+                                    ? Colors.orange
+                                    : Colors.red,
                           ),
                         );
                         if (result.success) {
