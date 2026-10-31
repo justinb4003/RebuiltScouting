@@ -170,7 +170,7 @@ class PitResult {
         hopperEmptyTime: json['hopper_empty_time'] ?? '',
         funQuestion: json['fun_question'] ?? '',
         notes: json['notes'] ?? '',
-        photoBase64: json['images'] is String ? json['images'] : (json['photo_base64'] is String ? json['photo_base64'] : null),
+        photoBase64: _photoFromJson(json),
         imageUrls: json['image_names'] is List
             ? [for (final u in json['image_names']) u.toString()]
             : null,
@@ -180,4 +180,16 @@ class PitResult {
             ? DateTime.parse(json['timestamp'])
             : DateTime.now(),
       );
+
+  /// Raw base64 photo from any shape we've stored: toJson's
+  /// `images: ['data:image/jpeg;base64,...']`, or the older `images` /
+  /// `photo_base64` strings.
+  static String? _photoFromJson(Map<String, dynamic> json) {
+    var raw = json['images'];
+    if (raw is List) raw = raw.isEmpty ? null : raw.first;
+    raw ??= json['photo_base64'];
+    if (raw is! String || raw.isEmpty) return null;
+    final comma = raw.indexOf(',');
+    return raw.startsWith('data:') && comma >= 0 ? raw.substring(comma + 1) : raw;
+  }
 }
