@@ -105,6 +105,17 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
     }
   }
 
+  // The form doesn't count fuel (those fields are always 0), so summarize
+  // what it does record.
+  String _matchSummary(ScoutResult r) {
+    if (r.robotNoShow) return 'No show | ${r.scouterName}';
+    final volleys = r.volleyAccuracyList.length;
+    final climb =
+        r.endgameTowerLevel == 0 ? 'no climb' : 'climb L${r.endgameTowerLevel}';
+    return '$volleys ${volleys == 1 ? 'volley' : 'volleys'} | $climb | '
+        '${r.scouterName}';
+  }
+
   /// [summary] plus, once an upload has failed, how often and why.
   Widget _subtitle(String id, String summary, {int maxLines = 1}) {
     final status = _status[id];
@@ -201,8 +212,7 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
             ..._heldScout.map((r) => Card(
                   child: ListTile(
                     title: Text('Match ${r.matchNumber} - Team ${r.teamNumber}'),
-                    subtitle: _subtitle(r.id,
-                        'Auto: ${r.autoFuelScored} scored | Teleop: ${r.teleopFuelScored} scored'),
+                    subtitle: _subtitle(r.id, _matchSummary(r)),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
                       onPressed: () => _deleteResult(_storage.removeHeldScoutResult, r.id,
