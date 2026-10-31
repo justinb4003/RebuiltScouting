@@ -215,11 +215,10 @@ class ScoutingProvider extends ChangeNotifier {
       }
 
       try {
-        if (await _api.postResults(result)) {
-          if (saved) await _removeHeld(result.id);
-          return SubmitResult(
-              success: true, uploaded: true, message: uploadedMessage);
-        }
+        await _api.postResults(result);
+        if (saved) await _removeHeld(result.id);
+        return SubmitResult(
+            success: true, uploaded: true, message: uploadedMessage);
       } catch (e) {
         debugPrint('Match submit error: $e');
       }

@@ -43,41 +43,48 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
     });
   }
 
-  Future<(int, int)> _uploadItems<T>(
+  int _uploaded = 0, _failed = 0;
+  bool _offline = false;
+
+  // Stops at the first item that can't reach the server: on bad Wi-Fi the
+  // rest would each just wait out their own timeout.
+  Future<void> _uploadItems<T>(
     List<T> items,
-    Future<bool> Function(T) post,
+    Future<void> Function(T) post,
     Future<void> Function(String) remove,
     String Function(T) getId,
   ) async {
-    int success = 0, fail = 0;
     for (final item in List.of(items)) {
+      if (_offline) return;
       try {
-        if (await post(item)) {
-          await remove(getId(item));
-          success++;
-        } else {
-          fail++;
-        }
+        await post(item);
+        await remove(getId(item));
+        _uploaded++;
+      } on ApiStatusException catch (e) {
+        _failed++;
+        if (e.transient) _offline = true;
       } catch (e) {
         debugPrint('Held upload failed: $e');
-        fail++;
+        _failed++;
+        _offline = true;
       }
     }
-    return (success, fail);
   }
 
   Future<void> _uploadAll() async {
     setState(() => _uploading = true);
+    _uploaded = _failed = 0;
+    _offline = false;
 
-    final (s1, f1) = await _uploadItems(
+    await _uploadItems(
       _heldScout, _api.postResults, _storage.removeHeldScoutResult, (r) => r.id);
-    final (s2, f2) = await _uploadItems(
+    await _uploadItems(
       _heldPit, _api.postPitResults, _storage.removeHeldPitResult, (r) => r.id);
-    final (s3, f3) = await _uploadItems(
+    await _uploadItems(
       _heldNotes, _api.postRobotNote, _storage.removeHeldRobotNote, (n) => n.id);
 
-    final successCount = s1 + s2 + s3;
-    final failCount = f1 + f2 + f3;
+    final successCount = _uploaded;
+    final failCount = _failed;
 
     await _loadData();
     if (mounted) {
@@ -85,7 +92,8 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
       context.read<AppStateProvider>().refreshHeldDataCount();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Uploaded: $successCount, Failed: $failCount'),
+          content: Text('Uploaded: $successCount, Failed: $failCount'
+              '${_offline ? '. Stopped: no connection to the server.' : ''}'),
           backgroundColor: failCount == 0 ? Colors.green : Colors.orange,
         ),
       );

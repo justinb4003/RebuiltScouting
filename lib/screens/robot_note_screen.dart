@@ -58,15 +58,14 @@ class _RobotNoteScreenState extends State<RobotNoteScreen> {
       }
 
       try {
-        if (await api.postRobotNote(note)) {
-          if (saved) {
-            await storage.removeHeldRobotNote(note.id).catchError((Object e) {
-              debugPrint('Removing held robot note failed: $e');
-            });
-          }
-          return SubmitResult(
-              success: true, uploaded: true, message: uploadedMessage);
+        await api.postRobotNote(note);
+        if (saved) {
+          await storage.removeHeldRobotNote(note.id).catchError((Object e) {
+            debugPrint('Removing held robot note failed: $e');
+          });
         }
+        return SubmitResult(
+            success: true, uploaded: true, message: uploadedMessage);
       } catch (e) {
         debugPrint('Robot note submit error: $e');
       }

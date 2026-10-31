@@ -185,11 +185,10 @@ class PitProvider extends ChangeNotifier {
       }
 
       try {
-        if (await _api.postPitResults(result)) {
-          if (saved) await _removeHeld(result.id);
-          return SubmitResult(
-              success: true, uploaded: true, message: uploadedMessage);
-        }
+        await _api.postPitResults(result);
+        if (saved) await _removeHeld(result.id);
+        return SubmitResult(
+            success: true, uploaded: true, message: uploadedMessage);
       } catch (e, stackTrace) {
         debugPrint('Pit submit error: $e');
         debugPrint('$stackTrace');
