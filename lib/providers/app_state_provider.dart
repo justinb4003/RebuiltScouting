@@ -192,6 +192,7 @@ class AppStateProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       // Use cached data on failure
+      debugPrint('refreshPitResultForTeam($teamNumber) failed: $e');
     }
     return getPitResultForTeam(teamNumber);
   }
