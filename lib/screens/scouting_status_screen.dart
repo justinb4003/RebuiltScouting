@@ -65,7 +65,12 @@ class _ScoutingStatusScreenState extends State<ScoutingStatusScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text('$matchKey - Team $teamNumber'),
+        title: Row(
+          children: [
+            Flexible(child: Text('$matchKey - Team $teamNumber')),
+            TeamInfoButton(teamNumber),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,7 +94,7 @@ class _ScoutingStatusScreenState extends State<ScoutingStatusScreen> {
           TextButton(
             onPressed: () {
               Navigator.pop(ctx);
-              openTeamDetails(context, teamNumber);
+              showTeamDetailsDialog(context, teamNumber);
             },
             child: const Text('Team details'),
           ),

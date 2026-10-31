@@ -20,6 +20,9 @@ class _MatchBreakdownsScreenState extends State<MatchBreakdownsScreen> {
   int? _team;
   bool _quals = true;
   bool _playoffs = true;
+  // Session-sticky like the cluster controls.
+  static bool _predictions = false;
+  static bool _names = true;
 
   @override
   void initState() {
@@ -71,18 +74,35 @@ class _MatchBreakdownsScreenState extends State<MatchBreakdownsScreen> {
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: [
+                    // Wraps onto a second line on narrow screens.
+                    Expanded(
+                      child: Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
                     FilterChip(
-                      label: const Text('Quals'),
+                      label: const Text('Qual'),
                       selected: _quals,
                       onSelected: (v) => setState(() => _quals = v),
                     ),
-                    const SizedBox(width: 8),
                     FilterChip(
-                      label: const Text('Playoffs'),
+                      label: const Text('Playoff'),
                       selected: _playoffs,
                       onSelected: (v) => setState(() => _playoffs = v),
                     ),
-                    const Spacer(),
+                    FilterChip(
+                      label: const Text('Names'),
+                      selected: _names,
+                      onSelected: (v) => setState(() => _names = v),
+                    ),
+                    FilterChip(
+                      label: const Text('OPR'),
+                      selected: _predictions,
+                      onSelected: (v) => setState(() => _predictions = v),
+                    ),
+                        ],
+                      ),
+                    ),
                     if (data.loading)
                       const Padding(
                         padding: EdgeInsets.all(12),
@@ -115,6 +135,8 @@ class _MatchBreakdownsScreenState extends State<MatchBreakdownsScreen> {
                           key: ValueKey(matches[i].key),
                           match: matches[i],
                           focusTeam: _team,
+                          showPredictions: _predictions,
+                          showNames: _names,
                         ),
                       ),
               ),

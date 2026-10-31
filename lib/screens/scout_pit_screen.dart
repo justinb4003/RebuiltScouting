@@ -90,7 +90,8 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
-                onPressed: () => openTeamDetails(context, pit.selectedTeamNumber!),
+                onPressed: () =>
+                    showTeamDetailsDialog(context, pit.selectedTeamNumber!),
                 icon: const Icon(Icons.badge_outlined),
                 label: Text(
                     'View ${appState.getAllPitResultsForTeam(pit.selectedTeamNumber!).isEmpty ? 'team details' : 'existing pit data & team details'}'),

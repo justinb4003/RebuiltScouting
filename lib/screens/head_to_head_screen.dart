@@ -100,8 +100,14 @@ class _HeadToHeadScreenState extends State<HeadToHeadScreen> {
                   for (var i = 0; i < _teams.length; i++)
                     InputChip(
                       avatar: CircleAvatar(backgroundColor: _teamColors[i], radius: 6),
-                      label: Text('${_teams[i]} ${names[_teams[i]] ?? ''}'),
-                      onPressed: () => openTeamDetails(context, _teams[i]),
+                      label: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text('${_teams[i]} ${names[_teams[i]] ?? ''}'),
+                          TeamInfoButton(_teams[i]),
+                        ],
+                      ),
+                      onPressed: () => showTeamDetailsDialog(context, _teams[i]),
                       onDeleted: () => setState(() => _teams.removeAt(i)),
                     ),
                 ],

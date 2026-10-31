@@ -302,11 +302,7 @@ class _RankingsTable extends StatelessWidget {
         double w(RankingColumn c) =>
             _width(c) + (c.kind == RankingColumnKind.name ? extra : 0);
 
-        void open(RankingRow r) => Navigator.pushNamed(
-          context,
-          '/team-details',
-          arguments: r.teamNumber,
-        );
+        void open(RankingRow r) => showTeamDetailsDialog(context, r.teamNumber);
 
         Widget rowBg(RankingRow r, int i, Widget child) => Material(
           color: i.isOdd
