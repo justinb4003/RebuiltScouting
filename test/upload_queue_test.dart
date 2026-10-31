@@ -101,6 +101,14 @@ void main() {
       }
     });
 
+    test('a local error (e.g. unreadable photo) marks the record, not offline',
+        () async {
+      final r = await pass([item('a', StateError('photo')), item('b')]);
+      expect(posted, ['a', 'b']);
+      expect(r.rejected.keys, ['a']);
+      expect(r.offline, isFalse);
+    });
+
     test('a failed remove after upload still counts as uploaded', () async {
       final r = await uploadPass([
         HeldUpload(

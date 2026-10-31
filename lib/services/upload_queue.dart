@@ -38,7 +38,11 @@ Future<UploadPassResult> uploadPass(
     try {
       await item.post();
     } catch (e) {
-      final offline = e is! ApiStatusException || e.transient;
+      // Anything else (e.g. the held photo couldn't be read) is about this
+      // record, so mark it and keep going.
+      final offline = e is TimeoutException ||
+          e is http.ClientException ||
+          (e is ApiStatusException && e.transient);
       final error = _describe(e);
       debugPrint('Upload ${item.id} failed: $error');
       try {
@@ -228,7 +232,10 @@ class UploadQueue extends ChangeNotifier {
         for (final p in await _storage.loadHeldPitData())
           HeldUpload(
               id: p.id,
-              post: () => _api.postPitResults(p),
+              post: () async {
+                await _storage.loadHeldPhoto(p);
+                await _api.postPitResults(p);
+              },
               remove: () => _storage.removeHeldPitResult(p.id)),
       ];
 }

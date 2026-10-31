@@ -9,6 +9,7 @@ import 'providers/pick_board_provider.dart';
 import 'providers/rankings_provider.dart';
 import 'providers/event_data_provider.dart';
 import 'services/browser.dart';
+import 'services/storage_service.dart';
 import 'services/upload_queue.dart';
 
 void main() async {
@@ -18,6 +19,9 @@ void main() async {
   requestPersistentStorage().then((granted) {
     debugPrint('Persistent storage ${granted ? 'granted' : 'not granted'}');
   });
+
+  // Before anything else touches held data (the queue starts below).
+  await StorageService.instance.migrateHeldPhotos();
 
   final appState = AppStateProvider();
   await appState.init();

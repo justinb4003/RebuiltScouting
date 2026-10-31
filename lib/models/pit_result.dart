@@ -1,5 +1,9 @@
 import 'package:uuid/uuid.dart';
 
+/// Set (only in held storage, never posted) on a record whose photo was
+/// moved to the photo store.
+const heldPhotoKey = 'held_photo_in_store';
+
 class PitResult {
   final String id;
   final String scouterName;
@@ -38,6 +42,9 @@ class PitResult {
   String funQuestion;
   String notes;
   String? photoBase64;
+  // Held records only: the photo is in the photo store under [id], not in
+  // [photoBase64] (StorageService loads it back before upload).
+  bool photoInStore;
   // Photo URLs from the API's `image_names` (fetched results only).
   List<String> imageUrls;
   // False for notes-only records (robot notes), which carry no form fields.
@@ -82,6 +89,7 @@ class PitResult {
     this.funQuestion = '',
     this.notes = '',
     this.photoBase64,
+    this.photoInStore = false,
     List<String>? imageUrls,
     this.hasFullData = true,
     DateTime? timestamp,
@@ -171,6 +179,7 @@ class PitResult {
         funQuestion: json['fun_question'] ?? '',
         notes: json['notes'] ?? '',
         photoBase64: _photoFromJson(json),
+        photoInStore: json[heldPhotoKey] == true,
         imageUrls: json['image_names'] is List
             ? [for (final u in json['image_names']) u.toString()]
             : null,

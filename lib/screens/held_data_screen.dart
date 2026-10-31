@@ -221,7 +221,7 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
                   child: ListTile(
                     title: Text('Team ${r.teamNumber}'),
                     subtitle: _subtitle(r.id,
-                        '${r.driveTrain} drive${r.photoBase64 != null ? ' | photo' : ''}'),
+                        '${r.driveTrain} drive${r.photoBase64 != null || r.photoInStore ? ' | photo' : ''}'),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
                       onPressed: () => _deleteResult(_storage.removeHeldPitResult, r.id,
