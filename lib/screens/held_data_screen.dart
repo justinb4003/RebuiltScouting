@@ -3,9 +3,10 @@ import 'package:provider/provider.dart';
 import '../models/scout_result.dart';
 import '../models/pit_result.dart';
 import '../models/robot_note.dart';
+import '../models/upload_status.dart';
 import '../providers/app_state_provider.dart';
-import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../services/upload_queue.dart';
 import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
 
@@ -18,89 +19,85 @@ class HeldDataScreen extends StatefulWidget {
 
 class _HeldDataScreenState extends State<HeldDataScreen> {
   final StorageService _storage = StorageService.instance;
-  final ApiService _api = ApiService.instance;
+  final UploadQueue _queue = UploadQueue.instance;
 
   List<ScoutResult> _heldScout = [];
   List<PitResult> _heldPit = [];
   List<RobotNote> _heldNotes = [];
-  bool _uploading = false;
+  Map<String, UploadStatus> _status = {};
 
   @override
   void initState() {
     super.initState();
+    // Background passes change the list; reload when one starts or ends.
+    _queue.addListener(_loadData);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _queue.removeListener(_loadData);
+    super.dispose();
   }
 
   Future<void> _loadData() async {
     final scout = await _storage.loadHeldScoutData();
     final pit = await _storage.loadHeldPitData();
     final notes = await _storage.loadHeldRobotNotes();
+    final status = await _storage.loadUploadStatus();
+    if (!mounted) return;
     setState(() {
       _heldScout = scout;
       _heldPit = pit;
       _heldNotes = notes;
+      _status = status;
     });
   }
 
-  Future<(int, int)> _uploadItems<T>(
-    List<T> items,
-    Future<bool> Function(T) post,
-    Future<void> Function(String) remove,
-    String Function(T) getId,
-  ) async {
-    int success = 0, fail = 0;
-    for (final item in List.of(items)) {
-      try {
-        if (await post(item)) {
-          await remove(getId(item));
-          success++;
-        } else {
-          fail++;
-        }
-      } catch (_) {
-        fail++;
-      }
-    }
-    return (success, fail);
-  }
-
-  Future<void> _uploadAll() async {
-    setState(() => _uploading = true);
-
-    final (s1, f1) = await _uploadItems(
-      _heldScout, _api.postResults, _storage.removeHeldScoutResult, (r) => r.id);
-    final (s2, f2) = await _uploadItems(
-      _heldPit, _api.postPitResults, _storage.removeHeldPitResult, (r) => r.id);
-    final (s3, f3) = await _uploadItems(
-      _heldNotes,
-      (n) => _api.postRobotNote(
-        scouterName: n.scouterName,
-        secretTeamKey: n.secretTeamKey,
-        eventKey: n.eventKey,
-        teamNumber: n.teamNumber,
-        notes: n.notes,
-      ),
-      _storage.removeHeldRobotNote,
-      (n) => n.id,
-    );
-
-    final successCount = s1 + s2 + s3;
-    final failCount = f1 + f2 + f3;
-
+  // Same queue as the automatic uploads, so the two never run at once; if a
+  // pass is already going this waits for it and runs one more.
+  Future<void> _uploadNow() async {
+    final result = await _queue.run();
     await _loadData();
-    setState(() => _uploading = false);
-    if (mounted) {
-      context.read<AppStateProvider>().refreshHeldDataCount();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Uploaded: $successCount, Failed: $failCount'),
-          backgroundColor: failCount == 0 ? Colors.green : Colors.orange,
-        ),
-      );
-    }
+    if (!mounted) return;
+    final failed = result.rejected.length;
+    final parts = [
+      'Uploaded: ${result.uploaded.length}',
+      if (failed > 0) 'Failed: $failed',
+      if (result.offline) 'Stopped: no connection to the server',
+    ];
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(parts.join(', ')),
+        backgroundColor: result.failed ? Colors.orange : Colors.green,
+      ),
+    );
   }
 
-  Future<void> _deleteResult(Future<void> Function(String) removeFn, String id) async {
+  Future<void> _deleteResult(
+      Future<void> Function(String) removeFn, String id, String label) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Unsent Data?'),
+        content: Text('$label has not been uploaded. Deleting it here '
+            'removes it for good.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     await removeFn(id);
     await _loadData();
     if (mounted) {
@@ -108,10 +105,43 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
     }
   }
 
+  // The form doesn't count fuel (those fields are always 0), so summarize
+  // what it does record.
+  String _matchSummary(ScoutResult r) {
+    if (r.robotNoShow) return 'No show | ${r.scouterName}';
+    final volleys = r.volleyAccuracyList.length;
+    final climb =
+        r.endgameTowerLevel == 0 ? 'no climb' : 'climb L${r.endgameTowerLevel}';
+    return '$volleys ${volleys == 1 ? 'volley' : 'volleys'} | $climb | '
+        '${r.scouterName}';
+  }
+
+  /// [summary] plus, once an upload has failed, how often and why.
+  Widget _subtitle(String id, String summary, {int maxLines = 1}) {
+    final status = _status[id];
+    final summaryText =
+        Text(summary, maxLines: maxLines, overflow: TextOverflow.ellipsis);
+    if (status == null) return summaryText;
+    final tries = status.attempts == 1 ? '1 try' : '${status.attempts} tries';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        summaryText,
+        Text(
+          'Not uploaded after $tries: ${status.lastError}',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: Theme.of(context).colorScheme.error),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final appState = context.watch<AppStateProvider>();
+    final uploading = context.watch<UploadQueue>().running;
     final totalHeld = _heldScout.length + _heldPit.length + _heldNotes.length;
 
     return Scaffold(
@@ -146,18 +176,28 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
                   const SizedBox(height: 8),
                   Text(
                       '${_heldScout.length} match, ${_heldPit.length} pit, ${_heldNotes.length} notes'),
+                  if (totalHeld > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      uploading
+                          ? 'Uploading…'
+                          : 'These upload automatically when there is a connection.',
+                      style: theme.textTheme.bodySmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed:
-                        _uploading || totalHeld == 0 ? null : _uploadAll,
-                    icon: _uploading
+                        uploading || totalHeld == 0 ? null : _uploadNow,
+                    icon: uploading
                         ? const SizedBox(
                             width: 20,
                             height: 20,
                             child:
                                 CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.cloud_upload),
-                    label: const Text('Upload All'),
+                    label: const Text('Upload now'),
                   ),
                 ],
               ),
@@ -172,11 +212,11 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
             ..._heldScout.map((r) => Card(
                   child: ListTile(
                     title: Text('Match ${r.matchNumber} - Team ${r.teamNumber}'),
-                    subtitle: Text(
-                        'Auto: ${r.autoFuelScored} scored | Teleop: ${r.teleopFuelScored} scored'),
+                    subtitle: _subtitle(r.id, _matchSummary(r)),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _deleteResult(_storage.removeHeldScoutResult, r.id),
+                      onPressed: () => _deleteResult(_storage.removeHeldScoutResult, r.id,
+                          'Match ${r.matchNumber}, team ${r.teamNumber}'),
                     ),
                   ),
                 )),
@@ -190,10 +230,12 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
             ..._heldPit.map((r) => Card(
                   child: ListTile(
                     title: Text('Team ${r.teamNumber}'),
-                    subtitle: Text('${r.driveTrain} drive'),
+                    subtitle: _subtitle(r.id,
+                        '${r.driveTrain} drive${r.photoBase64 != null || r.photoInStore ? ' | photo' : ''}'),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _deleteResult(_storage.removeHeldPitResult, r.id),
+                      onPressed: () => _deleteResult(_storage.removeHeldPitResult, r.id,
+                          'Pit data for team ${r.teamNumber}'),
                     ),
                   ),
                 )),
@@ -207,10 +249,11 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
             ..._heldNotes.map((n) => Card(
                   child: ListTile(
                     title: Text('Team ${n.teamNumber}'),
-                    subtitle: Text(n.notes, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    subtitle: _subtitle(n.id, n.notes, maxLines: 2),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _deleteResult(_storage.removeHeldRobotNote, n.id),
+                      onPressed: () => _deleteResult(_storage.removeHeldRobotNote, n.id,
+                          'This note for team ${n.teamNumber}'),
                     ),
                   ),
                 )),

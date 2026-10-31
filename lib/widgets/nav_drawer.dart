@@ -135,13 +135,22 @@ class NavDrawer extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 28),
           child: TextButton.icon(
             onPressed: () async {
+              final appState = context.read<AppStateProvider>();
+              await appState.refreshHeldDataCount();
+              if (!context.mounted) return;
+              final unsent = appState.heldDataCount;
+              final unsentText = unsent == 0
+                  ? 'There is no unsent scouting data.'
+                  : '$unsent unsent scouting ${unsent == 1 ? 'item' : 'items'} '
+                      'will be lost.';
               final confirmed = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
                   title: const Text('Reset App?'),
-                  content: const Text(
-                    'This will clear all local data including settings, '
-                    'cached teams/matches, and any unsent scouting results. '
+                  content: Text(
+                    'This will clear all local data including settings and '
+                    'cached teams/matches. '
+                    '$unsentText '
                     'This cannot be undone.',
                   ),
                   actions: [

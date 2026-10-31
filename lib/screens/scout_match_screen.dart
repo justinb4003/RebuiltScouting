@@ -12,6 +12,7 @@ import '../widgets/fixed_segmented_button.dart';
 import '../widgets/highlighted_switch.dart';
 import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
+import '../widgets/submit_snack_bar.dart';
 
 class ScoutMatchScreen extends StatefulWidget {
   const ScoutMatchScreen({super.key});
@@ -80,6 +81,28 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
     final teamList = isRed ? match.redTeams : match.blueTeams;
     if (pos >= teamList.length) return null;
     return teamList[pos];
+  }
+
+  // Start right away from cached pit data; on bad Wi-Fi the fresh fetch can
+  // take up to the API timeout, so it only refreshes the pit info shown.
+  void _beginScouting(
+      AppStateProvider appState, ScoutingProvider scouting, int teamNumber) {
+    final pitResult = appState.getPitResultForTeam(teamNumber);
+    _currentPitResult = pitResult;
+    _allPitResults = appState.getAllPitResultsForTeam(teamNumber);
+    final capacity = (pitResult != null && pitResult.fuelCapacity > 0)
+        ? pitResult.fuelCapacity
+        : 50;
+    _tabController.index = 0;
+    scouting.beginScouting(defaultHopperSize: capacity);
+
+    appState.refreshPitResultForTeam(teamNumber).then((fresh) {
+      if (!mounted || scouting.selectedTeamNumber != teamNumber) return;
+      setState(() {
+        _currentPitResult = fresh;
+        _allPitResults = appState.getAllPitResultsForTeam(teamNumber);
+      });
+    });
   }
 
   String _robotLabel(int index, TbaMatch match, List<TbaTeam> teams) {
@@ -260,17 +283,8 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                           const SizedBox(height: 12),
                           FilledButton.icon(
                             onPressed: scouting.selectedTeamNumber != null
-                                ? () async {
-                                    final teamNumber = scouting.selectedTeamNumber!;
-                                    final pitResult = await appState.refreshPitResultForTeam(teamNumber);
-                                    _currentPitResult = pitResult;
-                                    _allPitResults = appState.getAllPitResultsForTeam(teamNumber);
-                                    final capacity = (pitResult != null && pitResult.fuelCapacity > 0)
-                                        ? pitResult.fuelCapacity
-                                        : 50;
-                                    _tabController.index = 0;
-                                    scouting.beginScouting(defaultHopperSize: capacity);
-                                  }
+                                ? () => _beginScouting(appState, scouting,
+                                    scouting.selectedTeamNumber!)
                                 : null,
                             icon: const Icon(Icons.play_arrow),
                             label: const Text('Begin Scouting'),
@@ -1115,13 +1129,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                     );
                     if (!context.mounted) return;
                     context.read<AppStateProvider>().refreshHeldDataCount();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(result.message),
-                        backgroundColor:
-                            result.success ? Colors.green : Colors.red,
-                      ),
-                    );
+                    showSubmitResult(context, result);
                     if (result.success) {
                       final prevRobotIndex = _selectedRobotIndex;
                       _autoNotesController.clear();
@@ -1146,14 +1154,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                           scouting.updateField(
                               () => scouting.selectedTeamNumber = teamNum);
                           if (teamNum != null) {
-                            final pitResult = await appState.refreshPitResultForTeam(teamNum);
-                            _currentPitResult = pitResult;
-                            _allPitResults = appState.getAllPitResultsForTeam(teamNum);
-                            final capacity = (pitResult != null && pitResult.fuelCapacity > 0)
-                                ? pitResult.fuelCapacity
-                                : 50;
-                            _tabController.index = 0;
-                            scouting.beginScouting(defaultHopperSize: capacity);
+                            _beginScouting(appState, scouting, teamNum);
                           }
                         }
                       }

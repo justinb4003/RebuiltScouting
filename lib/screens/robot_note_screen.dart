@@ -5,8 +5,10 @@ import '../models/submit_result.dart';
 import '../providers/app_state_provider.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../services/upload_queue.dart';
 import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
+import '../widgets/submit_snack_bar.dart';
 import '../widgets/team_selector.dart';
 
 class RobotNoteScreen extends StatefulWidget {
@@ -48,30 +50,15 @@ class _RobotNoteScreenState extends State<RobotNoteScreen> {
       notes: _notesController.text.trim(),
     );
 
-    await storage.addHeldRobotNote(note);
-
     try {
-      final success = await api.postRobotNote(
-        scouterName: note.scouterName,
-        secretTeamKey: note.secretTeamKey,
-        eventKey: note.eventKey,
-        teamNumber: note.teamNumber,
-        notes: note.notes,
+      return await UploadQueue.instance.submit(
+        id: note.id,
+        what: 'robot note',
+        hold: () => storage.addHeldRobotNote(note),
+        post: () => api.postRobotNote(note),
       );
-      if (success) {
-        await storage.removeHeldRobotNote(note.id);
-        setState(() => _submitting = false);
-        return SubmitResult(
-            success: true, message: 'Robot note submitted successfully!');
-      } else {
-        setState(() => _submitting = false);
-        return SubmitResult(
-            success: false, message: 'API error. Note saved locally.');
-      }
-    } catch (e) {
-      setState(() => _submitting = false);
-      return SubmitResult(
-          success: false, message: 'Network error. Note saved locally.');
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 
@@ -124,13 +111,7 @@ class _RobotNoteScreenState extends State<RobotNoteScreen> {
                       final result = await _submit(appState);
                       if (context.mounted) {
                         appState.refreshHeldDataCount();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(result.message),
-                            backgroundColor:
-                                result.success ? Colors.green : Colors.red,
-                          ),
-                        );
+                        showSubmitResult(context, result);
                         if (result.success) {
                           _notesController.clear();
                           setState(() => _selectedTeamNumber = null);

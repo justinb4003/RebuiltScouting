@@ -3,6 +3,7 @@ import '../models/scout_result.dart';
 import '../models/submit_result.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../services/upload_queue.dart';
 
 class ScoutingProvider extends ChangeNotifier {
   final ApiService _api = ApiService.instance;
@@ -204,27 +205,16 @@ class ScoutingProvider extends ChangeNotifier {
       matchNotes: matchNotes,
     );
 
-    // Always cache first
-    await _storage.addHeldScoutResult(result);
-
     try {
-      final success = await _api.postResults(result);
-      if (success) {
-        await _storage.removeHeldScoutResult(result.id);
-        _submitting = false;
-        notifyListeners();
-        return SubmitResult(success: true, message: 'Submitted successfully!');
-      } else {
-        _submitting = false;
-        notifyListeners();
-        return SubmitResult(
-            success: false, message: 'API error. Data saved locally.');
-      }
-    } catch (e) {
+      return await UploadQueue.instance.submit(
+        id: result.id,
+        what: 'match',
+        hold: () => _storage.addHeldScoutResult(result),
+        post: () => _api.postResults(result),
+      );
+    } finally {
       _submitting = false;
       notifyListeners();
-      return SubmitResult(
-          success: false, message: 'Network error. Data saved locally.');
     }
   }
 }

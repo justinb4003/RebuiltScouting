@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_settings.dart';
 import '../models/tba_event.dart';
@@ -7,6 +8,8 @@ import '../models/tba_match.dart';
 import '../models/scout_result.dart';
 import '../models/pit_result.dart';
 import '../models/robot_note.dart';
+import '../models/upload_status.dart';
+import 'photo_store.dart';
 import '../models/pick_list.dart';
 import '../models/pick_board.dart';
 import '../models/rankings.dart';
@@ -26,6 +29,7 @@ class StorageService {
   static const String _heldScoutDataKey = 'held_scout_data';
   static const String _heldPitDataKey = 'held_pit_data';
   static const String _heldRobotNoteKey = 'held_robot_note_data';
+  static const String _heldUploadStatusKey = 'held_upload_status';
   static const String _pitResultsCacheKey = 'pit_results_cache';
   static const String _pickListCacheKey = 'pick_list_cache';
   static const String _pickBoardCacheKey = 'pick_board_cache';
@@ -112,100 +116,213 @@ class StorageService {
       cache = jsonDecode(json);
     }
     cache[eventKey] = data;
-    await prefs.setString(cacheKey, jsonEncode(cache));
+    await _setString(prefs, cacheKey, jsonEncode(cache));
   }
 
-  Future<void> clearAll() async {
-    final prefs = await _getPrefs();
-    await prefs.clear();
+  Future<void> clearAll() => _locked(() async {
+        final prefs = await _getPrefs();
+        await prefs.clear();
+        try {
+          await clearPhotos();
+        } catch (e) {
+          debugPrint('Clearing held photos failed: $e');
+        }
+      });
+
+  // Held (unsent) data. Every change is a read-modify-write of one list, so
+  // they all run one at a time through _locked; otherwise a submit and an
+  // upload removing another item could each save a stale copy and drop data.
+  Future<void> _heldLock = Future.value();
+
+  Future<T> _locked<T>(Future<T> Function() action) {
+    final result = _heldLock.then((_) => action());
+    _heldLock = result.then((_) {}, onError: (_) {});
+    return result;
   }
+
+  Future<List<T>> _loadHeld<T>(
+      String key, T Function(Map<String, dynamic>) fromJson) async {
+    final prefs = await _getPrefs();
+    final json = prefs.getString(key);
+    if (json == null) return [];
+    final List<dynamic> data = jsonDecode(json);
+    return [for (final e in data) fromJson(Map<String, dynamic>.from(e))];
+  }
+
+  Future<void> _editHeld(String key, void Function(List<dynamic> items) edit) =>
+      _locked(() => _editHeldUnlocked(key, edit));
+
+  Future<void> _editHeldUnlocked(
+      String key, void Function(List<dynamic> items) edit) async {
+    final prefs = await _getPrefs();
+    final json = prefs.getString(key);
+    final List<dynamic> items = json == null ? [] : jsonDecode(json);
+    edit(items);
+    await _setString(prefs, key, jsonEncode(items));
+  }
+
+  // SharedPreferences updates its in-memory copy before writing, so when
+  // localStorage throws (quota full) reads would keep returning data that was
+  // never stored. Re-sync from storage before passing the error on.
+  Future<void> _setString(SharedPreferences prefs, String key, String value) async {
+    try {
+      await prefs.setString(key, value);
+    } catch (e) {
+      debugPrint('Saving $key (${value.length} chars) failed: $e');
+      await prefs.reload();
+      rethrow;
+    }
+  }
+
+  Future<void> _addHeld(String key, Map<String, dynamic> item) =>
+      _editHeld(key, (items) => items.add(item));
+
+  Future<void> _removeHeld(String key, String id) async {
+    await _editHeld(key, (items) => items.removeWhere((e) => e['id'] == id));
+    await _editUploadStatus((status) => status.remove(id));
+  }
+
+  // Upload attempts per held id (see UploadStatus).
+  Future<Map<String, UploadStatus>> loadUploadStatus() async {
+    final prefs = await _getPrefs();
+    final json = prefs.getString(_heldUploadStatusKey);
+    if (json == null) return {};
+    final Map<String, dynamic> data = jsonDecode(json);
+    return {
+      for (final e in data.entries)
+        e.key: UploadStatus.fromJson(Map<String, dynamic>.from(e.value)),
+    };
+  }
+
+  Future<void> recordUploadFailure(String id, String error) =>
+      _editUploadStatus((status) {
+        final prev = status[id] == null
+            ? null
+            : UploadStatus.fromJson(Map<String, dynamic>.from(status[id]));
+        status[id] = UploadStatus(
+          attempts: (prev?.attempts ?? 0) + 1,
+          lastError: error,
+          lastAttempt: DateTime.now(),
+        ).toJson();
+      });
+
+  Future<void> _editUploadStatus(void Function(Map<String, dynamic>) edit) =>
+      _locked(() async {
+        final prefs = await _getPrefs();
+        final json = prefs.getString(_heldUploadStatusKey);
+        final Map<String, dynamic> status = json == null ? {} : jsonDecode(json);
+        edit(status);
+        await _setString(prefs, _heldUploadStatusKey, jsonEncode(status));
+      });
 
   // Held scout data
-  Future<List<ScoutResult>> loadHeldScoutData() async {
-    final prefs = await _getPrefs();
-    final json = prefs.getString(_heldScoutDataKey);
-    if (json != null) {
-      final List<dynamic> data = jsonDecode(json);
-      return data.map((e) => ScoutResult.fromJson(e)).toList();
+  Future<List<ScoutResult>> loadHeldScoutData() =>
+      _loadHeld(_heldScoutDataKey, ScoutResult.fromJson);
+
+  Future<void> addHeldScoutResult(ScoutResult result) =>
+      _addHeld(_heldScoutDataKey, result.toJson());
+
+  Future<void> removeHeldScoutResult(String id) =>
+      _removeHeld(_heldScoutDataKey, id);
+
+  // Held pit data. Photos would fill localStorage's ~5 MB within a few dozen
+  // records, so on the web they go to the photo store (IndexedDB) under the
+  // record's id and the record only keeps heldPhotoKey. If the photo store
+  // write fails the photo stays inline: never drop a photo.
+  Future<List<PitResult>> loadHeldPitData() =>
+      _loadHeld(_heldPitDataKey, PitResult.fromJson);
+
+  /// Fills in [result]'s photo from the photo store before it's posted.
+  /// Throws [PhotoStoreException] when the store can't be read.
+  Future<void> loadHeldPhoto(PitResult result) async {
+    if (!result.photoInStore || result.photoBase64 != null) return;
+    result.photoBase64 = await getPhoto(result.id);
+    if (result.photoBase64 == null) {
+      debugPrint('Held photo for ${result.id} is missing; posting without it');
     }
-    return [];
   }
 
-  Future<void> saveHeldScoutData(List<ScoutResult> results) async {
-    final prefs = await _getPrefs();
-    await prefs.setString(
-        _heldScoutDataKey, jsonEncode(results.map((r) => r.toJson()).toList()));
-  }
-
-  Future<void> addHeldScoutResult(ScoutResult result) async {
-    final held = await loadHeldScoutData();
-    held.add(result);
-    await saveHeldScoutData(held);
-  }
-
-  Future<void> removeHeldScoutResult(String id) async {
-    final held = await loadHeldScoutData();
-    held.removeWhere((r) => r.id == id);
-    await saveHeldScoutData(held);
-  }
-
-  // Held pit data
-  Future<List<PitResult>> loadHeldPitData() async {
-    final prefs = await _getPrefs();
-    final json = prefs.getString(_heldPitDataKey);
-    if (json != null) {
-      final List<dynamic> data = jsonDecode(json);
-      return data.map((e) => PitResult.fromJson(e)).toList();
-    }
-    return [];
-  }
-
-  Future<void> saveHeldPitData(List<PitResult> results) async {
-    final prefs = await _getPrefs();
-    await prefs.setString(
-        _heldPitDataKey, jsonEncode(results.map((r) => r.toJson()).toList()));
-  }
-
-  Future<void> addHeldPitResult(PitResult result) async {
-    final held = await loadHeldPitData();
-    held.add(result);
-    await saveHeldPitData(held);
-  }
+  Future<void> addHeldPitResult(PitResult result) => _locked(() async {
+        final json = await _movePhotoToStore(result.toJson(), result.photoBase64);
+        try {
+          await _editHeldUnlocked(_heldPitDataKey, (items) => items.add(json));
+        } catch (e) {
+          if (json[heldPhotoKey] == true) await _deletePhoto(result.id);
+          rethrow;
+        }
+      });
 
   Future<void> removeHeldPitResult(String id) async {
-    final held = await loadHeldPitData();
-    held.removeWhere((r) => r.id == id);
-    await saveHeldPitData(held);
+    await _removeHeld(_heldPitDataKey, id);
+    await _deletePhoto(id);
   }
+
+  /// [json] with its photo moved to the photo store, or unchanged if there's
+  /// no store or the write failed.
+  Future<Map<String, dynamic>> _movePhotoToStore(
+      Map<String, dynamic> json, String? photo) async {
+    final id = json['id'];
+    if (!photoStoreAvailable || photo == null || id is! String) return json;
+    try {
+      await putPhoto(id, photo);
+    } catch (e) {
+      debugPrint('Photo store write for $id failed, keeping it inline: $e');
+      return json;
+    }
+    return {...json, 'images': <String>[], heldPhotoKey: true};
+  }
+
+  Future<void> _deletePhoto(String id) async {
+    try {
+      await deletePhoto(id);
+    } catch (e) {
+      // Swept up by migrateHeldPhotos on the next start.
+      debugPrint('Deleting held photo $id failed: $e');
+    }
+  }
+
+  /// Run once at startup: moves photos still inline in held records (saved
+  /// before the photo store, or when it failed) into the store, then drops
+  /// stored photos whose record is gone. Never throws.
+  Future<void> migrateHeldPhotos() => _locked(() async {
+        if (!photoStoreAvailable) return;
+        try {
+          final prefs = await _getPrefs();
+          final json = prefs.getString(_heldPitDataKey);
+          final List<dynamic> items = json == null ? [] : jsonDecode(json);
+          var moved = false;
+          for (var i = 0; i < items.length; i++) {
+            final item = Map<String, dynamic>.from(items[i]);
+            if (item[heldPhotoKey] == true) continue;
+            final updated = await _movePhotoToStore(
+                item, PitResult.fromJson(item).photoBase64);
+            if (!identical(updated, item)) {
+              items[i] = updated;
+              moved = true;
+            }
+          }
+          // If this write fails the photos are both inline and stored; the
+          // sweep below keeps them since their records still exist.
+          if (moved) await _setString(prefs, _heldPitDataKey, jsonEncode(items));
+
+          final heldIds = {for (final item in items) item['id']};
+          for (final id in await photoIds()) {
+            if (!heldIds.contains(id)) await _deletePhoto(id);
+          }
+        } catch (e) {
+          debugPrint('Moving held photos to the photo store failed: $e');
+        }
+      });
 
   // Held robot notes
-  Future<List<RobotNote>> loadHeldRobotNotes() async {
-    final prefs = await _getPrefs();
-    final json = prefs.getString(_heldRobotNoteKey);
-    if (json != null) {
-      final List<dynamic> data = jsonDecode(json);
-      return data.map((e) => RobotNote.fromJson(e)).toList();
-    }
-    return [];
-  }
+  Future<List<RobotNote>> loadHeldRobotNotes() =>
+      _loadHeld(_heldRobotNoteKey, RobotNote.fromJson);
 
-  Future<void> saveHeldRobotNotes(List<RobotNote> notes) async {
-    final prefs = await _getPrefs();
-    await prefs.setString(
-        _heldRobotNoteKey, jsonEncode(notes.map((n) => n.toJson()).toList()));
-  }
+  Future<void> addHeldRobotNote(RobotNote note) =>
+      _addHeld(_heldRobotNoteKey, note.toJson());
 
-  Future<void> addHeldRobotNote(RobotNote note) async {
-    final held = await loadHeldRobotNotes();
-    held.add(note);
-    await saveHeldRobotNotes(held);
-  }
-
-  Future<void> removeHeldRobotNote(String id) async {
-    final held = await loadHeldRobotNotes();
-    held.removeWhere((n) => n.id == id);
-    await saveHeldRobotNotes(held);
-  }
+  Future<void> removeHeldRobotNote(String id) =>
+      _removeHeld(_heldRobotNoteKey, id);
 
   // Pit results cache (per event)
   Future<List<PitResult>> loadCachedPitResults(String eventKey) async {

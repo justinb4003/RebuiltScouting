@@ -6,12 +6,27 @@ import '../models/tba_team.dart';
 import '../models/tba_match.dart';
 import '../models/scout_result.dart';
 import '../models/pit_result.dart';
+import '../models/robot_note.dart';
 import '../models/pick_list.dart';
 import '../models/pick_board.dart';
 import '../models/cluster_result.dart';
 import '../models/rankings.dart';
 import '../models/match_result.dart';
 import '../models/scouted_match.dart';
+
+/// The API answered with an error status (the request did get through).
+class ApiStatusException implements Exception {
+  final int statusCode;
+  final String body;
+  ApiStatusException(this.statusCode, this.body);
+
+  /// Gateway/overload answers that say nothing about the record itself;
+  /// treat them like being offline.
+  bool get transient => const {408, 429, 502, 503, 504}.contains(statusCode);
+
+  @override
+  String toString() => 'HTTP $statusCode';
+}
 
 class ApiService {
   static final instance = ApiService();
@@ -58,26 +73,37 @@ class ApiService {
     throw Exception('Failed to load matches: ${response.statusCode}');
   }
 
-  Future<bool> postResults(ScoutResult result) async {
+  // Scouting posts are retried from the held queue, so fail fast on bad
+  // Wi-Fi rather than hold the scouter up; photos get longer.
+  static const _submitTimeout = Duration(seconds: 15);
+  static const _photoSubmitTimeout = Duration(seconds: 30);
+
+  /// Completes when the API accepted [body]. Throws [ApiStatusException] when
+  /// it answered with an error, or the http/timeout error when it couldn't
+  /// be reached.
+  Future<void> _postRecord(String name, String endpoint,
+      Map<String, dynamic> body, Duration timeout) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/PostResults'),
+      Uri.parse('$baseUrl/$endpoint'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(result.toJson()),
-    ).timeout(_timeout);
-    return response.statusCode == 200 || response.statusCode == 201;
+      body: jsonEncode(body),
+    ).timeout(timeout);
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      debugPrint('$name failed: ${response.statusCode} ${response.body}');
+      throw ApiStatusException(response.statusCode, response.body);
+    }
   }
 
-  Future<bool> postPitResults(PitResult result) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/PostPitResults'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(result.toJson()),
-    ).timeout(_timeout);
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      debugPrint('postPitResults failed: ${response.statusCode} ${response.body}');
-    }
-    return response.statusCode == 200 || response.statusCode == 201;
-  }
+  // PostResults and PostPitResults upsert on the record's id, so posting
+  // the same held record again is safe.
+  Future<void> postResults(ScoutResult result) =>
+      _postRecord('postResults', 'PostResults', result.toJson(), _submitTimeout);
+
+  Future<void> postPitResults(PitResult result) => _postRecord(
+      'postPitResults',
+      'PostPitResults',
+      result.toJson(),
+      result.photoBase64 == null ? _submitTimeout : _photoSubmitTimeout);
 
   Future<List<Map<String, dynamic>>> getResults(String eventKey) async {
     final response = await http
@@ -89,31 +115,10 @@ class ApiService {
     throw Exception('Failed to load results: ${response.statusCode}');
   }
 
-  Future<bool> postRobotNote({
-    required String scouterName,
-    required String secretTeamKey,
-    required String eventKey,
-    required int teamNumber,
-    required String notes,
-  }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/PostPitResults'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'scouter_name': scouterName,
-        'secret_team_key': secretTeamKey,
-        'event_key': eventKey,
-        'team_number': teamNumber,
-        'notes': notes,
-        'images': <String>[],
-        'timestamp': DateTime.now().toIso8601String(),
-      }),
-    ).timeout(_timeout);
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      debugPrint('postRobotNote failed: ${response.statusCode} ${response.body}');
-    }
-    return response.statusCode == 200 || response.statusCode == 201;
-  }
+  /// Robot notes are notes-only pit records. PostPitResults upserts by id,
+  /// so sending the note's own id (and original time) makes retries safe.
+  Future<void> postRobotNote(RobotNote note) => _postRecord('postRobotNote',
+      'PostPitResults', {...note.toJson(), 'images': <String>[]}, _submitTimeout);
 
   /// Returns null when no pick list exists yet for this key + event.
   Future<PickList?> getPickList(String secretKey, String eventKey) async {
