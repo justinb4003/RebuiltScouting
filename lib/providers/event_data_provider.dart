@@ -2,13 +2,14 @@ import 'package:flutter/widgets.dart';
 import 'package:provider/provider.dart';
 import '../analytics/scout_stats.dart';
 import '../models/match_result.dart';
+import '../models/opr.dart';
 import '../models/scouted_match.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import 'app_state_provider.dart';
 
-/// Shared analytics data for the selected event: our scouted rows and the
-/// official match results, plus per-team aggregation built from them.
+/// Shared analytics data for the selected event: our scouted rows, the
+/// official match results and OPR, plus per-team aggregation built from them.
 ///
 /// Kept apart from [AppStateProvider] (which owns settings, the team/match
 /// lists the scouting forms use and pit results) because these datasets have
@@ -26,6 +27,7 @@ class EventDataProvider extends ChangeNotifier {
   String _secretKey = '';
   List<ScoutedMatch> _scouted = [];
   List<MatchResult> _matches = [];
+  OprData _opr = {};
   Map<int, TeamStats>? _teamStats;
   Map<int, Map<int, List<ScoutedMatch>>>? _byQual; // qual number -> team -> rows
   int _loadingCount = 0;
@@ -40,6 +42,7 @@ class EventDataProvider extends ChangeNotifier {
   String? get eventKey => _eventKey;
   List<ScoutedMatch> get scouted => _scouted;
   List<MatchResult> get matches => _matches;
+  OprData get opr => _opr;
   bool get loading => _loadingCount > 0;
   String? get error => _error;
 
@@ -79,18 +82,21 @@ class EventDataProvider extends ChangeNotifier {
       _secretKey = secret;
       _scouted = [];
       _matches = [];
+      _opr = {};
       _teamStats = null;
       _byQual = null;
       _error = null;
       notifyListeners();
       if (key == null) return;
       final cachedMatches = await _storage.loadCachedMatchResults(key);
+      final cachedOpr = await _storage.loadCachedOpr(key);
       final cachedScouted =
           secret.isEmpty ? <ScoutedMatch>[] : await _storage.loadCachedScouted(key, secret);
       if (gen != _generation) return;
       // A concurrent caller's fetch may already have landed; don't clobber it.
       if (_matches.isEmpty) _matches = cachedMatches;
       if (_scouted.isEmpty) _scouted = cachedScouted;
+      if (_opr.isEmpty) _opr = cachedOpr;
       _teamStats = null;
       _byQual = null;
       notifyListeners();
@@ -98,6 +104,7 @@ class EventDataProvider extends ChangeNotifier {
     if (key == null) return;
     await Future.wait([
       if (_fetched.add('matches|$key')) _fetchMatches(key),
+      if (_fetched.add('opr|$key')) _fetchOpr(key),
       if (secret.isNotEmpty && _fetched.add('scouted|$key|$secret')) _fetchScouted(key, secret),
     ]);
   }
@@ -108,6 +115,7 @@ class EventDataProvider extends ChangeNotifier {
     if (key == null) return;
     await Future.wait([
       _fetchMatches(key),
+      _fetchOpr(key),
       if (_secretKey.isNotEmpty) _fetchScouted(key, _secretKey),
     ]);
   }
@@ -129,6 +137,24 @@ class EventDataProvider extends ChangeNotifier {
       // Let a later screen visit try again.
       _fetched.remove('scouted|$key|$secret');
       if (gen == _generation) _error = 'Failed to load scouted results: $e';
+    }
+    _end();
+  }
+
+  Future<void> _fetchOpr(String key) async {
+    final gen = _generation;
+    _begin();
+    try {
+      final opr = await _api.getOprData(key);
+      // Keep a good cached copy if the event has no qual results yet.
+      if (gen == _generation && (opr.isNotEmpty || _opr.isEmpty)) {
+        _opr = opr;
+        if (opr.isNotEmpty) await _storage.cacheOpr(key, opr);
+      }
+    } catch (e) {
+      // Before quals start the API has nothing to solve; not worth a banner.
+      debugPrint('EventDataProvider OPR fetch failed: $e');
+      _fetched.remove('opr|$key');
     }
     _end();
   }

@@ -52,19 +52,28 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 900),
-          child: ListView(
-            padding: const EdgeInsets.all(16),
-            children: [
-              TeamSelector(
-                teams: appState.teams,
-                selectedTeamNumber: _team,
-                onChanged: (v) => setState(() => _team = v),
+          child: CustomScrollView(
+            slivers: [
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                sliver: SliverToBoxAdapter(
+                  child: TeamSelector(
+                    teams: appState.teams,
+                    selectedTeamNumber: _team,
+                    onChanged: (v) => setState(() => _team = v),
+                  ),
+                ),
               ),
-              const SizedBox(height: 16),
-              if (_team != null)
-                TeamDetailView(key: ValueKey(_team), teamNumber: _team!)
-              else if (appState.teams.isNotEmpty)
-                const Text('Pick a team to see its pit data, scouting and matches.'),
+              SliverPadding(
+                padding: const EdgeInsets.all(16),
+                sliver: _team != null
+                    ? TeamDetailView(key: ValueKey(_team), teamNumber: _team!)
+                    : SliverToBoxAdapter(
+                        child: appState.teams.isNotEmpty
+                            ? const Text('Pick a team to see its pit data, scouting and matches.')
+                            : const SizedBox.shrink(),
+                      ),
+              ),
             ],
           ),
         ),

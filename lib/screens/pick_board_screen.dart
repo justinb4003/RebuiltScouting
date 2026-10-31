@@ -4,10 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/pick_board.dart';
 import '../models/pick_list.dart';
+import '../models/rankings.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/pick_board_provider.dart';
 import '../providers/pick_list_provider.dart' show PickListSync;
+import '../providers/rankings_provider.dart';
 import '../services/storage_service.dart';
+import '../widgets/flip_list.dart';
 import '../widgets/nav_drawer.dart';
 import '../widgets/pick_list_team_sheet.dart' show teamLabel;
 import '../widgets/team_details.dart';
@@ -42,6 +45,9 @@ class _PickBoardScreenState extends State<PickBoardScreen> {
         eventKey: settings.selectedEventKey ?? '',
         voter: settings.scouterName,
       );
+      // Event rank on My List's unranked teams.
+      final eventKey = settings.selectedEventKey;
+      if (eventKey != null) context.read<RankingsProvider>().load(eventKey);
     });
   }
 
@@ -263,8 +269,13 @@ class _BoardViewState extends State<_BoardView> {
       // Keep the agreement bar near the team names on big screens.
       final sidePad = math.max(0.0,
           (constraints.maxWidth - 700 - shownVoters.length * _voterColumnWidth) / 2);
-      return ListView(
+      // Not a lazy ListView: rows glide to new spots (FlipScope), which
+      // needs them all laid out. A board is at most one row per team.
+      return SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 32),
+        child: FlipScope(
+          child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
@@ -325,12 +336,17 @@ class _BoardViewState extends State<_BoardView> {
           else
             _BoardHeader(voters: shownVoters, myKey: p.myKey),
           for (final (i, row) in rows.indexed)
-            _BoardRowTile(
-              row: row,
-              shownVoters: shownVoters,
-              shaded: i.isOdd,
+            FlipItem(
+              key: ValueKey(row.teamNumber),
+              child: _BoardRowTile(
+                row: row,
+                shownVoters: shownVoters,
+                shaded: i.isOdd,
+              ),
             ),
         ],
+          ),
+        ),
       );
     });
   }
@@ -426,16 +442,25 @@ class _BoardRowTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text.rich(
-                    TextSpan(children: [
-                      TextSpan(
-                          text: '$tn',
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                      if (nickname.isNotEmpty) TextSpan(text: '  $nickname'),
-                    ]),
-                    style: strike,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text.rich(
+                          TextSpan(children: [
+                            TextSpan(
+                                text: '$tn',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
+                            if (nickname.isNotEmpty)
+                              TextSpan(text: '  $nickname'),
+                          ]),
+                          style: strike,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      TeamInfoButton(tn),
+                    ],
                   ),
                   if (badges.isNotEmpty)
                     Padding(
@@ -553,8 +578,7 @@ sealed class _Row {
 
 class _Header extends _Row {
   final PickStatus section;
-  final int count;
-  _Header(this.section, this.count);
+  _Header(this.section);
   @override
   Key get key => ValueKey('header-${section.name}');
 }
@@ -610,7 +634,7 @@ class _MyListViewState extends State<_MyListView> {
     }
     return [
       for (final s in _mySections) ...[
-        _Header(s, bySection[s]!.length),
+        _Header(s),
         if (bySection[s]!.isEmpty) _Placeholder(s),
         ...bySection[s]!,
       ],
@@ -647,11 +671,20 @@ class _MyListViewState extends State<_MyListView> {
   }
 
   Widget _teamTile(_TeamRow row, Set<int> taken, Map<int, int> boardPos,
+      Map<int, RankingRow> eventRanks,
       {int? dragIndex}) {
     final scheme = Theme.of(context).colorScheme;
     final isTaken = taken.contains(row.teamNumber);
     final notes = row.entry?.notes ?? '';
     final pos = boardPos[row.teamNumber];
+    // Unranked teams need more to go on: event rank and record.
+    final eventRank = row.section == PickStatus.unranked
+        ? eventRanks[row.teamNumber]
+        : null;
+    final facts = [
+      if (eventRank != null) 'Rank #${eventRank.rank} · ${eventRank.record}',
+      if (pos != null) 'Board #$pos',
+    ].join(' · ');
     final tile = ListTile(
       dense: true,
       leading: switch (row.section) {
@@ -666,39 +699,33 @@ class _MyListViewState extends State<_MyListView> {
         PickStatus.dnp => Icon(Icons.block, color: scheme.error),
         _ => const SizedBox(width: 32),
       },
-      title: Text(
-        teamLabel(context, row.teamNumber),
-        style: isTaken
-            ? const TextStyle(decoration: TextDecoration.lineThrough)
-            : null,
+      title: Row(
+        children: [
+          Flexible(
+            child: Text(
+              teamLabel(context, row.teamNumber),
+              style: isTaken
+                  ? const TextStyle(decoration: TextDecoration.lineThrough)
+                  : null,
+            ),
+          ),
+          TeamInfoButton(row.teamNumber),
+        ],
       ),
       subtitle: notes.isNotEmpty
           ? Text(notes, maxLines: 1, overflow: TextOverflow.ellipsis)
-          : pos != null
-              ? Text('Board #$pos')
+          : facts.isNotEmpty
+              ? Text(facts)
               : null,
       onTap: () => showPickBoardTeamSheet(context, row.teamNumber),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (row.section == PickStatus.ranked)
-            IconButton(
+      trailing: row.section == PickStatus.ranked
+          ? IconButton(
               tooltip: isTaken ? 'Mark available' : 'Mark taken',
               icon: Icon(
                   isTaken ? Icons.check_box : Icons.check_box_outline_blank),
               onPressed: () => _setTaken(context, row.teamNumber, !isTaken),
-            ),
-          if (dragIndex != null)
-            ReorderableDragStartListener(
-              index: dragIndex,
-              child: const SizedBox(
-                width: 48,
-                height: 48,
-                child: Icon(Icons.drag_handle),
-              ),
-            ),
-        ],
-      ),
+            )
+          : null,
     );
     final shown = isTaken ? Opacity(opacity: 0.5, child: tile) : tile;
     // The whole row drags: right away with a mouse, after a long press on
@@ -719,11 +746,11 @@ class _MyListViewState extends State<_MyListView> {
     );
   }
 
-  Widget _buildRow(
-      _Row row, int index, Set<int> taken, Map<int, int> boardPos) {
+  Widget _buildRow(_Row row, int index, Set<int> taken,
+      Map<int, int> boardPos, Map<int, RankingRow> eventRanks) {
     final theme = Theme.of(context);
     return switch (row) {
-      _Header(:final section, :final count) => Padding(
+      _Header(:final section) => Padding(
           key: row.key,
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
           child: Row(
@@ -731,8 +758,6 @@ class _MyListViewState extends State<_MyListView> {
               Text(_sectionTitles[section]!,
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(width: 8),
-              Text('$count', style: theme.textTheme.bodySmall),
               const SizedBox(width: 8),
               const Expanded(child: Divider()),
             ],
@@ -748,7 +773,8 @@ class _MyListViewState extends State<_MyListView> {
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
         ),
-      _TeamRow() => _teamTile(row, taken, boardPos, dragIndex: index),
+      _TeamRow() =>
+          _teamTile(row, taken, boardPos, eventRanks, dragIndex: index),
     };
   }
 
@@ -762,6 +788,11 @@ class _MyListViewState extends State<_MyListView> {
       for (final r in p.board.rows(appState.teams.length))
         if (r.agreedRank != null) r.teamNumber: r.agreedRank!,
     };
+    final eventRanks = {
+      for (final r in context.watch<RankingsProvider>().data?.rows ??
+          const <RankingRow>[])
+        r.teamNumber: r,
+    };
     final taken = p.board.taken;
     final query = _search.text.trim().toLowerCase();
 
@@ -773,7 +804,7 @@ class _MyListViewState extends State<_MyListView> {
               teamLabel(context, r.teamNumber).toLowerCase().contains(query))
           .toList();
       list = ListView(children: [
-        for (final r in matches) _teamTile(r, taken, boardPos),
+        for (final r in matches) _teamTile(r, taken, boardPos, eventRanks),
       ]);
     } else {
       list = ReorderableListView.builder(
@@ -783,7 +814,8 @@ class _MyListViewState extends State<_MyListView> {
         onReorderStart: (_) => p.holdUpdates(true),
         onReorderEnd: (_) => p.holdUpdates(false),
         onReorderItem: (o, n) => _onReorder(rows, o, n),
-        itemBuilder: (context, i) => _buildRow(rows[i], i, taken, boardPos),
+        itemBuilder: (context, i) =>
+            _buildRow(rows[i], i, taken, boardPos, eventRanks),
       );
     }
 
@@ -977,18 +1009,28 @@ class _BallotColumn extends StatelessWidget {
       final t = ListTile(
         dense: true,
         leading: leading,
-        title: Text(
-          teamLabel(context, e.teamNumber),
-          style: isTaken
-              ? const TextStyle(decoration: TextDecoration.lineThrough)
-              : null,
+        title: Row(
+          children: [
+            Flexible(
+              child: Text(
+                teamLabel(context, e.teamNumber),
+                style: isTaken
+                    ? const TextStyle(decoration: TextDecoration.lineThrough)
+                    : null,
+              ),
+            ),
+            TeamInfoButton(e.teamNumber),
+          ],
         ),
         subtitle: e.notes.isEmpty
             ? null
             : Text(e.notes, maxLines: 2, overflow: TextOverflow.ellipsis),
         onTap: () => showPickBoardTeamSheet(context, e.teamNumber),
       );
-      return isTaken ? Opacity(opacity: 0.5, child: t) : t;
+      return FlipItem(
+        key: ValueKey(e.teamNumber),
+        child: isTaken ? Opacity(opacity: 0.5, child: t) : t,
+      );
     }
 
     return Card(
@@ -1005,9 +1047,12 @@ class _BallotColumn extends StatelessWidget {
           ),
           const Divider(height: 1),
           Expanded(
-            child: ListView(
+            child: SingleChildScrollView(
               controller: controller,
               padding: const EdgeInsets.only(bottom: 16),
+              child: FlipScope(
+                child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
           for (final e in ranked)
             tile(
@@ -1032,6 +1077,8 @@ class _BallotColumn extends StatelessWidget {
             for (final e in dnp) tile(e, Icon(Icons.block, color: scheme.error)),
           ],
               ],
+                ),
+              ),
             ),
           ),
         ],
@@ -1120,10 +1167,7 @@ class _TeamSheetState extends State<_TeamSheet> {
                 TextButton.icon(
                   icon: const Icon(Icons.badge_outlined),
                   label: const Text('Details'),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    openTeamDetails(context, tn);
-                  },
+                  onPressed: () => showTeamDetailsDialog(context, tn),
                 ),
               ],
             ),

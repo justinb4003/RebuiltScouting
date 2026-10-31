@@ -5,6 +5,7 @@ import '../models/rankings.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/rankings_provider.dart';
 import '../widgets/nav_drawer.dart';
+import '../widgets/team_details.dart';
 
 // Chart data color (validated reference palette), light / dark steps.
 const _focusLight = Color(0xFF2A78D6);
@@ -249,21 +250,25 @@ class _RankingsTable extends StatelessWidget {
     String text, {
     Alignment align = Alignment.centerRight,
     bool bold = false,
+    Widget? trailing,
   }) {
+    final label = Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontWeight: bold ? FontWeight.w600 : null,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
     return Container(
       width: width,
       height: _rowHeight,
       alignment: align,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Text(
-        text,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontWeight: bold ? FontWeight.w600 : null,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
-      ),
+      child: trailing == null
+          ? label
+          : Row(children: [Flexible(child: label), trailing]),
     );
   }
 
@@ -370,6 +375,9 @@ class _RankingsTable extends StatelessWidget {
                           align: c.isText
                               ? Alignment.centerLeft
                               : Alignment.centerRight,
+                          trailing: c.kind == RankingColumnKind.name
+                              ? TeamInfoButton(rows[i].teamNumber)
+                              : null,
                         ),
                     ],
                   ),

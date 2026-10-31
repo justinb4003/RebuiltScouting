@@ -5,6 +5,7 @@ import '../providers/app_state_provider.dart';
 import '../providers/pick_list_provider.dart';
 import '../widgets/nav_drawer.dart';
 import '../widgets/pick_list_team_sheet.dart';
+import '../widgets/team_details.dart';
 
 const _sectionOrder = [
   PickStatus.ranked,
@@ -193,11 +194,18 @@ class _PickListScreenState extends State<PickListScreen> {
     final tile = ListTile(
       dense: true,
       leading: _rankBadge(row),
-      title: Text(
-        teamLabel(context, row.teamNumber),
-        style: picked
-            ? const TextStyle(decoration: TextDecoration.lineThrough)
-            : null,
+      title: Row(
+        children: [
+          Flexible(
+            child: Text(
+              teamLabel(context, row.teamNumber),
+              style: picked
+                  ? const TextStyle(decoration: TextDecoration.lineThrough)
+                  : null,
+            ),
+          ),
+          TeamInfoButton(row.teamNumber),
+        ],
       ),
       subtitle: notes.isEmpty
           ? (dragIndex == null ? Text(_sectionTitles[row.section]!) : null)
