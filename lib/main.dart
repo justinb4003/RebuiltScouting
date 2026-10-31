@@ -8,6 +8,7 @@ import 'providers/pick_list_provider.dart';
 import 'providers/pick_board_provider.dart';
 import 'providers/rankings_provider.dart';
 import 'providers/event_data_provider.dart';
+import 'providers/cluster_provider.dart';
 import 'services/browser.dart';
 import 'services/storage_service.dart';
 import 'services/upload_queue.dart';
@@ -27,6 +28,12 @@ void main() async {
   await appState.init();
   // Upload anything held from last time, then keep watching (see UploadQueue).
   UploadQueue.instance.start();
+  // Pick up the team's published cluster settings early (no clustering yet).
+  final clusters = ClusterProvider();
+  clusters.ensureLoaded(
+    eventKey: appState.settings.selectedEventKey,
+    secretKey: appState.settings.secretTeamKey,
+  );
 
   runApp(
     MultiProvider(
@@ -39,6 +46,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => PickBoardProvider()),
         ChangeNotifierProvider(create: (_) => RankingsProvider()),
         ChangeNotifierProvider(create: (_) => EventDataProvider()),
+        ChangeNotifierProvider.value(value: clusters),
       ],
       child: const App(),
     ),

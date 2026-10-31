@@ -12,6 +12,7 @@ import 'screens/robot_note_screen.dart';
 import 'screens/pick_list_screen.dart';
 import 'screens/pick_board_screen.dart';
 import 'screens/clusters_screen.dart';
+import 'screens/dimensions_screen.dart';
 import 'screens/rankings_screen.dart';
 import 'screens/team_details_screen.dart';
 import 'screens/match_breakdowns_screen.dart';
@@ -50,6 +51,7 @@ class App extends StatelessWidget {
         '/pick-board': (context) => const PickBoardScreen(),
         '/pick-list': (context) => const PickListScreen(),
         '/clusters': (context) => const ClustersScreen(),
+        '/dimensions': (context) => const DimensionsScreen(),
         '/rankings': (context) => const RankingsScreen(),
         '/team-details': (context) => const TeamDetailsScreen(),
         '/match-breakdowns': (context) => const MatchBreakdownsScreen(),

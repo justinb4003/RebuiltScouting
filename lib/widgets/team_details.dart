@@ -5,10 +5,12 @@ import '../analytics/scout_stats.dart';
 import '../models/opr.dart';
 import '../models/pit_result.dart';
 import '../providers/app_state_provider.dart';
+import '../providers/cluster_provider.dart';
 import '../providers/event_data_provider.dart';
 import '../services/storage_service.dart';
 import 'match_card.dart';
 import 'page_dialog.dart';
+import 'similar_teams.dart';
 import 'pick_list_team_sheet.dart' show teamLabel;
 
 /// Open the Team Details screen for [teamNumber].
@@ -85,6 +87,7 @@ enum _Section {
   pit('Pit scouting'),
   scouted('Scouted averages'),
   opr('OPR'),
+  similar('Similar teams'),
   matches('Matches');
 
   final String title;
@@ -120,7 +123,9 @@ class _TeamDetailViewState extends State<TeamDetailView> {
       });
     }
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) context.ensureEventData();
+      if (!mounted) return;
+      context.ensureEventData();
+      context.ensureClusters();
     });
   }
 
@@ -288,6 +293,7 @@ class _TeamDetailViewState extends State<TeamDetailView> {
           _Section.opr => data.opr[team] == null
               ? const Text('No OPR yet; it needs qualification match results.')
               : _OprTiles(team: team, opr: data.opr),
+          _Section.similar => SimilarTeamsSection(team: team),
           _Section.matches => const Text('No matches found for this team at this event.'),
         };
 
