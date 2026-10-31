@@ -29,6 +29,7 @@ class StorageService {
   static const String _pitResultsCacheKey = 'pit_results_cache';
   static const String _pickListCacheKey = 'pick_list_cache';
   static const String _pickBoardCacheKey = 'pick_board_cache';
+  static const String _boardFiltersKey = 'pick_board_filters';
   static const String _rankingsCacheKey = 'rankings_cache';
   static const String _scoutedCacheKey = 'scouted_matches_cache';
   static const String _matchResultsCacheKey = 'match_results_cache';
@@ -252,6 +253,25 @@ class StorageService {
 
   Future<void> cachePickBoard(String eventKey, PickBoard board) async {
     await _cachePerEvent(_pickBoardCacheKey, eventKey, [board.toJson()]);
+  }
+
+  // Board tab filters (per event): minimum votes and excluded voter keys
+  Future<({int minVotes, Set<String> excluded})> loadBoardFilters(
+      String eventKey) async {
+    final data = await _loadPerEvent(_boardFiltersKey, eventKey);
+    if (data.isEmpty) return (minVotes: 1, excluded: <String>{});
+    final m = Map<String, dynamic>.from(data.first);
+    return (
+      minVotes: (m['minVotes'] as num?)?.toInt() ?? 1,
+      excluded: {for (final k in (m['excluded'] ?? []) as List) k as String},
+    );
+  }
+
+  Future<void> saveBoardFilters(
+      String eventKey, int minVotes, Set<String> excluded) async {
+    await _cachePerEvent(_boardFiltersKey, eventKey, [
+      {'minVotes': minVotes, 'excluded': excluded.toList()..sort()}
+    ]);
   }
 
   // Rankings cache (per event) so the table is readable offline
