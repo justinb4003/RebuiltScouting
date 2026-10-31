@@ -48,30 +48,42 @@ class _RobotNoteScreenState extends State<RobotNoteScreen> {
       notes: _notesController.text.trim(),
     );
 
-    await storage.addHeldRobotNote(note);
-
     try {
-      final success = await api.postRobotNote(
-        scouterName: note.scouterName,
-        secretTeamKey: note.secretTeamKey,
-        eventKey: note.eventKey,
-        teamNumber: note.teamNumber,
-        notes: note.notes,
-      );
-      if (success) {
-        await storage.removeHeldRobotNote(note.id);
-        setState(() => _submitting = false);
-        return SubmitResult(
-            success: true, message: 'Robot note submitted successfully!');
-      } else {
-        setState(() => _submitting = false);
-        return SubmitResult(
-            success: false, message: 'API error. Note saved locally.');
+      var saved = true;
+      try {
+        await storage.addHeldRobotNote(note);
+      } catch (e) {
+        debugPrint('Saving robot note locally failed: $e');
+        saved = false;
       }
-    } catch (e) {
-      setState(() => _submitting = false);
+
+      try {
+        final success = await api.postRobotNote(
+          scouterName: note.scouterName,
+          secretTeamKey: note.secretTeamKey,
+          eventKey: note.eventKey,
+          teamNumber: note.teamNumber,
+          notes: note.notes,
+        );
+        if (success) {
+          if (saved) {
+            await storage.removeHeldRobotNote(note.id).catchError((Object e) {
+              debugPrint('Removing held robot note failed: $e');
+            });
+          }
+          return SubmitResult(
+              success: true, message: 'Robot note submitted successfully!');
+        }
+      } catch (e) {
+        debugPrint('Robot note submit error: $e');
+      }
       return SubmitResult(
-          success: false, message: 'Network error. Note saved locally.');
+          success: false,
+          message: saved
+              ? 'Upload failed. Note saved locally.'
+              : notSavedMessage);
+    } finally {
+      if (mounted) setState(() => _submitting = false);
     }
   }
 

@@ -173,29 +173,45 @@ class PitProvider extends ChangeNotifier {
       photoBase64: photoBase64,
     );
 
-    await _storage.addHeldPitResult(result);
-
     try {
-      final success = await _api.postPitResults(result);
-      if (success) {
-        await _storage.removeHeldPitResult(result.id);
-        _submitting = false;
-        notifyListeners();
-        return SubmitResult(
-            success: true, message: 'Pit data submitted successfully!');
-      } else {
-        _submitting = false;
-        notifyListeners();
-        return SubmitResult(
-            success: false, message: 'API error. Data saved locally.');
+      // Photos make pit records big, so this is the save most likely to hit
+      // the browser's storage quota.
+      var saved = true;
+      try {
+        await _storage.addHeldPitResult(result);
+      } catch (e) {
+        debugPrint('Saving pit data locally failed: $e');
+        saved = false;
       }
-    } catch (e, stackTrace) {
-      debugPrint('Pit submit error: $e');
-      debugPrint('$stackTrace');
+
+      try {
+        if (await _api.postPitResults(result)) {
+          if (saved) await _removeHeld(result.id);
+          return SubmitResult(
+              success: true, message: 'Pit data submitted successfully!');
+        }
+      } catch (e, stackTrace) {
+        debugPrint('Pit submit error: $e');
+        debugPrint('$stackTrace');
+      }
+      return SubmitResult(
+          success: false,
+          message: saved
+              ? 'Upload failed. Data saved locally.'
+              : notSavedMessage);
+    } finally {
       _submitting = false;
       notifyListeners();
-      return SubmitResult(
-          success: false, message: 'Network error. Data saved locally.');
+    }
+  }
+
+  // Already uploaded; if this fails the held copy just uploads again (the
+  // API upserts by id).
+  Future<void> _removeHeld(String id) async {
+    try {
+      await _storage.removeHeldPitResult(id);
+    } catch (e) {
+      debugPrint('Removing held pit result $id failed: $e');
     }
   }
 }

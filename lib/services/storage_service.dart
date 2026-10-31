@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/app_settings.dart';
 import '../models/tba_event.dart';
@@ -112,7 +113,7 @@ class StorageService {
       cache = jsonDecode(json);
     }
     cache[eventKey] = data;
-    await prefs.setString(cacheKey, jsonEncode(cache));
+    await _setString(prefs, cacheKey, jsonEncode(cache));
   }
 
   Future<void> clearAll() => _locked(() async {
@@ -146,8 +147,21 @@ class StorageService {
         final json = prefs.getString(key);
         final List<dynamic> items = json == null ? [] : jsonDecode(json);
         edit(items);
-        await prefs.setString(key, jsonEncode(items));
+        await _setString(prefs, key, jsonEncode(items));
       });
+
+  // SharedPreferences updates its in-memory copy before writing, so when
+  // localStorage throws (quota full) reads would keep returning data that was
+  // never stored. Re-sync from storage before passing the error on.
+  Future<void> _setString(SharedPreferences prefs, String key, String value) async {
+    try {
+      await prefs.setString(key, value);
+    } catch (e) {
+      debugPrint('Saving $key (${value.length} chars) failed: $e');
+      await prefs.reload();
+      rethrow;
+    }
+  }
 
   Future<void> _addHeld(String key, Map<String, dynamic> item) =>
       _editHeld(key, (items) => items.add(item));

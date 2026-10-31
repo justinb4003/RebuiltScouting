@@ -204,27 +204,42 @@ class ScoutingProvider extends ChangeNotifier {
       matchNotes: matchNotes,
     );
 
-    // Always cache first
-    await _storage.addHeldScoutResult(result);
-
     try {
-      final success = await _api.postResults(result);
-      if (success) {
-        await _storage.removeHeldScoutResult(result.id);
-        _submitting = false;
-        notifyListeners();
-        return SubmitResult(success: true, message: 'Submitted successfully!');
-      } else {
-        _submitting = false;
-        notifyListeners();
-        return SubmitResult(
-            success: false, message: 'API error. Data saved locally.');
+      // Always cache first
+      var saved = true;
+      try {
+        await _storage.addHeldScoutResult(result);
+      } catch (e) {
+        debugPrint('Saving match locally failed: $e');
+        saved = false;
       }
-    } catch (e) {
+
+      try {
+        if (await _api.postResults(result)) {
+          if (saved) await _removeHeld(result.id);
+          return SubmitResult(success: true, message: 'Submitted successfully!');
+        }
+      } catch (e) {
+        debugPrint('Match submit error: $e');
+      }
+      return SubmitResult(
+          success: false,
+          message: saved
+              ? 'Upload failed. Data saved locally.'
+              : notSavedMessage);
+    } finally {
       _submitting = false;
       notifyListeners();
-      return SubmitResult(
-          success: false, message: 'Network error. Data saved locally.');
+    }
+  }
+
+  // Already uploaded; if this fails the held copy just uploads again (the
+  // API upserts by id).
+  Future<void> _removeHeld(String id) async {
+    try {
+      await _storage.removeHeldScoutResult(id);
+    } catch (e) {
+      debugPrint('Removing held match $id failed: $e');
     }
   }
 }
