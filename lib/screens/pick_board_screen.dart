@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/pick_board.dart';
@@ -88,14 +89,18 @@ class _PickBoardScreenState extends State<PickBoardScreen> {
             : null;
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Pick Board'),
           actions: [if (message == null) _syncIndicator(p)],
           bottom: message != null
               ? null
-              : const TabBar(tabs: [Tab(text: 'Board'), Tab(text: 'My List')]),
+              : const TabBar(tabs: [
+                  Tab(text: 'Board'),
+                  Tab(text: 'My List'),
+                  Tab(text: 'Other Lists'),
+                ]),
         ),
         drawer: const NavDrawer(selectedIndex: 7),
         body: message != null
@@ -109,7 +114,11 @@ class _PickBoardScreenState extends State<PickBoardScreen> {
                 children: [
                   if (!p.loaded) const LinearProgressIndicator(),
                   const Expanded(
-                    child: TabBarView(children: [_BoardView(), _MyListView()]),
+                    child: TabBarView(children: [
+                      _BoardView(),
+                      _MyListView(),
+                      _OtherListsView(),
+                    ]),
                   ),
                 ],
               ),
@@ -717,6 +726,196 @@ class _MyListViewState extends State<_MyListView> {
         ),
         Expanded(child: list),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Other Lists tab: everyone else's ballot, side by side.
+
+class _OtherListsView extends StatefulWidget {
+  const _OtherListsView();
+
+  @override
+  State<_OtherListsView> createState() => _OtherListsViewState();
+}
+
+class _OtherListsViewState extends State<_OtherListsView> {
+  PageController? _pages;
+  int _page = 0;
+
+  @override
+  void dispose() {
+    _pages?.dispose();
+    super.dispose();
+  }
+
+  /// Columns are a fixed width, so the page fraction depends on the screen;
+  /// swap controllers when it changes (the old one is disposed after its
+  /// PageView is gone).
+  PageController _controllerFor(double fraction) {
+    final old = _pages;
+    if (old != null && old.viewportFraction == fraction) return old;
+    _pages = PageController(viewportFraction: fraction, initialPage: _page);
+    if (old != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => old.dispose());
+    }
+    return _pages!;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final p = context.watch<PickBoardProvider>();
+    final others = p.board.voters.where((b) => b.key != p.myKey).toList();
+    final taken = p.board.taken;
+    final theme = Theme.of(context);
+
+    if (others.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text('Nobody else has a list yet.', textAlign: TextAlign.center),
+        ),
+      );
+    }
+    final page = _page.clamp(0, others.length - 1);
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final width = constraints.maxWidth;
+      // ~360px columns; on a phone one column plus a peek at the next.
+      final fraction =
+          (math.min(360.0, width * 0.9) / width * 100).roundToDouble() / 100;
+      final pages = _controllerFor(fraction);
+      return Column(
+        children: [
+          SizedBox(
+            height: 52,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              children: [
+                for (final (i, b) in others.indexed)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(b.voter),
+                      selected: i == page,
+                      onSelected: (_) => pages.animateToPage(i,
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOut),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            // Let a mouse drag the columns sideways too, not just touch.
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(
+                dragDevices: {...PointerDeviceKind.values},
+              ),
+              child: PageView.builder(
+                key: ValueKey(fraction),
+                controller: pages,
+                padEnds: false,
+                itemCount: others.length,
+                onPageChanged: (i) => setState(() => _page = i),
+                itemBuilder: (context, i) =>
+                    _BallotColumn(ballot: others[i], taken: taken),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Text(
+              '${others.length} other ${others.length == 1 ? 'list' : 'lists'} · '
+              'swipe or tap a name',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ),
+        ],
+      );
+    });
+  }
+}
+
+/// One person's ballot, read-only: their pick order, then their DNPs.
+class _BallotColumn extends StatelessWidget {
+  final Ballot ballot;
+  final Set<int> taken;
+
+  const _BallotColumn({required this.ballot, required this.taken});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final list = ballot.list;
+    final ranked = list.ranked;
+    final dnp = list.teams.where((t) => t.dnp).toList()
+      ..sort((a, b) => a.teamNumber.compareTo(b.teamNumber));
+    final updated = list.updatedAt == null
+        ? ''
+        : ' · updated ${TimeOfDay.fromDateTime(list.updatedAt!.toLocal()).format(context)}';
+
+    Widget tile(PickListEntry e, Widget leading) {
+      final isTaken = taken.contains(e.teamNumber);
+      final t = ListTile(
+        dense: true,
+        leading: leading,
+        title: Text(
+          teamLabel(context, e.teamNumber),
+          style: isTaken
+              ? const TextStyle(decoration: TextDecoration.lineThrough)
+              : null,
+        ),
+        subtitle: e.notes.isEmpty
+            ? null
+            : Text(e.notes, maxLines: 2, overflow: TextOverflow.ellipsis),
+        onTap: () => showPickBoardTeamSheet(context, e.teamNumber),
+      );
+      return isTaken ? Opacity(opacity: 0.5, child: t) : t;
+    }
+
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 0, 4, 4),
+      clipBehavior: Clip.antiAlias,
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 16),
+        children: [
+          ListTile(
+            title: Text(ballot.voter,
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold)),
+            subtitle: Text(
+                '${ranked.length} ${ranked.length == 1 ? 'pick' : 'picks'}$updated'),
+          ),
+          const Divider(height: 1),
+          for (final e in ranked)
+            tile(
+              e,
+              CircleAvatar(
+                radius: 14,
+                backgroundColor: scheme.primaryContainer,
+                child: Text('${e.ranking}',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: scheme.onPrimaryContainer,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ),
+          if (dnp.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: Text('Do Not Pick',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.bold)),
+            ),
+            for (final e in dnp) tile(e, Icon(Icons.block, color: scheme.error)),
+          ],
+        ],
+      ),
     );
   }
 }
