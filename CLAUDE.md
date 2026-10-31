@@ -64,7 +64,7 @@ Analytics data policy: show the per-event SharedPreferences cache immediately, f
 - `/held` — queued data awaiting upload
 - `/scouting-status` — table showing which teams have been scouted per match
 - `/pit-status` — table showing pit scouting completion per team
-- `/pick-board` — Board (everyone's ballots, Total, 0–100 agreement bar, DNP/taken badges) and My List (your own drag-and-drop ballot)
+- `/pick-board` — Board (everyone's ballots, Total, 0–100 agreement bar, DNP/taken badges) My List (your own drag-and-drop ballot) and Other Lists (everyone else's ballots as side-scrolling read-only columns)
 - `/pick-list` — shared drag-and-drop pick order, DNP/Decline, "taken" flags, notes (same doc the Streamlit Scouting Breakdown page uses)
 - `/clusters` — KMeans groups from the API's `GetClusters`, with per-group scatter (fl_chart) and feature profile. Results are cached in memory per request for the app session (refresh button clears); the screen's controls are static so they persist across visits
 - `/rankings` — official event rankings table + ranking-score chart
