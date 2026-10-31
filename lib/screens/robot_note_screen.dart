@@ -5,8 +5,10 @@ import '../models/submit_result.dart';
 import '../providers/app_state_provider.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../services/upload_queue.dart';
 import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
+import '../widgets/submit_snack_bar.dart';
 import '../widgets/team_selector.dart';
 
 class RobotNoteScreen extends StatefulWidget {
@@ -49,29 +51,12 @@ class _RobotNoteScreenState extends State<RobotNoteScreen> {
     );
 
     try {
-      var saved = true;
-      try {
-        await storage.addHeldRobotNote(note);
-      } catch (e) {
-        debugPrint('Saving robot note locally failed: $e');
-        saved = false;
-      }
-
-      try {
-        await api.postRobotNote(note);
-        if (saved) {
-          await storage.removeHeldRobotNote(note.id).catchError((Object e) {
-            debugPrint('Removing held robot note failed: $e');
-          });
-        }
-        return SubmitResult(
-            success: true, uploaded: true, message: uploadedMessage);
-      } catch (e) {
-        debugPrint('Robot note submit error: $e');
-      }
-      return SubmitResult(
-          success: saved,
-          message: saved ? savedLocallyMessage : notSavedMessage);
+      return await UploadQueue.instance.submit(
+        id: note.id,
+        what: 'robot note',
+        hold: () => storage.addHeldRobotNote(note),
+        post: () => api.postRobotNote(note),
+      );
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
@@ -126,17 +111,7 @@ class _RobotNoteScreenState extends State<RobotNoteScreen> {
                       final result = await _submit(appState);
                       if (context.mounted) {
                         appState.refreshHeldDataCount();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(result.message),
-                            backgroundColor:
-                                result.uploaded
-                                ? Colors.green
-                                : result.success
-                                    ? Colors.orange
-                                    : Colors.red,
-                          ),
-                        );
+                        showSubmitResult(context, result);
                         if (result.success) {
                           _notesController.clear();
                           setState(() => _selectedTeamNumber = null);

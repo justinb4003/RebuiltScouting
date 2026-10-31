@@ -3,6 +3,7 @@ import '../models/scout_result.dart';
 import '../models/submit_result.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../services/upload_queue.dart';
 
 class ScoutingProvider extends ChangeNotifier {
   final ApiService _api = ApiService.instance;
@@ -205,39 +206,15 @@ class ScoutingProvider extends ChangeNotifier {
     );
 
     try {
-      // Always cache first
-      var saved = true;
-      try {
-        await _storage.addHeldScoutResult(result);
-      } catch (e) {
-        debugPrint('Saving match locally failed: $e');
-        saved = false;
-      }
-
-      try {
-        await _api.postResults(result);
-        if (saved) await _removeHeld(result.id);
-        return SubmitResult(
-            success: true, uploaded: true, message: uploadedMessage);
-      } catch (e) {
-        debugPrint('Match submit error: $e');
-      }
-      return SubmitResult(
-          success: saved,
-          message: saved ? savedLocallyMessage : notSavedMessage);
+      return await UploadQueue.instance.submit(
+        id: result.id,
+        what: 'match',
+        hold: () => _storage.addHeldScoutResult(result),
+        post: () => _api.postResults(result),
+      );
     } finally {
       _submitting = false;
       notifyListeners();
-    }
-  }
-
-  // Already uploaded; if this fails the held copy just uploads again (the
-  // API upserts by id).
-  Future<void> _removeHeld(String id) async {
-    try {
-      await _storage.removeHeldScoutResult(id);
-    } catch (e) {
-      debugPrint('Removing held match $id failed: $e');
     }
   }
 }

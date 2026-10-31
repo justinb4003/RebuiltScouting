@@ -12,6 +12,7 @@ import '../widgets/fixed_segmented_button.dart';
 import '../widgets/highlighted_switch.dart';
 import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
+import '../widgets/submit_snack_bar.dart';
 
 class ScoutMatchScreen extends StatefulWidget {
   const ScoutMatchScreen({super.key});
@@ -1115,17 +1116,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                     );
                     if (!context.mounted) return;
                     context.read<AppStateProvider>().refreshHeldDataCount();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(result.message),
-                        backgroundColor:
-                            result.uploaded
-                                ? Colors.green
-                                : result.success
-                                    ? Colors.orange
-                                    : Colors.red,
-                      ),
-                    );
+                    showSubmitResult(context, result);
                     if (result.success) {
                       final prevRobotIndex = _selectedRobotIndex;
                       _autoNotesController.clear();

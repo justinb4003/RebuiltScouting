@@ -5,6 +5,7 @@ import '../models/pit_result.dart';
 import '../models/submit_result.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../services/upload_queue.dart';
 
 class PitProvider extends ChangeNotifier {
   final ApiService _api = ApiService.instance;
@@ -176,39 +177,15 @@ class PitProvider extends ChangeNotifier {
     try {
       // Photos make pit records big, so this is the save most likely to hit
       // the browser's storage quota.
-      var saved = true;
-      try {
-        await _storage.addHeldPitResult(result);
-      } catch (e) {
-        debugPrint('Saving pit data locally failed: $e');
-        saved = false;
-      }
-
-      try {
-        await _api.postPitResults(result);
-        if (saved) await _removeHeld(result.id);
-        return SubmitResult(
-            success: true, uploaded: true, message: uploadedMessage);
-      } catch (e, stackTrace) {
-        debugPrint('Pit submit error: $e');
-        debugPrint('$stackTrace');
-      }
-      return SubmitResult(
-          success: saved,
-          message: saved ? savedLocallyMessage : notSavedMessage);
+      return await UploadQueue.instance.submit(
+        id: result.id,
+        what: 'pit data',
+        hold: () => _storage.addHeldPitResult(result),
+        post: () => _api.postPitResults(result),
+      );
     } finally {
       _submitting = false;
       notifyListeners();
-    }
-  }
-
-  // Already uploaded; if this fails the held copy just uploads again (the
-  // API upserts by id).
-  Future<void> _removeHeld(String id) async {
-    try {
-      await _storage.removeHeldPitResult(id);
-    } catch (e) {
-      debugPrint('Removing held pit result $id failed: $e');
     }
   }
 }

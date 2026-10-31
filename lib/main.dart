@@ -9,6 +9,7 @@ import 'providers/pick_board_provider.dart';
 import 'providers/rankings_provider.dart';
 import 'providers/event_data_provider.dart';
 import 'services/browser.dart';
+import 'services/upload_queue.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,11 +21,14 @@ void main() async {
 
   final appState = AppStateProvider();
   await appState.init();
+  // Upload anything held from last time, then keep watching (see UploadQueue).
+  UploadQueue.instance.start();
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(value: appState),
+        ChangeNotifierProvider.value(value: UploadQueue.instance),
         ChangeNotifierProvider(create: (_) => ScoutingProvider()),
         ChangeNotifierProvider(create: (_) => PitProvider()),
         ChangeNotifierProvider(create: (_) => PickListProvider()),

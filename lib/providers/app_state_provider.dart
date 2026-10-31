@@ -6,6 +6,7 @@ import '../models/tba_team.dart';
 import '../models/pit_result.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../services/upload_queue.dart';
 
 class AppStateProvider extends ChangeNotifier {
   final ApiService _api = ApiService.instance;
@@ -38,6 +39,8 @@ class AppStateProvider extends ChangeNotifier {
       _pitResults = await _storage.loadCachedPitResults(_settings.selectedEventKey!);
     }
     await refreshHeldDataCount();
+    // Keep the drawer's held count current as background uploads land.
+    UploadQueue.instance.addListener(refreshHeldDataCount);
     notifyListeners();
 
     // Auto-load events if cache is empty (non-blocking)

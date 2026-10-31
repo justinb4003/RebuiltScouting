@@ -3,9 +3,10 @@ import 'package:provider/provider.dart';
 import '../models/scout_result.dart';
 import '../models/pit_result.dart';
 import '../models/robot_note.dart';
+import '../models/upload_status.dart';
 import '../providers/app_state_provider.dart';
-import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../services/upload_queue.dart';
 import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
 
@@ -18,86 +19,59 @@ class HeldDataScreen extends StatefulWidget {
 
 class _HeldDataScreenState extends State<HeldDataScreen> {
   final StorageService _storage = StorageService.instance;
-  final ApiService _api = ApiService.instance;
+  final UploadQueue _queue = UploadQueue.instance;
 
   List<ScoutResult> _heldScout = [];
   List<PitResult> _heldPit = [];
   List<RobotNote> _heldNotes = [];
-  bool _uploading = false;
+  Map<String, UploadStatus> _status = {};
 
   @override
   void initState() {
     super.initState();
+    // Background passes change the list; reload when one starts or ends.
+    _queue.addListener(_loadData);
     _loadData();
+  }
+
+  @override
+  void dispose() {
+    _queue.removeListener(_loadData);
+    super.dispose();
   }
 
   Future<void> _loadData() async {
     final scout = await _storage.loadHeldScoutData();
     final pit = await _storage.loadHeldPitData();
     final notes = await _storage.loadHeldRobotNotes();
+    final status = await _storage.loadUploadStatus();
     if (!mounted) return;
     setState(() {
       _heldScout = scout;
       _heldPit = pit;
       _heldNotes = notes;
+      _status = status;
     });
   }
 
-  int _uploaded = 0, _failed = 0;
-  bool _offline = false;
-
-  // Stops at the first item that can't reach the server: on bad Wi-Fi the
-  // rest would each just wait out their own timeout.
-  Future<void> _uploadItems<T>(
-    List<T> items,
-    Future<void> Function(T) post,
-    Future<void> Function(String) remove,
-    String Function(T) getId,
-  ) async {
-    for (final item in List.of(items)) {
-      if (_offline) return;
-      try {
-        await post(item);
-        await remove(getId(item));
-        _uploaded++;
-      } on ApiStatusException catch (e) {
-        _failed++;
-        if (e.transient) _offline = true;
-      } catch (e) {
-        debugPrint('Held upload failed: $e');
-        _failed++;
-        _offline = true;
-      }
-    }
-  }
-
-  Future<void> _uploadAll() async {
-    setState(() => _uploading = true);
-    _uploaded = _failed = 0;
-    _offline = false;
-
-    await _uploadItems(
-      _heldScout, _api.postResults, _storage.removeHeldScoutResult, (r) => r.id);
-    await _uploadItems(
-      _heldPit, _api.postPitResults, _storage.removeHeldPitResult, (r) => r.id);
-    await _uploadItems(
-      _heldNotes, _api.postRobotNote, _storage.removeHeldRobotNote, (n) => n.id);
-
-    final successCount = _uploaded;
-    final failCount = _failed;
-
+  // Same queue as the automatic uploads, so the two never run at once; if a
+  // pass is already going this waits for it and runs one more.
+  Future<void> _uploadNow() async {
+    final result = await _queue.run();
     await _loadData();
-    if (mounted) {
-      setState(() => _uploading = false);
-      context.read<AppStateProvider>().refreshHeldDataCount();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Uploaded: $successCount, Failed: $failCount'
-              '${_offline ? '. Stopped: no connection to the server.' : ''}'),
-          backgroundColor: failCount == 0 ? Colors.green : Colors.orange,
-        ),
-      );
-    }
+    if (!mounted) return;
+    final failed = result.rejected.length;
+    final parts = [
+      'Uploaded: ${result.uploaded.length}',
+      if (failed > 0) 'Failed: $failed',
+      if (result.offline) 'Stopped: no connection to the server',
+    ];
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(parts.join(', ')),
+        backgroundColor: result.failed ? Colors.orange : Colors.green,
+      ),
+    );
   }
 
   Future<void> _deleteResult(
@@ -131,10 +105,32 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
     }
   }
 
+  /// [summary] plus, once an upload has failed, how often and why.
+  Widget _subtitle(String id, String summary, {int maxLines = 1}) {
+    final status = _status[id];
+    final summaryText =
+        Text(summary, maxLines: maxLines, overflow: TextOverflow.ellipsis);
+    if (status == null) return summaryText;
+    final tries = status.attempts == 1 ? '1 try' : '${status.attempts} tries';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        summaryText,
+        Text(
+          'Not uploaded after $tries: ${status.lastError}',
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: Theme.of(context).colorScheme.error),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final appState = context.watch<AppStateProvider>();
+    final uploading = context.watch<UploadQueue>().running;
     final totalHeld = _heldScout.length + _heldPit.length + _heldNotes.length;
 
     return Scaffold(
@@ -169,18 +165,28 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
                   const SizedBox(height: 8),
                   Text(
                       '${_heldScout.length} match, ${_heldPit.length} pit, ${_heldNotes.length} notes'),
+                  if (totalHeld > 0) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      uploading
+                          ? 'Uploading…'
+                          : 'These upload automatically when there is a connection.',
+                      style: theme.textTheme.bodySmall,
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                   const SizedBox(height: 16),
                   FilledButton.icon(
                     onPressed:
-                        _uploading || totalHeld == 0 ? null : _uploadAll,
-                    icon: _uploading
+                        uploading || totalHeld == 0 ? null : _uploadNow,
+                    icon: uploading
                         ? const SizedBox(
                             width: 20,
                             height: 20,
                             child:
                                 CircularProgressIndicator(strokeWidth: 2))
                         : const Icon(Icons.cloud_upload),
-                    label: const Text('Upload All'),
+                    label: const Text('Upload now'),
                   ),
                 ],
               ),
@@ -195,7 +201,7 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
             ..._heldScout.map((r) => Card(
                   child: ListTile(
                     title: Text('Match ${r.matchNumber} - Team ${r.teamNumber}'),
-                    subtitle: Text(
+                    subtitle: _subtitle(r.id,
                         'Auto: ${r.autoFuelScored} scored | Teleop: ${r.teleopFuelScored} scored'),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
@@ -214,7 +220,8 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
             ..._heldPit.map((r) => Card(
                   child: ListTile(
                     title: Text('Team ${r.teamNumber}'),
-                    subtitle: Text('${r.driveTrain} drive'),
+                    subtitle: _subtitle(r.id,
+                        '${r.driveTrain} drive${r.photoBase64 != null ? ' | photo' : ''}'),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
                       onPressed: () => _deleteResult(_storage.removeHeldPitResult, r.id,
@@ -232,7 +239,7 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
             ..._heldNotes.map((n) => Card(
                   child: ListTile(
                     title: Text('Team ${n.teamNumber}'),
-                    subtitle: Text(n.notes, maxLines: 2, overflow: TextOverflow.ellipsis),
+                    subtitle: _subtitle(n.id, n.notes, maxLines: 2),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
                       onPressed: () => _deleteResult(_storage.removeHeldRobotNote, n.id,
