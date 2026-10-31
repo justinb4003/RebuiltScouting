@@ -35,6 +35,7 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
     final scout = await _storage.loadHeldScoutData();
     final pit = await _storage.loadHeldPitData();
     final notes = await _storage.loadHeldRobotNotes();
+    if (!mounted) return;
     setState(() {
       _heldScout = scout;
       _heldPit = pit;
@@ -57,7 +58,8 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
         } else {
           fail++;
         }
-      } catch (_) {
+      } catch (e) {
+        debugPrint('Held upload failed: $e');
         fail++;
       }
     }
@@ -78,8 +80,8 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
     final failCount = f1 + f2 + f3;
 
     await _loadData();
-    setState(() => _uploading = false);
     if (mounted) {
+      setState(() => _uploading = false);
       context.read<AppStateProvider>().refreshHeldDataCount();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

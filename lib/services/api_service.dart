@@ -65,6 +65,9 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode(result.toJson()),
     ).timeout(_timeout);
+    if (response.statusCode != 200 && response.statusCode != 201) {
+      debugPrint('postResults failed: ${response.statusCode} ${response.body}');
+    }
     return response.statusCode == 200 || response.statusCode == 201;
   }
 
