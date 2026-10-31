@@ -90,7 +90,30 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
     }
   }
 
-  Future<void> _deleteResult(Future<void> Function(String) removeFn, String id) async {
+  Future<void> _deleteResult(
+      Future<void> Function(String) removeFn, String id, String label) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Unsent Data?'),
+        content: Text('$label has not been uploaded. Deleting it here '
+            'removes it for good.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
     await removeFn(id);
     await _loadData();
     if (mounted) {
@@ -166,7 +189,8 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
                         'Auto: ${r.autoFuelScored} scored | Teleop: ${r.teleopFuelScored} scored'),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _deleteResult(_storage.removeHeldScoutResult, r.id),
+                      onPressed: () => _deleteResult(_storage.removeHeldScoutResult, r.id,
+                          'Match ${r.matchNumber}, team ${r.teamNumber}'),
                     ),
                   ),
                 )),
@@ -183,7 +207,8 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
                     subtitle: Text('${r.driveTrain} drive'),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _deleteResult(_storage.removeHeldPitResult, r.id),
+                      onPressed: () => _deleteResult(_storage.removeHeldPitResult, r.id,
+                          'Pit data for team ${r.teamNumber}'),
                     ),
                   ),
                 )),
@@ -200,7 +225,8 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
                     subtitle: Text(n.notes, maxLines: 2, overflow: TextOverflow.ellipsis),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _deleteResult(_storage.removeHeldRobotNote, n.id),
+                      onPressed: () => _deleteResult(_storage.removeHeldRobotNote, n.id,
+                          'This note for team ${n.teamNumber}'),
                     ),
                   ),
                 )),
