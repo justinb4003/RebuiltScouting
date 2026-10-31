@@ -9,6 +9,7 @@ import '../models/pit_result.dart';
 import '../models/robot_note.dart';
 import '../models/pick_list.dart';
 import '../models/pick_board.dart';
+import '../models/cluster_config.dart';
 import '../models/cluster_result.dart';
 import '../models/rankings.dart';
 import '../models/match_result.dart';
@@ -250,20 +251,19 @@ class ApiService {
   Future<ClusterResult> getClusters({
     required String secretKey,
     required String eventKey,
-    required int k,
-    required bool scale,
-    List<String>? features,
-    List<int> exclude = const [],
+    required ClusterConfig config,
     bool refresh = false,
   }) {
+    final weights = [
+      for (final f in config.features)
+        if (config.weightOf(f) != 1.0) '$f:${config.weightOf(f)}',
+    ];
     final uri = Uri.parse('$baseUrl/GetClusters').replace(queryParameters: {
       'secret_team_key': secretKey,
       'event_key': eventKey,
-      'k': '$k',
-      'scale': scale ? '1' : '0',
-      if (features != null && features.isNotEmpty)
-        'features': features.join(','),
-      if (exclude.isNotEmpty) 'exclude': exclude.join(','),
+      'k': '${config.k}',
+      if (config.features.isNotEmpty) 'features': config.features.join(','),
+      if (weights.isNotEmpty) 'weights': weights.join(','),
     });
     // A refresh means the data changed, so every cached combination is stale.
     if (refresh) _clusterCache.clear();
@@ -286,6 +286,50 @@ class ApiService {
       throw Exception('Failed to load clusters: ${response.statusCode}');
     }
     return ClusterResult.fromJson(jsonDecode(response.body));
+  }
+
+  /// The team's published cluster settings for [year], or null if none.
+  Future<ClusterConfig?> getClusterConfig({
+    required String secretKey,
+    required String year,
+  }) async {
+    final uri = Uri.parse('$baseUrl/GetClusterConfig')
+        .replace(queryParameters: {'secret_key': secretKey, 'year': year});
+    final response = await http.get(uri).timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint(
+          'getClusterConfig failed: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load team default: ${response.statusCode}');
+    }
+    final json = jsonDecode(response.body);
+    return json == null ? null : ClusterConfig.fromJson(json);
+  }
+
+  /// Replace the team's published cluster settings for [year].
+  Future<ClusterConfig> setClusterConfig({
+    required String secretKey,
+    required String year,
+    required ClusterConfig config,
+    required String updatedBy,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/SetClusterConfig'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            ...config.toJson(),
+            'secret_key': secretKey,
+            'year': year,
+            'updated_by': updatedBy,
+          }),
+        )
+        .timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint(
+          'setClusterConfig failed: ${response.statusCode} ${response.body}');
+      throw Exception('Publishing failed: ${response.statusCode}');
+    }
+    return ClusterConfig.fromJson(jsonDecode(response.body));
   }
 
   Future<List<PitResult>> getPitResults(String eventKey) async {

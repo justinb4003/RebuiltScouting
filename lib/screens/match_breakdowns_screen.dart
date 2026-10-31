@@ -56,7 +56,7 @@ class _MatchBreakdownsScreenState extends State<MatchBreakdownsScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 12),
+      drawer: const NavDrawer(selectedIndex: 13),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 900),

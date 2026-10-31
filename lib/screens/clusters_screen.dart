@@ -1,28 +1,26 @@
-import 'dart:async';
 import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/cluster_config.dart';
 import '../models/cluster_result.dart';
-import '../models/pick_list.dart';
 import '../providers/app_state_provider.dart';
-import '../providers/pick_list_provider.dart';
-import '../services/api_service.dart';
+import '../providers/cluster_provider.dart';
 import '../widgets/nav_drawer.dart';
 import '../widgets/pick_list_team_sheet.dart';
+import '../widgets/range_strip.dart';
 
-// Chart data colors (validated reference palette): the focus series and the
-// two poles of the diverging profile bars. Light / dark steps.
+// Chart data color (validated reference palette) for the focus group.
+// Light / dark steps.
 const _focusLight = Color(0xFF2A78D6);
 const _focusDark = Color(0xFF3987E5);
-const _aboveLight = Color(0xFF2A78D6);
-const _aboveDark = Color(0xFF3987E5);
-const _belowLight = Color(0xFFE34948);
-const _belowDark = Color(0xFFE66767);
-
-/// Profile bars run from -3σ to +3σ so they compare across groups.
-const _zScale = 3.0;
 const _profileRows = 5;
+// The team picked from a group's chips, marked the same everywhere it shows.
+const _pickedLight = Color(0xFFD62728);
+const _pickedDark = Color(0xFFF0605A);
+
+Color _pickedColor(ThemeData theme) =>
+    theme.brightness == Brightness.dark ? _pickedDark : _pickedLight;
 
 class ClustersScreen extends StatefulWidget {
   const ClustersScreen({super.key});
@@ -32,306 +30,102 @@ class ClustersScreen extends StatefulWidget {
 }
 
 class _ClustersScreenState extends State<ClustersScreen> {
-  final _api = ApiService.instance;
-  late final PickListProvider _pickList;
+  late final ClusterProvider _clusters;
 
-  // Static so the controls survive leaving the screen for the app session;
-  // coming back then hits ApiService's cluster cache instead of the API.
-  static int _k = 4;
-  static bool _scale = true;
-  static bool _excludeDnp = false;
-  static bool _excludeRanked = false;
-  static List<String>? _features; // null = server defaults
-  static String? _xAxis;
-  static String? _yAxis;
-
-  ClusterResult? _result;
-  bool _loading = false;
-  String? _error;
-  int _requestSeq = 0;
-  Timer? _debounce;
-  List<int> _requestedExclude = const [];
+  // The user's axis picks (null = the default: the two dimensions that best
+  // separate the groups). Static so they survive leaving the screen.
+  // Groups and dimensions live in ClusterProvider.
+  static String? _xPick;
+  static String? _yPick;
 
   @override
   void initState() {
     super.initState();
-    _pickList = context.read<PickListProvider>();
-    _pickList.watch();
-    _pickList.addListener(_onPickListChanged);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final settings = context.read<AppStateProvider>().settings;
-      _pickList.configure(
-        secretKey: settings.secretTeamKey,
-        eventKey: settings.selectedEventKey ?? '',
-        scouterName: settings.scouterName,
-      );
-      _fetch();
-    });
-  }
-
-  @override
-  void dispose() {
-    _debounce?.cancel();
-    _pickList.removeListener(_onPickListChanged);
-    _pickList.unwatch();
-    super.dispose();
-  }
-
-  List<int> _exclude() {
-    final list = _pickList.list;
-    return [
-      for (final t in list.teams)
-        if ((_excludeDnp && (t.dnp || t.decline)) ||
-            (_excludeRanked && t.isRanked))
-          t.teamNumber,
-    ]..sort();
-  }
-
-  /// Re-cluster when someone changes the pick list and we're excluding by it.
-  void _onPickListChanged() {
-    if (!_excludeDnp && !_excludeRanked) return;
-    final next = _exclude();
-    if (next.length != _requestedExclude.length ||
-        !next.every(_requestedExclude.contains)) {
-      _scheduleFetch();
-    }
-  }
-
-  void _scheduleFetch() {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 300), _fetch);
-  }
-
-  Future<void> _fetch({bool refresh = false}) async {
-    final settings = context.read<AppStateProvider>().settings;
-    final eventKey = settings.selectedEventKey ?? '';
-    final secretKey = settings.secretTeamKey.trim();
-    if (eventKey.isEmpty || secretKey.isEmpty) return;
-    final seq = ++_requestSeq;
-    final exclude = _exclude();
-    _requestedExclude = exclude;
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-    try {
-      final result = await _api.getClusters(
-        secretKey: secretKey,
-        eventKey: eventKey,
-        k: _k,
-        scale: _scale,
-        features: _features,
-        exclude: exclude,
-        refresh: refresh,
-      );
-      if (!mounted || seq != _requestSeq) return;
-      setState(() {
-        _result = result;
-        _loading = false;
-        _pickDefaultAxes(result);
-      });
-    } catch (e) {
-      if (!mounted || seq != _requestSeq) return;
-      setState(() {
-        _error = e.toString();
-        _loading = false;
-      });
-    }
-  }
-
-  void _pickDefaultAxes(ClusterResult r) {
-    bool valid(String? f) => f != null && r.feature(f) != null;
-    if (!valid(_xAxis)) {
-      _xAxis = r.feature('totalPoints') != null
-          ? 'totalPoints'
-          : (r.features.length > 1 ? r.features[1] : r.features.firstOrNull);
-    }
-    if (!valid(_yAxis)) {
-      _yAxis = r.features.firstWhere(
-        (f) => f != _xAxis,
-        orElse: () => r.features.firstOrNull ?? '',
-      );
-      if (!valid(_yAxis)) _yAxis = null;
-    }
-  }
-
-  void _set(VoidCallback change) {
-    setState(change);
-    _scheduleFetch();
-  }
-
-  Future<void> _editDimensions(ClusterResult r) async {
-    final selected = {...r.features};
-    final picked = await showModalBottomSheet<Set<String>>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setSheet) {
-          Widget section(
-            String title,
-            Iterable<ClusterFeature> feats,
-          ) => Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 8),
-                child: Text(title, style: Theme.of(ctx).textTheme.titleSmall),
-              ),
-              Wrap(
-                spacing: 6,
-                runSpacing: 6,
-                children: [
-                  for (final f in feats)
-                    FilterChip(
-                      label: Text(f.label),
-                      tooltip: 'Variance ${f.variance.toStringAsFixed(2)}',
-                      selected: selected.contains(f.name),
-                      onSelected: (on) => setSheet(
-                        () =>
-                            on ? selected.add(f.name) : selected.remove(f.name),
-                      ),
-                    ),
-                ],
-              ),
-            ],
-          );
-          return DraggableScrollableSheet(
-            expand: false,
-            initialChildSize: 0.7,
-            maxChildSize: 0.95,
-            builder: (ctx, scroll) => Column(
-              children: [
-                Expanded(
-                  child: ListView(
-                    controller: scroll,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    children: [
-                      Text(
-                        'Dimensions — sorted by variance',
-                        style: Theme.of(ctx).textTheme.titleMedium,
-                      ),
-                      section(
-                        'Scouted',
-                        r.availableFeatures.where((f) => !f.isOpr),
-                      ),
-                      if (r.hasOpr)
-                        section(
-                          'OPR',
-                          r.availableFeatures.where((f) => f.isOpr),
-                        ),
-                    ],
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Row(
-                    children: [
-                      TextButton(
-                        onPressed: () => setSheet(
-                          () => selected
-                            ..clear()
-                            ..addAll(
-                              r.availableFeatures
-                                  .where((f) => f.isDefault)
-                                  .map((f) => f.name),
-                            ),
-                        ),
-                        child: const Text('Defaults'),
-                      ),
-                      const Spacer(),
-                      FilledButton(
-                        onPressed: selected.isEmpty
-                            ? null
-                            : () => Navigator.pop(ctx, selected),
-                        child: Text('Use ${selected.length}'),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+    _clusters = context.read<ClusterProvider>();
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => context.ensureClusters(),
     );
-    if (picked != null) {
-      // Keep the API's variance ordering.
-      _set(
-        () => _features = [
-          for (final f in r.availableFeatures)
-            if (picked.contains(f.name)) f.name,
-        ],
-      );
-    }
   }
 
-  Widget _controls(ClusterResult? r) {
+  /// Chart axes: the user's picks while they exist in this result, else the
+  /// dimensions that best tell the groups apart.
+  (String?, String?) _axes(ClusterResult r) {
+    bool valid(String? f) => f != null && r.feature(f) != null;
+    final (dx, dy) = r.defaultAxes;
+    final x = valid(_xPick) ? _xPick : dx;
+    var y = valid(_yPick) ? _yPick : dy;
+    if (y == x && _yPick == null) y = x == dx ? dy : dx;
+    return (x, y);
+  }
+
+  void _setConfig(ClusterConfig Function(ClusterConfig c) change) =>
+      _clusters.setCustom(change(_clusters.resolvedConfig));
+
+  /// Above the groups: the group count and team count, then the chart axes.
+  Widget _controls(ClusterResult r, String? x, String? y) {
     final theme = Theme.of(context);
+    final config = _clusters.config;
     final axisItems = [
-      for (final f in r?.availableFeatures ?? const <ClusterFeature>[])
+      for (final f in r.availableFeatures)
         DropdownMenuItem(value: f.name, child: Text(f.label)),
     ];
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        crossAxisAlignment: WrapCrossAlignment.center,
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Groups', style: theme.textTheme.labelLarge),
-              IconButton(
-                tooltip: 'Fewer groups',
-                icon: const Icon(Icons.remove),
-                onPressed: _k > 2 ? () => _set(() => _k--) : null,
+              Text('Groups:', style: theme.textTheme.labelLarge),
+              const SizedBox(width: 6),
+              DropdownButton<int>(
+                value: config.k,
+                isDense: true,
+                items: [
+                  for (var k = ClusterConfig.minK; k <= ClusterConfig.maxK; k++)
+                    DropdownMenuItem(value: k, child: Text('$k')),
+                ],
+                onChanged: (k) {
+                  if (k != null) _setConfig((c) => c.copyWith(k: k));
+                },
               ),
-              Text('$_k', style: theme.textTheme.titleMedium),
-              IconButton(
-                tooltip: 'More groups',
-                icon: const Icon(Icons.add),
-                onPressed: _k < 8 ? () => _set(() => _k++) : null,
+              const SizedBox(width: 16),
+              Text(
+                '${r.teams.length} teams',
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),
-          FilterChip(
-            label: const Text('Normalize'),
-            tooltip: 'Scale each dimension so they all count equally',
-            selected: _scale,
-            onSelected: (v) => _set(() => _scale = v),
-          ),
-          FilterChip(
-            label: const Text('Exclude DNP / Decline'),
-            selected: _excludeDnp,
-            onSelected: (v) => _set(() => _excludeDnp = v),
-          ),
-          FilterChip(
-            label: const Text('Exclude ranked'),
-            selected: _excludeRanked,
-            onSelected: (v) => _set(() => _excludeRanked = v),
-          ),
-          if (r != null)
-            OutlinedButton.icon(
-              icon: const Icon(Icons.tune),
-              label: Text('Dimensions (${r.features.length})'),
-              onPressed: () => _editDimensions(r),
-            ),
           if (axisItems.isNotEmpty) ...[
-            _axisPicker(
-              'X',
-              _xAxis,
-              axisItems,
-              (v) => setState(() => _xAxis = v),
-            ),
-            _axisPicker(
-              'Y',
-              _yAxis,
-              axisItems,
-              (v) => setState(() => _yAxis = v),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 16,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                _axisPicker(
+                  'X',
+                  x,
+                  axisItems,
+                  (v) => setState(() => _xPick = v),
+                ),
+                _axisPicker(
+                  'Y',
+                  y,
+                  axisItems,
+                  (v) => setState(() => _yPick = v),
+                ),
+                if (_xPick != null || _yPick != null)
+                  TextButton(
+                    onPressed: () => setState(() => _xPick = _yPick = null),
+                    child: const Text('Default axes'),
+                  ),
+              ],
             ),
           ],
+          const SizedBox(height: 4),
         ],
       ),
     );
@@ -358,35 +152,18 @@ class _ClustersScreenState extends State<ClustersScreen> {
     );
   }
 
-  Widget _summary(ClusterResult r) {
-    final theme = Theme.of(context);
-    final parts = [
-      '${r.teams.length} teams in ${r.k} groups',
-      if (r.strengthLabel != null) 'ordered by ${r.strengthLabel}',
-      if (r.excluded.isNotEmpty) '${r.excluded.length} excluded',
-      if (r.dropped.isNotEmpty) '${r.dropped.length} without OPR left out',
-      if (!r.hasOpr) 'OPR not available yet',
-    ];
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-      child: Text(
-        parts.join(' · '),
-        style: theme.textTheme.bodySmall?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppStateProvider>();
-    final pickList = context.watch<PickListProvider>().list;
+    final clusters = context.watch<ClusterProvider>();
     final settings = appState.settings;
     final configured =
         settings.secretTeamKey.trim().isNotEmpty &&
         (settings.selectedEventKey ?? '').isNotEmpty;
-    final r = _result;
+    final r = clusters.result;
+    final error = clusters.error;
+    final loading = clusters.loading;
+    final (xAxis, yAxis) = r == null ? (null, null) : _axes(r);
 
     Widget message(String text, {bool error = false}) => Padding(
       padding: const EdgeInsets.all(24),
@@ -406,25 +183,18 @@ class _ClustersScreenState extends State<ClustersScreen> {
         if (!configured)
           message('Set a secret team key and event in Settings.')
         else ...[
-          _controls(r),
-          if (r == null && _error == null)
+          if (r == null && error == null)
             const Padding(
               padding: EdgeInsets.all(48),
               child: Center(child: CircularProgressIndicator()),
             ),
-          if (_error != null) message(_error!, error: true),
+          if (error != null) message(error, error: true),
           if (r != null && r.groups.isEmpty)
             message('No scouting data to cluster yet.'),
           if (r != null && r.groups.isNotEmpty) ...[
-            _summary(r),
+            _controls(r, xAxis, yAxis),
             for (final g in r.groups)
-              _GroupCard(
-                result: r,
-                group: g,
-                pickList: pickList,
-                xAxis: _xAxis,
-                yAxis: _yAxis,
-              ),
+              _GroupCard(result: r, group: g, xAxis: xAxis, yAxis: yAxis),
           ],
         ],
       ],
@@ -435,16 +205,23 @@ class _ClustersScreenState extends State<ClustersScreen> {
         title: const Text('Clusters'),
         actions: [
           IconButton(
+            tooltip: 'Dimensions',
+            icon: const Icon(Icons.tune),
+            onPressed: configured
+                ? () => Navigator.of(context).pushNamed('/dimensions')
+                : null,
+          ),
+          IconButton(
             tooltip: 'Refresh',
             icon: const Icon(Icons.refresh),
-            onPressed: configured ? () => _fetch(refresh: true) : null,
+            onPressed: configured ? () => _clusters.fetch(refresh: true) : null,
           ),
         ],
       ),
       drawer: const NavDrawer(selectedIndex: 9),
       body: Column(
         children: [
-          if (_loading) const LinearProgressIndicator(),
+          if (loading) const LinearProgressIndicator(),
           Expanded(
             child: Align(
               alignment: Alignment.topCenter,
@@ -463,14 +240,12 @@ class _ClustersScreenState extends State<ClustersScreen> {
 class _GroupCard extends StatefulWidget {
   final ClusterResult result;
   final ClusterGroup group;
-  final PickList pickList;
   final String? xAxis;
   final String? yAxis;
 
   const _GroupCard({
     required this.result,
     required this.group,
-    required this.pickList,
     required this.xAxis,
     required this.yAxis,
   });
@@ -481,43 +256,48 @@ class _GroupCard extends StatefulWidget {
 
 class _GroupCardState extends State<_GroupCard> {
   bool _allFeatures = false;
+  int? _picked;
 
   Widget _teamChip(int tn) {
-    final entry = widget.pickList.entryFor(tn);
     final theme = Theme.of(context);
-    final badge = switch (entry?.status) {
-      PickStatus.ranked => '#${entry!.ranking}',
-      PickStatus.dnp => 'DNP',
-      PickStatus.decline => 'Decl',
-      _ => null,
-    };
+    final muted = theme.textTheme.labelSmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final label = teamLabel(context, tn);
+    final name = label.contains(' · ')
+        ? label.split(' · ').skip(1).join(' · ')
+        : '';
+    final picked = _picked == tn;
+    final red = _pickedColor(theme);
     return Tooltip(
-      message: teamLabel(context, tn),
-      child: ActionChip(
+      message: label,
+      child: ChoiceChip(
         visualDensity: VisualDensity.compact,
-        label: Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: '$tn',
-                style: entry?.picked == true
-                    ? const TextStyle(decoration: TextDecoration.lineThrough)
-                    : null,
-              ),
-              if (badge != null)
-                TextSpan(
-                  text: '  $badge',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: entry!.dnp
-                        ? theme.colorScheme.error
-                        : theme.colorScheme.onSurfaceVariant,
-                    fontWeight: FontWeight.bold,
-                  ),
+        showCheckmark: false,
+        selected: picked,
+        selectedColor: red.withValues(alpha: 0.15),
+        side: picked ? BorderSide(color: red, width: 1.5) : null,
+        avatar: picked ? Icon(Icons.circle, size: 10, color: red) : null,
+        label: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('$tn'),
+            if (name.isNotEmpty) ...[
+              const SizedBox(width: 6),
+              // Enough of the name to tell teams apart; the tooltip has it all.
+              ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 96),
+                child: Text(
+                  name,
+                  style: muted,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
+              ),
             ],
-          ),
+          ],
         ),
-        onPressed: () => showPickListTeamSheet(context, tn),
+        onSelected: (on) => setState(() => _picked = on ? tn : null),
       ),
     );
   }
@@ -527,6 +307,7 @@ class _GroupCardState extends State<_GroupCard> {
     final r = widget.result;
     final g = widget.group;
     final theme = Theme.of(context);
+    if (!g.teams.contains(_picked)) _picked = null;
     final profile = _allFeatures
         ? g.profile
         : g.profile.take(_profileRows).toList();
@@ -563,6 +344,7 @@ class _GroupCardState extends State<_GroupCard> {
                   group: g.group,
                   xAxis: widget.xAxis!,
                   yAxis: widget.yAxis!,
+                  picked: _picked,
                 ),
               ),
             ],
@@ -572,7 +354,26 @@ class _GroupCardState extends State<_GroupCard> {
               style: theme.textTheme.labelLarge,
             ),
             const SizedBox(height: 4),
-            for (final p in profile) _ProfileRow(result: r, entry: p),
+            Builder(
+              builder: (context) {
+                final focus = theme.brightness == Brightness.dark
+                    ? _focusDark
+                    : _focusLight;
+                return StripLegend([
+                  (StripLegend.dot(focus, 10), 'Group avg'),
+                  (
+                    StripLegend.band(focus.withValues(alpha: 0.22)),
+                    'Group range',
+                  ),
+                  (StripLegend.line(theme.colorScheme.outline, 1), 'Event avg'),
+                  if (_picked != null)
+                    (StripLegend.dot(_pickedColor(theme), 10), '$_picked'),
+                ]);
+              },
+            ),
+            const SizedBox(height: 4),
+            for (final p in profile)
+              _ProfileRow(result: r, entry: p, group: g.group, picked: _picked),
             if (g.profile.length > _profileRows)
               TextButton(
                 onPressed: () => setState(() => _allFeatures = !_allFeatures),
@@ -596,12 +397,14 @@ class _GroupScatter extends StatelessWidget {
   final int group;
   final String xAxis;
   final String yAxis;
+  final int? picked;
 
   const _GroupScatter({
     required this.result,
     required this.group,
     required this.xAxis,
     required this.yAxis,
+    this.picked,
   });
 
   static (double, double) _range(Iterable<double> values) {
@@ -631,11 +434,15 @@ class _GroupScatter extends StatelessWidget {
     return nice * mag;
   }
 
+  int _layer(ClusterTeam t) =>
+      t.teamNumber == picked ? 2 : (t.group == group ? 1 : 0);
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final dark = theme.brightness == Brightness.dark;
+    final red = _pickedColor(theme);
     final focus = dark ? _focusDark : _focusLight;
     final contextColor = scheme.outline.withValues(alpha: 0.45);
     final surface = theme.cardTheme.color ?? scheme.surfaceContainerLow;
@@ -648,10 +455,8 @@ class _GroupScatter extends StatelessWidget {
         result.teams
             .where((t) => t.values[xAxis] != null && t.values[yAxis] != null)
             .toList()
-          // Focus group last so it paints on top.
-          ..sort(
-            (a, b) => (a.group == group ? 1 : 0) - (b.group == group ? 1 : 0),
-          );
+          // Focus group, then the picked team, last so they paint on top.
+          ..sort((a, b) => _layer(a) - _layer(b));
     final (minX, maxX) = _range(plotted.map((t) => t.values[xAxis]!));
     final (minY, maxY) = _range(plotted.map((t) => t.values[yAxis]!));
     final xStep = _niceStep(maxX - minX);
@@ -666,8 +471,10 @@ class _GroupScatter extends StatelessWidget {
           t.values[xAxis]!,
           t.values[yAxis]!,
           dotPainter: FlDotCirclePainter(
-            radius: t.group == group ? 5 : 4,
-            color: t.group == group ? focus : contextColor,
+            radius: t.teamNumber == picked ? 7 : (t.group == group ? 5 : 4),
+            color: t.teamNumber == picked
+                ? red
+                : (t.group == group ? focus : contextColor),
             strokeWidth: 2,
             strokeColor: surface,
           ),
@@ -732,9 +539,12 @@ class _GroupScatter extends StatelessWidget {
           ),
         ),
         scatterLabelSettings: ScatterLabelSettings(
-          showLabel: labelFocus,
+          showLabel: labelFocus || picked != null,
           getLabelFunction: (i, _) =>
-              plotted[i].group == group ? '${plotted[i].teamNumber}' : '',
+              plotted[i].teamNumber == picked ||
+                  (labelFocus && plotted[i].group == group)
+              ? '${plotted[i].teamNumber}'
+              : '',
           getLabelTextStyleFunction: (_, _) =>
               theme.textTheme.labelSmall?.copyWith(color: scheme.onSurface),
         ),
@@ -775,103 +585,78 @@ class _GroupScatter extends StatelessWidget {
   }
 }
 
-/// Diverging bar: how far this group's average sits from the event
-/// average, in standard deviations.
+/// One dimension in its own units across the event's range: the group's
+/// spread (band), its average (dot) and the event average (line).
 class _ProfileRow extends StatelessWidget {
   final ClusterResult result;
   final ClusterProfileEntry entry;
+  final int group;
+  final int? picked;
 
-  const _ProfileRow({required this.result, required this.entry});
-
-  String _fmt(double? v) =>
-      v == null ? '–' : v.toStringAsFixed(v.abs() < 1 ? 2 : 1);
+  const _ProfileRow({
+    required this.result,
+    required this.entry,
+    required this.group,
+    this.picked,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final dark = theme.brightness == Brightness.dark;
-    final z = entry.z;
-    final color = z >= 0
-        ? (dark ? _aboveDark : _aboveLight)
-        : (dark ? _belowDark : _belowLight);
-    final frac = (z.abs() / _zScale).clamp(0.0, 1.0);
+    final focus = theme.brightness == Brightness.dark
+        ? _focusDark
+        : _focusLight;
     final label = result.labelFor(entry.feature);
-    final sign = z >= 0 ? '+' : '−';
+    final eventAvg = entry.eventMean ?? 0;
+    final (lo, hi) = result.rangeOf(entry.feature) ?? (eventAvg, eventAvg);
+    final groupRange = result.rangeOf(entry.feature, group: group);
+    final pickedValue = picked == null
+        ? null
+        : result.team(picked!)?.values[entry.feature];
 
-    return Tooltip(
-      message:
-          '$label\nGroup avg ${_fmt(entry.mean)} · '
-          'event avg ${_fmt(entry.eventMean)} · '
-          '$sign${z.abs().toStringAsFixed(1)}σ',
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    label,
-                    style: theme.textTheme.bodySmall,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  label,
+                  style: theme.textTheme.bodySmall,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(width: 8),
-                Text(
-                  '${_fmt(entry.mean)} vs ${_fmt(entry.eventMean)} avg',
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 2),
-            SizedBox(
-              height: 10,
-              child: LayoutBuilder(
-                builder: (context, c) {
-                  final half = c.maxWidth / 2;
-                  final w = math.max(half * frac, 2.0);
-                  const r = Radius.circular(4);
-                  return Stack(
-                    children: [
-                      Positioned(
-                        left: half - 0.5,
-                        top: 0,
-                        bottom: 0,
-                        width: 1,
-                        child: ColoredBox(color: scheme.outlineVariant),
-                      ),
-                      Positioned(
-                        left: z >= 0 ? half : half - w,
-                        width: w,
-                        top: 1,
-                        bottom: 1,
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: color,
-                            borderRadius: z >= 0
-                                ? const BorderRadius.only(
-                                    topRight: r,
-                                    bottomRight: r,
-                                  )
-                                : const BorderRadius.only(
-                                    topLeft: r,
-                                    bottomLeft: r,
-                                  ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  );
-                },
               ),
-            ),
-          ],
-        ),
+              const SizedBox(width: 8),
+              Text(
+                [
+                  if (pickedValue != null)
+                    '$picked ${formatValue(pickedValue)}',
+                  '${formatValue(entry.mean)} vs ${formatValue(entry.eventMean)} avg',
+                ].join('  ·  '),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 2),
+          RangeStrip(
+            min: lo,
+            max: hi,
+            eventAvg: eventAvg,
+            band: groupRange,
+            bandColor: focus.withValues(alpha: 0.22),
+            dots: [
+              if (entry.mean != null) StripDot(entry.mean!, 11, focus),
+              if (pickedValue != null)
+                StripDot(pickedValue, 11, _pickedColor(theme)),
+            ],
+          ),
+        ],
       ),
     );
   }

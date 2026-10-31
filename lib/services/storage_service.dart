@@ -16,6 +16,8 @@ import '../models/rankings.dart';
 import '../models/match_result.dart';
 import '../models/opr.dart';
 import '../models/scouted_match.dart';
+import '../models/cluster_config.dart';
+import '../models/cluster_result.dart';
 
 class StorageService {
   static final instance = StorageService();
@@ -41,6 +43,9 @@ class StorageService {
   static const String _oprCacheKey = 'opr_cache';
   static const String _collapsedSectionsKey = 'team_details_collapsed';
   static const String _sectionOrderKey = 'team_details_section_order';
+  static const String _clusterTeamConfigKey = 'cluster_config_team';
+  static const String _clusterCustomConfigKey = 'cluster_config_custom';
+  static const String _clusterResultCacheKey = 'cluster_result_cache';
 
   // Settings
   Future<AppSettings> loadSettings() async {
@@ -475,5 +480,45 @@ class StorageService {
     if (json == null) return [];
     final Map<String, dynamic> cache = jsonDecode(json);
     return (cache[eventKey] as List<dynamic>?) ?? [];
+  }
+
+  // Cluster settings are per season ({year: config}); a null custom config
+  // means "follow the team default".
+  Future<ClusterConfig?> loadClusterConfig(String year, {required bool custom}) async {
+    final json = (await _getPrefs())
+        .getString(custom ? _clusterCustomConfigKey : _clusterTeamConfigKey);
+    final entry = json == null ? null : (jsonDecode(json) as Map<String, dynamic>)[year];
+    return entry == null ? null : ClusterConfig.fromJson(entry);
+  }
+
+  Future<void> saveClusterConfig(String year, ClusterConfig? config, {required bool custom}) async {
+    final prefs = await _getPrefs();
+    final key = custom ? _clusterCustomConfigKey : _clusterTeamConfigKey;
+    final json = prefs.getString(key);
+    final all = json == null ? <String, dynamic>{} : jsonDecode(json) as Map<String, dynamic>;
+    if (config == null) {
+      all.remove(year);
+    } else {
+      all[year] = config.toJson();
+    }
+    await prefs.setString(key, jsonEncode(all));
+  }
+
+  /// Last clustering for an event, tagged with the settings that made it
+  /// ([tag]); a different tag means the cache is stale.
+  Future<ClusterResult?> loadCachedClusters(String eventKey, String tag) async {
+    final json = (await _getPrefs()).getString(_clusterResultCacheKey);
+    if (json == null) return null;
+    final entry = (jsonDecode(json) as Map<String, dynamic>)[eventKey];
+    if (entry == null || entry['tag'] != tag) return null;
+    return ClusterResult.fromJson(entry['result'] as Map<String, dynamic>);
+  }
+
+  Future<void> cacheClusters(String eventKey, String tag, ClusterResult result) async {
+    final prefs = await _getPrefs();
+    final json = prefs.getString(_clusterResultCacheKey);
+    final all = json == null ? <String, dynamic>{} : jsonDecode(json) as Map<String, dynamic>;
+    all[eventKey] = {'tag': tag, 'result': result.json};
+    await _setString(prefs, _clusterResultCacheKey, jsonEncode(all));
   }
 }
