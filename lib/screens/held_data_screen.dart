@@ -72,17 +72,7 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
     final (s2, f2) = await _uploadItems(
       _heldPit, _api.postPitResults, _storage.removeHeldPitResult, (r) => r.id);
     final (s3, f3) = await _uploadItems(
-      _heldNotes,
-      (n) => _api.postRobotNote(
-        scouterName: n.scouterName,
-        secretTeamKey: n.secretTeamKey,
-        eventKey: n.eventKey,
-        teamNumber: n.teamNumber,
-        notes: n.notes,
-      ),
-      _storage.removeHeldRobotNote,
-      (n) => n.id,
-    );
+      _heldNotes, _api.postRobotNote, _storage.removeHeldRobotNote, (n) => n.id);
 
     final successCount = s1 + s2 + s3;
     final failCount = f1 + f2 + f3;

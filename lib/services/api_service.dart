@@ -6,6 +6,7 @@ import '../models/tba_team.dart';
 import '../models/tba_match.dart';
 import '../models/scout_result.dart';
 import '../models/pit_result.dart';
+import '../models/robot_note.dart';
 import '../models/pick_list.dart';
 import '../models/pick_board.dart';
 import '../models/cluster_result.dart';
@@ -89,25 +90,13 @@ class ApiService {
     throw Exception('Failed to load results: ${response.statusCode}');
   }
 
-  Future<bool> postRobotNote({
-    required String scouterName,
-    required String secretTeamKey,
-    required String eventKey,
-    required int teamNumber,
-    required String notes,
-  }) async {
+  /// Robot notes are notes-only pit records. PostPitResults upserts by id,
+  /// so sending the note's own id (and original time) makes retries safe.
+  Future<bool> postRobotNote(RobotNote note) async {
     final response = await http.post(
       Uri.parse('$baseUrl/PostPitResults'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'scouter_name': scouterName,
-        'secret_team_key': secretTeamKey,
-        'event_key': eventKey,
-        'team_number': teamNumber,
-        'notes': notes,
-        'images': <String>[],
-        'timestamp': DateTime.now().toIso8601String(),
-      }),
+      body: jsonEncode({...note.toJson(), 'images': <String>[]}),
     ).timeout(_timeout);
     if (response.statusCode != 200 && response.statusCode != 201) {
       debugPrint('postRobotNote failed: ${response.statusCode} ${response.body}');

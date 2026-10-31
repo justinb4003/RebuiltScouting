@@ -58,14 +58,7 @@ class _RobotNoteScreenState extends State<RobotNoteScreen> {
       }
 
       try {
-        final success = await api.postRobotNote(
-          scouterName: note.scouterName,
-          secretTeamKey: note.secretTeamKey,
-          eventKey: note.eventKey,
-          teamNumber: note.teamNumber,
-          notes: note.notes,
-        );
-        if (success) {
+        if (await api.postRobotNote(note)) {
           if (saved) {
             await storage.removeHeldRobotNote(note.id).catchError((Object e) {
               debugPrint('Removing held robot note failed: $e');
