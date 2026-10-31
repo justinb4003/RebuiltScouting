@@ -5,6 +5,7 @@ const notSavedMessage = "Couldn't save on this device (storage full?) or "
     'Held Data to free space.';
 
 const uploadedMessage = 'Uploaded';
+const uploadingMessage = 'Saved on this device – uploading…';
 const savedLocallyMessage = 'Saved on this device – will upload';
 
 class SubmitResult {
@@ -13,6 +14,14 @@ class SubmitResult {
   final bool success;
   final bool uploaded;
   final String message;
+
+  /// For a record saved on the device: completes with whether the upload
+  /// queue got it to the server.
+  final Future<bool>? upload;
+
   SubmitResult(
-      {required this.success, required this.message, this.uploaded = false});
+      {required this.success,
+      required this.message,
+      this.uploaded = false,
+      this.upload});
 }

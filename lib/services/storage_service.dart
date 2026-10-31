@@ -8,6 +8,7 @@ import '../models/tba_match.dart';
 import '../models/scout_result.dart';
 import '../models/pit_result.dart';
 import '../models/robot_note.dart';
+import '../models/upload_status.dart';
 import '../models/pick_list.dart';
 import '../models/pick_board.dart';
 import '../models/rankings.dart';
@@ -27,6 +28,7 @@ class StorageService {
   static const String _heldScoutDataKey = 'held_scout_data';
   static const String _heldPitDataKey = 'held_pit_data';
   static const String _heldRobotNoteKey = 'held_robot_note_data';
+  static const String _heldUploadStatusKey = 'held_upload_status';
   static const String _pitResultsCacheKey = 'pit_results_cache';
   static const String _pickListCacheKey = 'pick_list_cache';
   static const String _pickBoardCacheKey = 'pick_board_cache';
@@ -166,8 +168,43 @@ class StorageService {
   Future<void> _addHeld(String key, Map<String, dynamic> item) =>
       _editHeld(key, (items) => items.add(item));
 
-  Future<void> _removeHeld(String key, String id) =>
-      _editHeld(key, (items) => items.removeWhere((e) => e['id'] == id));
+  Future<void> _removeHeld(String key, String id) async {
+    await _editHeld(key, (items) => items.removeWhere((e) => e['id'] == id));
+    await _editUploadStatus((status) => status.remove(id));
+  }
+
+  // Upload attempts per held id (see UploadStatus).
+  Future<Map<String, UploadStatus>> loadUploadStatus() async {
+    final prefs = await _getPrefs();
+    final json = prefs.getString(_heldUploadStatusKey);
+    if (json == null) return {};
+    final Map<String, dynamic> data = jsonDecode(json);
+    return {
+      for (final e in data.entries)
+        e.key: UploadStatus.fromJson(Map<String, dynamic>.from(e.value)),
+    };
+  }
+
+  Future<void> recordUploadFailure(String id, String error) =>
+      _editUploadStatus((status) {
+        final prev = status[id] == null
+            ? null
+            : UploadStatus.fromJson(Map<String, dynamic>.from(status[id]));
+        status[id] = UploadStatus(
+          attempts: (prev?.attempts ?? 0) + 1,
+          lastError: error,
+          lastAttempt: DateTime.now(),
+        ).toJson();
+      });
+
+  Future<void> _editUploadStatus(void Function(Map<String, dynamic>) edit) =>
+      _locked(() async {
+        final prefs = await _getPrefs();
+        final json = prefs.getString(_heldUploadStatusKey);
+        final Map<String, dynamic> status = json == null ? {} : jsonDecode(json);
+        edit(status);
+        await _setString(prefs, _heldUploadStatusKey, jsonEncode(status));
+      });
 
   // Held scout data
   Future<List<ScoutResult>> loadHeldScoutData() =>
