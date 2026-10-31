@@ -179,7 +179,12 @@ class _PitStatusScreenState extends State<PitStatusScreen> {
                               : const Icon(Icons.cancel, color: Colors.red,
                                   semanticLabel: 'Not scouted'),
                         ),
-                        title: Text('${team.teamNumber}'),
+                        title: Row(
+                          children: [
+                            Text('${team.teamNumber}'),
+                            TeamInfoButton(team.teamNumber),
+                          ],
+                        ),
                         subtitle: Text(team.nickname),
                         trailing: scouted
                             ? IconButton(
@@ -189,7 +194,8 @@ class _PitStatusScreenState extends State<PitStatusScreen> {
                                     context, team.teamNumber, results),
                               )
                             : null,
-                        onTap: () => openTeamDetails(context, team.teamNumber),
+                        onTap: () =>
+                            showTeamDetailsDialog(context, team.teamNumber),
                       );
                     },
                   ),
