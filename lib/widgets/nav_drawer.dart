@@ -62,6 +62,7 @@ class NavDrawer extends StatelessWidget {
           selectedIcon: Icon(Icons.settings),
           label: Text('Settings'),
         ),
+        _CurrentSettings(appState),
         const Divider(indent: 28, endIndent: 28),
         const _SectionLabel('Management'),
         const NavigationDrawerDestination(
@@ -179,6 +180,46 @@ class _SectionLabel extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 12, 16, 8),
       child: Text(text, style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+    );
+  }
+}
+
+/// Who's scouting and which event, under Settings (where you'd fix them).
+class _CurrentSettings extends StatelessWidget {
+  final AppStateProvider appState;
+  const _CurrentSettings(this.appState);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final s = appState.settings;
+    final style = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    final missing = style?.copyWith(color: theme.colorScheme.error);
+    final name = s.scouterName.trim();
+    final event = s.selectedEventName;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(56, 0, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.person_outline, size: 14, color: style?.color),
+            const SizedBox(width: 6),
+            Flexible(child: Text(name.isEmpty ? 'No scouter name' : name, style: name.isEmpty ? missing : style)),
+          ]),
+          const SizedBox(height: 2),
+          Row(children: [
+            Icon(Icons.event_outlined, size: 14, color: style?.color),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                event == null ? 'No event selected' : '$event (${s.selectedEventKey})',
+                style: event == null ? missing : style,
+              ),
+            ),
+          ]),
+        ],
+      ),
     );
   }
 }
