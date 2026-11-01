@@ -1088,7 +1088,7 @@ class _BallotColumn extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Team sheet: everyone's take on one team, plus your own controls.
+// Team sheet: edit your own notes on a team (shown under it on the lists).
 
 Future<void> showPickBoardTeamSheet(BuildContext context, int teamNumber) {
   return showModalBottomSheet(
@@ -1115,12 +1115,7 @@ class _TeamSheetState extends State<_TeamSheet> {
   @override
   void initState() {
     super.initState();
-    _savedNotes = context
-            .read<PickBoardProvider>()
-            .myList
-            .entryFor(widget.teamNumber)
-            ?.notes ??
-        '';
+    _savedNotes = context.read<PickBoardProvider>().myList.entryFor(widget.teamNumber)?.notes ?? '';
     _notes = TextEditingController(text: _savedNotes);
   }
 
@@ -1130,178 +1125,37 @@ class _TeamSheetState extends State<_TeamSheet> {
     super.dispose();
   }
 
+  void _save() {
+    _savedNotes = _notes.text.trim();
+    _vote(context, PickListUpdate(widget.teamNumber, notes: _savedNotes));
+    Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final p = context.watch<PickBoardProvider>();
-    final tn = widget.teamNumber;
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final mine = p.myList;
-    final entry = mine.entryFor(tn);
-    final status = entry?.isRanked == true
-        ? PickStatus.ranked
-        : entry?.dnp == true
-            ? PickStatus.dnp
-            : PickStatus.unranked;
-    final rankedCount = mine.ranked.length;
-    final rank = entry?.isRanked == true ? entry!.ranking! : null;
-    final rows = p.board.rows(_eventTeamCount(context));
-    final row = rows.where((r) => r.teamNumber == tn).firstOrNull;
-    final taken = p.board.taken.contains(tn);
-    void vote(PickListUpdate u) => _vote(context, u);
-
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-          20, 0, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(teamLabel(context, tn),
-                      style: theme.textTheme.titleLarge),
-                ),
-                TextButton.icon(
-                  icon: const Icon(Icons.badge_outlined),
-                  label: const Text('Details'),
-                  onPressed: () => showTeamDetailsDialog(context, tn),
-                ),
-              ],
-            ),
-            Text(
-              row == null
-                  ? 'Not on anyone\'s list yet'
-                  : row.agreedRank == null
-                      ? 'On ${row.ranks.length} ${row.ranks.length == 1 ? 'list' : 'lists'}, no board spot yet'
-                      : 'Board #${row.agreedRank}'
-                          '${row.agreement == null ? '' : ' · ${row.agreement!.round()}% have it at #${row.agreedRank}'}',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 8),
-            for (final b in p.board.voters)
-              Builder(builder: (context) {
-                final e = b.list.entryFor(tn);
-                final text = e?.isRanked == true
-                    ? '#${e!.ranking}'
-                    : e?.dnp == true
-                        ? 'DNP'
-                        : '—';
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 110,
-                        child: Text(b.voter,
-                            overflow: TextOverflow.ellipsis,
-                            style: b.key == p.myKey
-                                ? const TextStyle(fontWeight: FontWeight.bold)
-                                : null),
-                      ),
-                      SizedBox(
-                        width: 44,
-                        child: Text(text,
-                            style: e?.dnp == true
-                                ? TextStyle(color: scheme.error)
-                                : null),
-                      ),
-                      Expanded(
-                        child: Text(e?.notes ?? '',
-                            style: theme.textTheme.bodySmall),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            const Divider(height: 24),
-            Text('Your pick', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
-            SegmentedButton<PickStatus>(
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(value: PickStatus.ranked, label: Text('Pick')),
-                ButtonSegment(value: PickStatus.unranked, label: Text('Unranked')),
-                ButtonSegment(value: PickStatus.dnp, label: Text('DNP')),
-              ],
-              selected: {status},
-              onSelectionChanged: (s) {
-                final next = s.first;
-                vote(next == PickStatus.ranked
-                    ? PickListUpdate(tn, position: rankedCount + 1)
-                    : PickListUpdate(tn, status: next));
-              },
-            ),
-            if (rank != null) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Text('My #$rank of $rankedCount',
-                      style: theme.textTheme.titleMedium),
-                  const Spacer(),
-                  IconButton(
-                    tooltip: 'Move to top',
-                    icon: const Icon(Icons.vertical_align_top),
-                    onPressed: rank > 1
-                        ? () => vote(PickListUpdate(tn, position: 1))
-                        : null,
-                  ),
-                  IconButton(
-                    tooltip: 'Move up',
-                    icon: const Icon(Icons.arrow_upward),
-                    onPressed: rank > 1
-                        ? () => vote(PickListUpdate(tn, position: rank - 1))
-                        : null,
-                  ),
-                  IconButton(
-                    tooltip: 'Move down',
-                    icon: const Icon(Icons.arrow_downward),
-                    onPressed: rank < rankedCount
-                        ? () => vote(PickListUpdate(tn, position: rank + 1))
-                        : null,
-                  ),
-                  IconButton(
-                    tooltip: 'Move to bottom',
-                    icon: const Icon(Icons.vertical_align_bottom),
-                    onPressed: rank < rankedCount
-                        ? () => vote(PickListUpdate(tn, position: rankedCount))
-                        : null,
-                  ),
-                ],
-              ),
-            ],
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Taken by another alliance'),
-              subtitle: const Text('Shared with everyone'),
-              value: taken,
-              onChanged: (v) => _setTaken(context, tn, v),
-            ),
+            Text(teamLabel(context, widget.teamNumber), style: theme.textTheme.titleLarge),
+            const SizedBox(height: 12),
             TextField(
               controller: _notes,
+              autofocus: true,
               minLines: 2,
               maxLines: 5,
-              decoration: const InputDecoration(
-                labelText: 'My notes',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: 'My notes', border: OutlineInputBorder()),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
               child: FilledButton(
-                onPressed: _notes.text.trim() == _savedNotes
-                    ? null
-                    : () {
-                        _savedNotes = _notes.text.trim();
-                        vote(PickListUpdate(tn, notes: _savedNotes));
-                        setState(() {});
-                      },
+                onPressed: _notes.text.trim() == _savedNotes ? null : _save,
                 child: const Text('Save notes'),
               ),
             ),
