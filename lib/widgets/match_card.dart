@@ -34,6 +34,10 @@ class MatchCard extends StatefulWidget {
   /// Team nicknames next to their numbers.
   final bool showNames;
 
+  /// A colored dot on these teams' chips (Head to Head marks every compared
+  /// team so you can see who was with or against whom).
+  final Map<int, Color> markers;
+
   const MatchCard({
     super.key,
     required this.match,
@@ -41,6 +45,7 @@ class MatchCard extends StatefulWidget {
     this.initiallyExpanded = false,
     this.showPredictions = false,
     this.showNames = true,
+    this.markers = const {},
   });
 
   @override
@@ -232,6 +237,7 @@ class _MatchCardState extends State<MatchCard> {
                             child: _TeamChip(
                               team: alliance.teams[i],
                               color: color,
+                              marker: widget.markers[alliance.teams[i]],
                               highlighted:
                                   alliance.teams[i] == widget.focusTeam,
                             ),
@@ -251,9 +257,9 @@ class _MatchCardState extends State<MatchCard> {
                                 ),
                               ),
                             ),
-                          )
-                        else
-                          const Spacer(),
+                          ),
+                        // Without names the chip keeps its full size; a
+                        // Spacer here would halve its room and shrink it.
                         const SizedBox(width: 6),
                       ],
                     ),
@@ -370,10 +376,12 @@ class _TeamChip extends StatelessWidget {
   final int team;
   final Color color;
   final bool highlighted;
+  final Color? marker;
   const _TeamChip({
     required this.team,
     required this.color,
     required this.highlighted,
+    this.marker,
   });
 
   @override
@@ -392,12 +400,29 @@ class _TeamChip extends StatelessWidget {
             color: color.withValues(alpha: highlighted ? 1 : 0.5),
           ),
         ),
-        child: Text(
-          '$team',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: highlighted ? Colors.white : theme.colorScheme.onSurface,
-            fontWeight: highlighted ? FontWeight.bold : FontWeight.w500,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (marker != null) ...[
+              Container(
+                width: 9,
+                height: 9,
+                decoration: BoxDecoration(
+                  color: marker,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+              ),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              '$team',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: highlighted ? Colors.white : theme.colorScheme.onSurface,
+                fontWeight: highlighted ? FontWeight.bold : FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
