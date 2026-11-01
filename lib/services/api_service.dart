@@ -107,16 +107,6 @@ class ApiService {
       result.toJson(),
       result.photoBase64 == null ? _submitTimeout : _photoSubmitTimeout);
 
-  Future<List<Map<String, dynamic>>> getResults(String eventKey) async {
-    final response = await http
-        .get(Uri.parse('$baseUrl/GetResults?event_key=$eventKey'))
-        .timeout(_timeout);
-    if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(jsonDecode(response.body));
-    }
-    throw Exception('Failed to load results: ${response.statusCode}');
-  }
-
   /// Robot notes are notes-only pit records. PostPitResults upserts by id,
   /// so sending the note's own id (and original time) makes retries safe.
   Future<void> postRobotNote(RobotNote note) => _postRecord('postRobotNote',
