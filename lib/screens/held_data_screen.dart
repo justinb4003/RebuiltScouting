@@ -170,7 +170,7 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
               child: Column(
                 children: [
                   Text(
-                    '$totalHeld items queued',
+                    '$totalHeld ${totalHeld == 1 ? 'item' : 'items'} queued',
                     style: theme.textTheme.headlineSmall,
                   ),
                   const SizedBox(height: 8),

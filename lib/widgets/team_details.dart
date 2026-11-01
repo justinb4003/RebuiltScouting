@@ -247,6 +247,20 @@ class _TeamDetailViewState extends State<TeamDetailView> {
                   if (location.isNotEmpty)
                     Text(location,
                         style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                  if (widget.showName || location.isNotEmpty) const SizedBox(height: 4),
+                  Text(
+                    [
+                      if (record.played > 0) 'Record ${record.label}',
+                      if (record.avgRp != null) '${record.avgRp!.toStringAsFixed(2)} RP/match',
+                      if (record.avgScore != null) '${record.avgScore!.toStringAsFixed(0)} avg pts',
+                      '${stats?.matchesScouted ?? 0} matches scouted',
+                    ].join('  ·  '),
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                  Text(
+                    data.lastFetched == null ? 'Showing saved data' : 'Updated ${_hm(data.lastFetched!)}',
+                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  ),
                 ],
               ),
             ),
@@ -262,20 +276,6 @@ class _TeamDetailViewState extends State<TeamDetailView> {
                 onPressed: _refresh,
               ),
           ],
-        ),
-        const SizedBox(height: 4),
-        Text(
-          [
-            if (record.played > 0) 'Record ${record.label}',
-            if (record.avgRp != null) '${record.avgRp!.toStringAsFixed(2)} RP/match',
-            if (record.avgScore != null) '${record.avgScore!.toStringAsFixed(0)} avg pts',
-            '${stats?.matchesScouted ?? 0} matches scouted',
-          ].join('  ·  '),
-          style: theme.textTheme.bodyMedium,
-        ),
-        Text(
-          data.lastFetched == null ? 'Showing saved data' : 'Updated ${_hm(data.lastFetched!)}',
-          style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
         ),
         if (data.error != null)
           Padding(

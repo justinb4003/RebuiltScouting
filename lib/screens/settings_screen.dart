@@ -276,6 +276,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
+                      MergeSemantics(
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
                       Text('Season ',
                           style: theme.textTheme.bodySmall?.copyWith(
                               color: theme.colorScheme.onSurfaceVariant)),
@@ -300,9 +304,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           appState.setEventYear(year);
                         },
                       ),
-                      Text('  \u00b7  Updated $buildTimestamp',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant)),
+                          ],
+                        ),
+                      ),
+                      Semantics(
+                        container: true,
+                        child: Text('  \u00b7  Updated $buildTimestamp',
+                            style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant)),
+                      ),
                     ],
                   ),
                 ],
@@ -396,7 +406,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           controller: controller,
           focusNode: focusNode,
           decoration: InputDecoration(
-            labelText: 'Event',
             hintText: 'Search by name or code',
             helperText: settings.selectedEventKey == null
                 ? 'Pick an event to start scouting'
