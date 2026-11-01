@@ -47,7 +47,7 @@ class App extends StatelessWidget {
         '/scouting-status': (context) => const ScoutingStatusScreen(),
         '/pit-status': (context) => const PitStatusScreen(),
         '/robot-note': (context) => const RobotNoteScreen(),
-        '/pick-board': (context) => const PickBoardScreen(),
+        '/pick-list': (context) => const PickBoardScreen(),
         '/clusters': (context) => const ClustersScreen(),
         '/dimensions': (context) => const DimensionsScreen(),
         '/rankings': (context) => const RankingsScreen(),

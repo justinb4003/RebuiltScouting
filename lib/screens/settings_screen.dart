@@ -90,7 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 3),
+      drawer: const NavDrawer(selectedIndex: 4),
       body: Stack(
         children: [
           ListView(

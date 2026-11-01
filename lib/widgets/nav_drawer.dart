@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../providers/app_state_provider.dart';
 
 class NavDrawer extends StatelessWidget {
@@ -8,13 +7,12 @@ class NavDrawer extends StatelessWidget {
 
   const NavDrawer({super.key, required this.selectedIndex});
 
-  static const _routes = ['/scout', '/pit', '/held', '/settings', '/scouting-status', '/pit-status', '/robot-note', '/pick-board', '/clusters', '/dimensions', '/rankings', '/team-details', '/match-breakdowns', '/head-to-head'];
+  static const _routes = ['/scout', '/pit', '/robot-note', '/held', '/settings', '/scouting-status', '/pit-status', '/match-breakdowns', '/rankings', '/team-details', '/head-to-head', '/pick-list', '/clusters', '/dimensions'];
 
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppStateProvider>();
     final heldCount = appState.heldDataCount;
-    final settings = appState.settings;
 
     return NavigationDrawer(
       selectedIndex: selectedIndex,
@@ -41,6 +39,11 @@ class NavDrawer extends StatelessWidget {
           selectedIcon: Icon(Icons.build),
           label: Text('Scout Pit'),
         ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.sticky_note_2_outlined),
+          selectedIcon: Icon(Icons.sticky_note_2),
+          label: Text('Robot Note'),
+        ),
         NavigationDrawerDestination(
           icon: Badge(
             isLabelVisible: heldCount > 0,
@@ -60,6 +63,7 @@ class NavDrawer extends StatelessWidget {
           label: Text('Settings'),
         ),
         const Divider(indent: 28, endIndent: 28),
+        const _SectionLabel('Management'),
         const NavigationDrawerDestination(
           icon: Icon(Icons.grid_on_outlined),
           selectedIcon: Icon(Icons.grid_on),
@@ -70,26 +74,12 @@ class NavDrawer extends StatelessWidget {
           selectedIcon: Icon(Icons.fact_check),
           label: Text('Pit Status'),
         ),
-        const NavigationDrawerDestination(
-          icon: Icon(Icons.sticky_note_2_outlined),
-          selectedIcon: Icon(Icons.sticky_note_2),
-          label: Text('Robot Note'),
-        ),
         const Divider(indent: 28, endIndent: 28),
+        const _SectionLabel('Analytics'),
         const NavigationDrawerDestination(
-          icon: Icon(Icons.how_to_vote_outlined),
-          selectedIcon: Icon(Icons.how_to_vote),
-          label: Text('Pick Board'),
-        ),
-        const NavigationDrawerDestination(
-          icon: Icon(Icons.bubble_chart_outlined),
-          selectedIcon: Icon(Icons.bubble_chart),
-          label: Text('Clusters'),
-        ),
-        const NavigationDrawerDestination(
-          icon: Icon(Icons.tune_outlined),
-          selectedIcon: Icon(Icons.tune),
-          label: Text('Dimensions'),
+          icon: Icon(Icons.sports_esports_outlined),
+          selectedIcon: Icon(Icons.sports_esports),
+          label: Text('Match Breakdowns'),
         ),
         const NavigationDrawerDestination(
           icon: Icon(Icons.leaderboard_outlined),
@@ -102,33 +92,24 @@ class NavDrawer extends StatelessWidget {
           label: Text('Team Details'),
         ),
         const NavigationDrawerDestination(
-          icon: Icon(Icons.sports_esports_outlined),
-          selectedIcon: Icon(Icons.sports_esports),
-          label: Text('Match Breakdowns'),
-        ),
-        const NavigationDrawerDestination(
           icon: Icon(Icons.compare_arrows_outlined),
           selectedIcon: Icon(Icons.compare_arrows),
           label: Text('Head to Head'),
         ),
-        const Divider(indent: 28, endIndent: 28),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: TextButton.icon(
-            onPressed: () {
-              final uri = Uri.parse('https://frcscout.streamlit.app').replace(
-                queryParameters: {
-                  if (settings.selectedEventKey != null)
-                    'event_key': settings.selectedEventKey!,
-                  if (settings.secretTeamKey.isNotEmpty)
-                    'secret_key': settings.secretTeamKey,
-                },
-              );
-              launchUrl(uri, mode: LaunchMode.externalApplication);
-            },
-            icon: const Icon(Icons.analytics_outlined),
-            label: const Text('Analytics'),
-          ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.how_to_vote_outlined),
+          selectedIcon: Icon(Icons.how_to_vote),
+          label: Text('Pick List'),
+        ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.bubble_chart_outlined),
+          selectedIcon: Icon(Icons.bubble_chart),
+          label: Text('Clusters'),
+        ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.tune_outlined),
+          selectedIcon: Icon(Icons.tune),
+          label: Text('Dimensions'),
         ),
         const Divider(indent: 28, endIndent: 28),
         Padding(
@@ -183,6 +164,21 @@ class NavDrawer extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A heading for a group of drawer destinations.
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(28, 12, 16, 8),
+      child: Text(text, style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
     );
   }
 }

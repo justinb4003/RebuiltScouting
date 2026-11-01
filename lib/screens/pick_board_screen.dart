@@ -99,7 +99,7 @@ class _PickBoardScreenState extends State<PickBoardScreen> {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Pick Board'),
+          title: const Text('Pick List'),
           actions: [if (message == null) _syncIndicator(p)],
           bottom: message != null
               ? null
@@ -109,7 +109,7 @@ class _PickBoardScreenState extends State<PickBoardScreen> {
                   Tab(text: 'Other Lists'),
                 ]),
         ),
-        drawer: const NavDrawer(selectedIndex: 7),
+        drawer: const NavDrawer(selectedIndex: 11),
         body: message != null
             ? Center(
                 child: Padding(

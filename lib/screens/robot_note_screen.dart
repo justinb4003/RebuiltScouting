@@ -82,7 +82,7 @@ class _RobotNoteScreenState extends State<RobotNoteScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 6),
+      drawer: const NavDrawer(selectedIndex: 2),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

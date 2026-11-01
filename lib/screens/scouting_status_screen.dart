@@ -196,7 +196,7 @@ class _ScoutingStatusScreenState extends State<ScoutingStatusScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 4),
+      drawer: const NavDrawer(selectedIndex: 5),
       body: Column(
         children: [
           _refreshButton(),

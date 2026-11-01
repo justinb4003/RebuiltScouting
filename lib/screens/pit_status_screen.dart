@@ -130,7 +130,7 @@ class _PitStatusScreenState extends State<PitStatusScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 5),
+      drawer: const NavDrawer(selectedIndex: 6),
       body: Column(
         children: [
           _refreshButton(),

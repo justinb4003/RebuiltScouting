@@ -65,7 +65,7 @@ Analytics data policy: show the per-event SharedPreferences cache immediately, f
 - `/held` — queued data awaiting upload
 - `/scouting-status` — table showing which teams have been scouted per match
 - `/pit-status` — table showing pit scouting completion per team
-- `/pick-board` — Board (everyone's ballots, Total, 0–100 agreement bar, DNP/taken badges) My List (your own drag-and-drop ballot) and Other Lists (everyone else's ballots as side-scrolling read-only columns)
+- `/pick-list` — Pick List (`PickBoardScreen`, formerly the Pick Board at `/pick-board`): Board (everyone's ballots, Total, 0–100 agreement bar, DNP/taken badges) My List (your own drag-and-drop ballot) and Other Lists (everyone else's ballots as side-scrolling read-only columns)
 - `/clusters` — KMeans groups from the API's `GetClusters`, with per-group scatter (fl_chart) and feature profile. Shows `ClusterProvider`'s result (ApiService also caches per request for the session; refresh clears). Axes default to `ClusterResult.defaultAxes` (best group separation, R², singleton groups ignored; Y discounted by correlation with X); manual picks are static so they persist across visits. Tapping a team chip marks that team in red on the group's scatter and dimension strips
 - `/dimensions` — pick clustering dimensions and weights and the group count; reset to or publish the team default
 - `/rankings` — official event rankings table + ranking-score chart
