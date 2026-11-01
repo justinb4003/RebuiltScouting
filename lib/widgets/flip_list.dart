@@ -56,10 +56,14 @@ class _FlipScopeState extends State<FlipScope> {
 
   void _poof(_Ghost g) {
     if (_leaving) return;
-    // Items leave while an ancestor of this scope rebuilds, so marking the
-    // scope dirty now is allowed and it rebuilds in the same frame: the
-    // ghost replaces the row with no blank frame in between.
-    setState(() => _ghosts.add(g));
+    // Items leave while this scope's own subtree is rebuilding (e.g. a
+    // filter dropped them), where marking the scope dirty isn't allowed.
+    // Add the ghost right after this frame instead; the row is gone for one
+    // frame before its puff of smoke starts.
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_leaving) setState(() => _ghosts.add(g));
+    });
+    SchedulerBinding.instance.ensureVisualUpdate();
   }
 
   @override
