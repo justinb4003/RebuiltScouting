@@ -71,7 +71,7 @@ Analytics data policy: show the per-event SharedPreferences cache immediately, f
 - `/rankings` — official event rankings table + ranking-score chart
 - `/team-details` (argument: `int` team number; or `openTeamDetails(context, tn)`) — reusable `TeamDetailView`: pit data, scouted averages, OPR, Similar teams (cluster group, nearest neighbors, each dimension's share of what sets the team apart), and a `MatchCard` per match
 - `/match-breakdowns` — every match as a `MatchCard` (shared with Team Details), filterable by team
-- `/head-to-head` — 2–6 teams side by side
+- `/head-to-head` — 2–6 teams side by side in three movable, collapsible sections (order and open state saved like Team Details): Official results (table + every match on `MatchCard`, one column per team when each gets ≥340px, else one list in match order; compared teams marked via `MatchCard.markers`), Pit scouting, and Dimensions (every clustering dimension from `ClusterProvider` as a `RangeStrip`, one dot per team, biggest differences first). Teams are saved per event; teams and scroll position survive leaving the screen
 
 `NavDrawer(selectedIndex:)` indexes follow `_routes` in `widgets/nav_drawer.dart`; inserting a destination shifts every later screen's index.
 

@@ -43,6 +43,9 @@ class StorageService {
   static const String _oprCacheKey = 'opr_cache';
   static const String _collapsedSectionsKey = 'team_details_collapsed';
   static const String _sectionOrderKey = 'team_details_section_order';
+  static const String _h2hOrderKey = 'head_to_head_section_order';
+  static const String _h2hOpenKey = 'head_to_head_open_sections';
+  static const String _h2hTeamsKey = 'head_to_head_teams';
   static const String _clusterTeamConfigKey = 'cluster_config_team';
   static const String _clusterCustomConfigKey = 'cluster_config_custom';
   static const String _clusterResultCacheKey = 'cluster_result_cache';
@@ -465,6 +468,34 @@ class StorageService {
 
   Future<void> saveSectionOrder(List<String> order) async =>
       (await _getPrefs()).setStringList(_sectionOrderKey, order);
+
+  // Head to Head layout (section order, open sections) and teams per event.
+  Future<(List<String>, Set<String>?)> loadHeadToHeadLayout() async {
+    final prefs = await _getPrefs();
+    final open = prefs.getStringList(_h2hOpenKey);
+    return (prefs.getStringList(_h2hOrderKey) ?? const <String>[], open?.toSet());
+  }
+
+  Future<void> saveHeadToHeadLayout(List<String> order, Set<String> open) async {
+    final prefs = await _getPrefs();
+    await prefs.setStringList(_h2hOrderKey, order);
+    await prefs.setStringList(_h2hOpenKey, open.toList()..sort());
+  }
+
+  Future<List<int>> loadHeadToHeadTeams(String eventKey) async {
+    final json = (await _getPrefs()).getString(_h2hTeamsKey);
+    if (json == null) return [];
+    final List<dynamic>? teams = (jsonDecode(json) as Map<String, dynamic>)[eventKey];
+    return [for (final t in teams ?? const []) t as int];
+  }
+
+  Future<void> saveHeadToHeadTeams(String eventKey, List<int> teams) async {
+    final prefs = await _getPrefs();
+    final json = prefs.getString(_h2hTeamsKey);
+    final all = json == null ? <String, dynamic>{} : jsonDecode(json) as Map<String, dynamic>;
+    all[eventKey] = teams;
+    await prefs.setString(_h2hTeamsKey, jsonEncode(all));
+  }
 
   Future<OprData> loadCachedOpr(String eventKey) async =>
       oprFromJson(await _loadPerEvent(_oprCacheKey, eventKey));
