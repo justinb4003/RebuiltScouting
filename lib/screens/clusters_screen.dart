@@ -218,7 +218,7 @@ class _ClustersScreenState extends State<ClustersScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 9),
+      drawer: const NavDrawer(selectedIndex: 8),
       body: Column(
         children: [
           if (loading) const LinearProgressIndicator(),

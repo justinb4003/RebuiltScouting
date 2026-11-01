@@ -9,7 +9,6 @@ import 'screens/settings_screen.dart';
 import 'screens/scouting_status_screen.dart';
 import 'screens/pit_status_screen.dart';
 import 'screens/robot_note_screen.dart';
-import 'screens/pick_list_screen.dart';
 import 'screens/pick_board_screen.dart';
 import 'screens/clusters_screen.dart';
 import 'screens/dimensions_screen.dart';
@@ -49,7 +48,6 @@ class App extends StatelessWidget {
         '/pit-status': (context) => const PitStatusScreen(),
         '/robot-note': (context) => const RobotNoteScreen(),
         '/pick-board': (context) => const PickBoardScreen(),
-        '/pick-list': (context) => const PickListScreen(),
         '/clusters': (context) => const ClustersScreen(),
         '/dimensions': (context) => const DimensionsScreen(),
         '/rankings': (context) => const RankingsScreen(),
