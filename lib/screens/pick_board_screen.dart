@@ -189,50 +189,68 @@ class _BoardViewState extends State<_BoardView> {
   void _saveFilters() =>
       StorageService.instance.saveBoardFilters(_eventKey, _minVotes, _excluded);
 
+  /// Who counts on the board. Edits a draft; OK applies it, Cancel drops it.
   Future<void> _pickPeople(List<Ballot> all) async {
-    await showDialog<void>(
+    var draft = {..._excluded};
+    final result = await showDialog<Set<String>>(
       context: context,
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialog) {
-          void set(Set<String> excluded) {
-            setDialog(() {});
-            setState(() => _excluded = excluded);
-            _saveFilters();
-          }
-
+          final included = all.where((b) => !draft.contains(b.key)).length;
           return AlertDialog(
-            title: const Text('People to include'),
+            title: const Text('Participants'),
             contentPadding: const EdgeInsets.only(top: 12),
             content: SizedBox(
               width: 320,
-              child: ListView(
-                shrinkWrap: true,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  for (final b in all)
-                    CheckboxListTile(
-                      dense: true,
-                      title: Text(b.voter),
-                      value: !_excluded.contains(b.key),
-                      onChanged: (v) => set(v == true
-                          ? ({..._excluded}..remove(b.key))
-                          : {..._excluded, b.key}),
+                  CheckboxListTile(
+                    tristate: true,
+                    title: Text('Everyone ($included/${all.length})'),
+                    value: included == all.length
+                        ? true
+                        : included == 0
+                            ? false
+                            : null,
+                    onChanged: (_) => setDialog(() => draft = included == all.length
+                        ? {for (final b in all) b.key}
+                        : {}),
+                  ),
+                  const Divider(height: 1),
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final b in all)
+                          CheckboxListTile(
+                            title: Text(b.voter),
+                            value: !draft.contains(b.key),
+                            onChanged: (v) => setDialog(() => v == true
+                                ? draft.remove(b.key)
+                                : draft.add(b.key)),
+                          ),
+                      ],
                     ),
+                  ),
                 ],
               ),
             ),
             actions: [
               TextButton(
-                  onPressed: () => set({for (final b in all) b.key}),
-                  child: const Text('None')),
-              TextButton(onPressed: () => set({}), child: const Text('All')),
-              TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Done')),
+                  child: const Text('Cancel')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(ctx, draft),
+                  child: const Text('OK')),
             ],
           );
         },
       ),
     );
+    if (result == null || !mounted) return;
+    setState(() => _excluded = result);
+    _saveFilters();
   }
 
   @override
@@ -271,6 +289,15 @@ class _BoardViewState extends State<_BoardView> {
           (constraints.maxWidth - 700 - shownVoters.length * _voterColumnWidth) / 2);
       // Not a lazy ListView: rows glide to new spots (FlipScope), which
       // needs them all laid out. A board is at most one row per team.
+      // Shade by spot, not by row, so tied teams (two #2s) share a band.
+      // Teams without a spot each get their own.
+      final shaded = <bool>[];
+      for (final (i, row) in rows.indexed) {
+        final sameSpot = i > 0 &&
+            row.agreedRank != null &&
+            row.agreedRank == rows[i - 1].agreedRank;
+        shaded.add(i == 0 ? false : (sameSpot ? shaded[i - 1] : !shaded[i - 1]));
+      }
       return SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 32),
         child: FlipScope(
@@ -279,56 +306,39 @@ class _BoardViewState extends State<_BoardView> {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
+            child: Row(
               children: [
+                Text('Min votes', style: theme.textTheme.bodyMedium),
+                const SizedBox(width: 6),
+                DropdownButton<int>(
+                  value: _minVotes,
+                  isDense: true,
+                  items: [
+                    for (var i = 1; i <= 10; i++)
+                      DropdownMenuItem(value: i, child: Text('$i')),
+                  ],
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setState(() => _minVotes = v);
+                    _saveFilters();
+                  },
+                ),
+                const Spacer(),
                 ActionChip(
                   avatar: const Icon(Icons.people_outline, size: 18),
                   label: Text(
-                      'People: ${voters.length}/${allVoters.length}'),
+                      'Participants: ${voters.length}/${allVoters.length}'),
                   onPressed: () => _pickPeople(allVoters),
-                ),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Min votes', style: theme.textTheme.bodyMedium),
-                    const SizedBox(width: 6),
-                    DropdownButton<int>(
-                      value: _minVotes,
-                      isDense: true,
-                      items: [
-                        for (var i = 1; i <= 10; i++)
-                          DropdownMenuItem(value: i, child: Text('$i')),
-                      ],
-                      onChanged: (v) {
-                        if (v == null) return;
-                        setState(() => _minVotes = v);
-                        _saveFilters();
-                      },
-                    ),
-                  ],
                 ),
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
-            child: Text(
-              'Row #1 is the team the most people put at #1 on their list, '
-              '#2 the team the most put at #2, and so on; ties show every '
-              'tied team. Agreement is the '
-              'share of people who have it at that spot. Full bar: everyone '
-              'agrees, move on to the next team.',
-              style: muted,
-            ),
-          ),
+          const SizedBox(height: 8),
           if (voters.isEmpty)
             Padding(
               padding: const EdgeInsets.all(24),
               child: Text(
-                'Everyone is excluded. Pick people with the People button.',
+                'Everyone is excluded. Pick participants with the Participants button.',
                 textAlign: TextAlign.center,
                 style: muted,
               ),
@@ -341,7 +351,7 @@ class _BoardViewState extends State<_BoardView> {
               child: _BoardRowTile(
                 row: row,
                 shownVoters: shownVoters,
-                shaded: i.isOdd,
+                shaded: shaded[i],
               ),
             ),
         ],
@@ -366,7 +376,7 @@ class _BoardHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       child: Row(
         children: [
-          SizedBox(width: 32, child: Text('#', style: style)),
+          SizedBox(width: 36, child: Text('#', style: style)),
           Expanded(child: Text('Team', style: style)),
           SizedBox(
               width: _agreementWidth,
@@ -434,9 +444,13 @@ class _BoardRowTile extends StatelessWidget {
         child: Row(
           children: [
             SizedBox(
-              width: 32,
-              child: Text(row.agreedRank == null ? '' : '${row.agreedRank}',
-                  style: theme.textTheme.bodyMedium),
+              width: 36,
+              child: row.agreedRank == null
+                  ? null
+                  : Align(
+                      alignment: Alignment.centerLeft,
+                      child: _SpotDisc(row.agreedRank!),
+                    ),
             ),
             Expanded(
               child: Column(
@@ -471,7 +485,7 @@ class _BoardRowTile extends StatelessWidget {
               ),
             ),
             SizedBox(
-                width: _agreementWidth, child: _AgreementBar(row.agreement)),
+                width: _agreementWidth, child: _AgreementBar(row)),
             for (final b in shownVoters)
               SizedBox(
                 width: _voterColumnWidth,
@@ -513,18 +527,44 @@ class _Badge extends StatelessWidget {
   }
 }
 
-/// 0–100 agreement as a bar on a full-width track, value beside it.
-class _AgreementBar extends StatelessWidget {
-  final double? value;
+/// The board spot on a colored disc; four colors cycle by spot so tied rows
+/// (two #2s) read as one group and neighboring spots always differ.
+class _SpotDisc extends StatelessWidget {
+  final int spot;
 
-  const _AgreementBar(this.value);
+  const _SpotDisc(this.spot);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    // Translucent so it works on light and dark surfaces.
+    const hues = [Colors.blue, Colors.amber, Colors.green, Colors.purple];
+    final bg = hues[(spot - 1) % hues.length].withValues(alpha: 0.3);
+    final fg = scheme.onSurface;
+    return Container(
+      width: 28,
+      height: 28,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+      child: Text('$spot',
+          style: theme.textTheme.bodyMedium?.copyWith(color: fg, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+/// Agreement as a bar on a full-width track, votes / people beside it.
+class _AgreementBar extends StatelessWidget {
+  final BoardRow row;
+
+  const _AgreementBar(this.row);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final dark = theme.brightness == Brightness.dark;
-    final v = value;
+    final v = row.agreement;
     return Row(
       children: [
         Expanded(
@@ -551,7 +591,7 @@ class _AgreementBar extends StatelessWidget {
         SizedBox(
           width: 40,
           child: Text(
-            v == null ? '—' : '${v.round()}%',
+            v == null ? '—' : '${row.agreeVotes}/${row.voterCount}',
             textAlign: TextAlign.end,
             style: theme.textTheme.bodySmall,
           ),

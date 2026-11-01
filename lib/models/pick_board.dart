@@ -44,6 +44,10 @@ class BoardRow {
   /// 0–100: share of everyone voting who put the team exactly at
   /// [agreedRank]. Null with fewer than two people voting or no spot.
   final double? agreement;
+
+  /// Votes behind [agreement] and how many people are voting.
+  final int? agreeVotes;
+  final int voterCount;
   final bool taken;
 
   const BoardRow({
@@ -52,6 +56,8 @@ class BoardRow {
     required this.dnpBy,
     required this.agreedRank,
     required this.agreement,
+    this.agreeVotes,
+    this.voterCount = 0,
     required this.taken,
   });
 }
@@ -136,6 +142,8 @@ class PickBoard {
           agreement: spot == null || voters.length < 2
               ? null
               : 100 * votesAt(tn, spot) / voters.length,
+          agreeVotes: spot == null || voters.length < 2 ? null : votesAt(tn, spot),
+          voterCount: voters.length,
           taken: taken.contains(tn),
         );
 
