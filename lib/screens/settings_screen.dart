@@ -18,6 +18,7 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  static bool _eventsRefreshed = false;
   late TextEditingController _nameController;
   late TextEditingController _keyController;
   late TextEditingController _eventSearchController;
@@ -38,10 +39,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
       text: settings.selectedEventName ?? '',
     );
 
-    // Load events from cache or API when settings screen opens
-    if (appState.events.isEmpty) {
+    // No cached events: load them. Otherwise refresh quietly once per app
+    // session so newly added events show up.
+    if (appState.events.isEmpty || !_eventsRefreshed) {
+      final quiet = appState.events.isNotEmpty;
+      _eventsRefreshed = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        appState.loadEvents(settings.eventYear);
+        appState.loadEvents(settings.eventYear, quiet: quiet);
       });
     }
   }
@@ -74,342 +78,296 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final appState = context.watch<AppStateProvider>();
     final settings = appState.settings;
+    final theme = Theme.of(context);
+    final hasEvent = settings.selectedEventKey?.isNotEmpty ?? false;
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(settings.selectedEventName ?? 'Configure Event to Continue...'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Text(
-              'Updated $buildTimestamp',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
-            ),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Settings')),
       drawer: const NavDrawer(selectedIndex: 4),
       body: Stack(
         children: [
-          ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          // Dyslexia-friendly font toggle
-          SwitchListTile(
-            title: const Text('Dyslexia-friendly font'),
-            subtitle: const Text('Use OpenDyslexic across the app'),
-            secondary: const Icon(Icons.font_download),
-            value: settings.useOpenDyslexic,
-            onChanged: (value) {
-              settings.useOpenDyslexic = value;
-              appState.saveAndNotify();
-            },
-          ),
-          const SizedBox(height: 16),
-
-          // Scouter Name
-          TextField(
-            controller: _nameController,
-            decoration: const InputDecoration(
-              labelText: 'Scouter Name',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.person),
-            ),
-            onChanged: (_) => _debouncedSaveTextFields(),
-          ),
-          const SizedBox(height: 16),
-
-          // Secret Team Key
-          TextField(
-            controller: _keyController,
-            decoration: const InputDecoration(
-              labelText: 'Secret Team Key',
-              border: OutlineInputBorder(),
-              prefixIcon: Icon(Icons.key),
-            ),
-            onChanged: (_) => _debouncedSaveTextFields(),
-          ),
-          const SizedBox(height: 24),
-
-          // Event Selection
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 640),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
                 children: [
-                  Text('Event Selection',
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: DropdownMenu<int>(
-                          label: const Text('Year'),
-                          initialSelection: settings.eventYear,
-                          onSelected: (year) {
-                            if (year != null) {
-                              appState.setEventYear(year);
-                              // Clear event selection when year changes
-                              _eventSearchController.clear();
-                              appState.setEventKey('');
-                            }
-                          },
-                          dropdownMenuEntries: List.generate(
-                            5,
-                            (i) {
-                              final y = DateTime.now().year - i;
-                              return DropdownMenuEntry(
-                                  value: y, label: '$y');
-                            },
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      FilledButton.icon(
-                        onPressed: appState.loading
-                            ? null
-                            : () => appState.loadEvents(settings.eventYear),
-                        icon: const Icon(Icons.refresh),
-                        label: const Text('Force Events Refresh'),
-                      ),
-                    ],
+                  _sectionHeader('You'),
+                  TextField(
+                    controller: _nameController,
+                    decoration: const InputDecoration(
+                      labelText: 'Scouter name',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.person),
+                    ),
+                    onChanged: (_) => _debouncedSaveTextFields(),
                   ),
                   const SizedBox(height: 12),
+                  TextField(
+                    controller: _keyController,
+                    decoration: const InputDecoration(
+                      labelText: 'Secret team key',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.key),
+                    ),
+                    onChanged: (_) => _debouncedSaveTextFields(),
+                  ),
 
-                  // Event search autocomplete
+                  _sectionHeader('Event'),
                   _buildEventAutocomplete(appState, settings),
-
-                  if (settings.selectedEventKey != null &&
-                      settings.selectedEventKey!.isNotEmpty)
+                  if (appState.loading)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 8),
+                      child: LinearProgressIndicator(),
+                    ),
+                  if (appState.error != null)
                     Padding(
-                      padding: const EdgeInsets.only(top: 4, left: 12),
+                      padding: const EdgeInsets.only(top: 8, left: 12),
                       child: Text(
-                        settings.selectedEventKey!,
-                        style: Theme.of(context)
-                            .textTheme
-                            .bodyMedium
-                            ?.copyWith(
-                              color: Theme.of(context).colorScheme.primary,
-                              fontWeight: FontWeight.bold,
-                            ),
+                        appState.error!,
+                        style: TextStyle(color: theme.colorScheme.error),
                       ),
                     ),
-                  const SizedBox(height: 12),
-
-                  // Load Teams button
-                  if (settings.selectedEventKey != null &&
-                      settings.selectedEventKey!.isNotEmpty)
-                    FilledButton.icon(
-                      onPressed: appState.loading
-                          ? null
-                          : () => appState.loadTeams(),
-                      icon: const Icon(Icons.groups),
-                      label: Text(appState.teams.isEmpty
-                          ? 'Load Teams'
-                          : 'Force Reload Teams (${appState.teams.length} loaded)'),
+                  if (hasEvent) ...[
+                    const SizedBox(height: 8),
+                    Card(
+                      margin: EdgeInsets.zero,
+                      clipBehavior: Clip.antiAlias,
+                      child: ExpansionTile(
+                        leading: const Icon(Icons.groups),
+                        title: Text(appState.teams.isEmpty
+                            ? 'No teams loaded'
+                            : '${appState.teams.length} teams'),
+                        subtitle: Text(settings.selectedEventKey!),
+                        shape: const Border(),
+                        childrenPadding:
+                            const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: (List.of(appState.teams)
+                                  ..sort((a, b) =>
+                                      a.teamNumber.compareTo(b.teamNumber)))
+                                .map((team) => Chip(
+                                      label: Text('${team.teamNumber}'),
+                                      visualDensity: VisualDensity.compact,
+                                    ))
+                                .toList(),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton.icon(
+                            onPressed: appState.loading
+                                ? null
+                                : () => appState.loadTeams(),
+                            icon: const Icon(Icons.refresh),
+                            label: const Text('Reload teams'),
+                          ),
+                        ],
+                      ),
                     ),
-                ],
-              ),
-            ),
-          ),
+                  ],
 
-          // Team list card
-          if (appState.teams.isNotEmpty)
-            Padding(
-              padding: const EdgeInsets.only(top: 16),
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Teams (${appState.teams.length})',
-                          style:
-                              Theme.of(context).textTheme.titleMedium),
-                      const SizedBox(height: 12),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: (List.of(appState.teams)
-                              ..sort((a, b) =>
-                                  a.teamNumber.compareTo(b.teamNumber)))
-                            .map((team) => Tooltip(
-                                  message: team.nickname,
-                                  child: Chip(
-                                    label: Text('${team.teamNumber}'),
-                                    visualDensity: VisualDensity.compact,
-                                  ),
-                                ))
-                            .toList(),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-
-          if (appState.loading)
-            const Padding(
-              padding: EdgeInsets.all(16),
-              child: Center(child: CircularProgressIndicator()),
-            ),
-
-          if (appState.error != null)
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Text(
-                appState.error!,
-                style: TextStyle(
-                    color: Theme.of(context).colorScheme.error),
-              ),
-            ),
-
-          // Theme mode toggle
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Appearance',
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 12),
-                  FixedSegmentedButton<String>(
-                    segments: const [
-                      ButtonSegment(
-                        value: 'light',
-                        label: Text('Light'),
-                        icon: Icon(Icons.light_mode),
-                      ),
-                      ButtonSegment(
-                        value: 'system',
-                        label: Text('System'),
-                        icon: Icon(Icons.settings_brightness),
-                      ),
-                      ButtonSegment(
-                        value: 'dark',
-                        label: Text('Dark'),
-                        icon: Icon(Icons.dark_mode),
-                      ),
-                    ],
-                    selected: {settings.themeMode},
-                    onSelectionChanged: (selected) {
-                      settings.themeMode = selected.first;
-                      appState.saveAndNotify();
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-
-          // Theme color picker
-          const SizedBox(height: 16),
-          Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('Theme Color',
-                      style: Theme.of(context).textTheme.titleMedium),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: AppTheme.themeColors.entries.map((entry) {
-                      final isSelected =
-                          settings.themeColor == entry.value.toARGB32();
-                      return Semantics(
-                        button: true,
-                        label: '${entry.key} theme color${isSelected ? ', selected' : ''}',
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(20),
-                          onTap: () {
-                            settings.themeColor = entry.value.toARGB32();
+                  _sectionHeader('Scouting'),
+                  Card(
+                    margin: EdgeInsets.zero,
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: [
+                        SwitchListTile(
+                          title: const Text('Scrollable scouting layout'),
+                          subtitle: const Text(
+                              'Show match scouting as one scrollable page'),
+                          secondary: const Icon(Icons.view_day),
+                          value: settings.scrollableScoutLayout,
+                          onChanged: (value) {
+                            settings.scrollableScoutLayout = value;
                             appState.saveAndNotify();
                           },
-                          child: Tooltip(
-                            message: entry.key,
-                            child: Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: entry.value,
-                              shape: BoxShape.circle,
-                              border: isSelected
-                                  ? Border.all(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface,
-                                      width: 3,
-                                    )
-                                  : null,
-                            ),
-                            child: isSelected
-                                ? Icon(Icons.check,
-                                    color: ThemeData.estimateBrightnessForColor(
-                                                entry.value) ==
-                                            Brightness.dark
-                                        ? Colors.white
-                                        : Colors.black,
-                                    size: 20)
-                                : null,
+                        ),
+                        SwitchListTile(
+                          title: const Text('Haptic feedback'),
+                          subtitle: const Text('Vibrate on counter taps'),
+                          secondary: const Icon(Icons.vibration),
+                          value: settings.hapticEnabled,
+                          onChanged: (value) {
+                            settings.hapticEnabled = value;
+                            appState.saveAndNotify();
+                          },
+                        ),
+                        SwitchListTile(
+                          title: const Text('Confetti'),
+                          subtitle: const Text('Celebrate when scouting'),
+                          secondary: const Icon(Icons.celebration),
+                          value: settings.confettiEnabled,
+                          onChanged: (value) {
+                            settings.confettiEnabled = value;
+                            appState.saveAndNotify();
+                            if (value) {
+                              _confettiKey.currentState?.fire();
+                            }
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  _sectionHeader('Appearance'),
+                  Card(
+                    margin: EdgeInsets.zero,
+                    clipBehavior: Clip.antiAlias,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            child: FixedSegmentedButton<String>(
+                              segments: const [
+                                ButtonSegment(
+                                  value: 'light',
+                                  label: Text('Light'),
+                                  icon: Icon(Icons.light_mode),
+                                ),
+                                ButtonSegment(
+                                  value: 'system',
+                                  label: Text('System'),
+                                  icon: Icon(Icons.settings_brightness),
+                                ),
+                                ButtonSegment(
+                                  value: 'dark',
+                                  label: Text('Dark'),
+                                  icon: Icon(Icons.dark_mode),
+                                ),
+                              ],
+                              selected: {settings.themeMode},
+                              onSelectionChanged: (selected) {
+                                settings.themeMode = selected.first;
+                                appState.saveAndNotify();
+                              },
                             ),
                           ),
-                        ),
-                      );
-                    }).toList(),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 8),
+                            child: _buildColorPicker(appState, settings),
+                          ),
+                          SwitchListTile(
+                            title: const Text('Dyslexia-friendly font'),
+                            subtitle:
+                                const Text('Use OpenDyslexic across the app'),
+                            secondary: const Icon(Icons.font_download),
+                            value: settings.useOpenDyslexic,
+                            onChanged: (value) {
+                              settings.useOpenDyslexic = value;
+                              appState.saveAndNotify();
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text('Season ',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant)),
+                      DropdownButton<int>(
+                        value: settings.eventYear,
+                        isDense: true,
+                        underline: const SizedBox.shrink(),
+                        style: theme.textTheme.bodySmall,
+                        items: {
+                          for (var i = 0; i < 5; i++) DateTime.now().year - i,
+                          settings.eventYear,
+                        }
+                            .map((y) =>
+                                DropdownMenuItem(value: y, child: Text('$y')))
+                            .toList(),
+                        onChanged: (year) {
+                          if (year == null || year == settings.eventYear) {
+                            return;
+                          }
+                          _eventSearchController.clear();
+                          appState.setEventKey('');
+                          appState.setEventYear(year);
+                        },
+                      ),
+                      Text('  \u00b7  Updated $buildTimestamp',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant)),
+                    ],
                   ),
                 ],
               ),
             ),
           ),
-
-          // Confetti & haptic toggles
-          const SizedBox(height: 16),
-          SwitchListTile(
-            title: const Text('Confetti'),
-            subtitle: const Text('Celebrate when scouting'),
-            secondary: const Icon(Icons.celebration),
-            value: settings.confettiEnabled,
-            onChanged: (value) {
-              settings.confettiEnabled = value;
-              appState.saveAndNotify();
-              if (value) {
-                _confettiKey.currentState?.fire();
-              }
-            },
-          ),
-          SwitchListTile(
-            title: const Text('Haptic feedback'),
-            subtitle: const Text('Vibrate on counter taps'),
-            secondary: const Icon(Icons.vibration),
-            value: settings.hapticEnabled,
-            onChanged: (value) {
-              settings.hapticEnabled = value;
-              appState.saveAndNotify();
-            },
-          ),
-          SwitchListTile(
-            title: const Text('Scrollable scouting layout'),
-            subtitle: const Text('Show match scouting as one scrollable page'),
-            secondary: const Icon(Icons.view_day),
-            value: settings.scrollableScoutLayout,
-            onChanged: (value) {
-              settings.scrollableScoutLayout = value;
-              appState.saveAndNotify();
-            },
-          ),
-        ],
-      ),
           ConfettiOverlay(key: _confettiKey),
         ],
       ),
+    );
+  }
+
+  Widget _sectionHeader(String title) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 24, 4, 8),
+      child: Text(
+        title,
+        style: theme.textTheme.titleSmall?.copyWith(
+          color: theme.colorScheme.primary,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildColorPicker(AppStateProvider appState, AppSettings settings) {
+    final onSurface = Theme.of(context).colorScheme.onSurface;
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: AppTheme.themeColors.entries.map((entry) {
+        final isSelected = settings.themeColor == entry.value.toARGB32();
+        return Semantics(
+          button: true,
+          label: '${entry.key} theme color${isSelected ? ', selected' : ''}',
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            onTap: () {
+              settings.themeColor = entry.value.toARGB32();
+              appState.saveAndNotify();
+            },
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: entry.value,
+                shape: BoxShape.circle,
+                border: isSelected
+                    ? Border.all(color: onSurface, width: 3)
+                    : null,
+              ),
+              child: isSelected
+                  ? Icon(Icons.check,
+                      color: ThemeData.estimateBrightnessForColor(
+                                  entry.value) ==
+                              Brightness.dark
+                          ? Colors.white
+                          : Colors.black,
+                      size: 18)
+                  : null,
+            ),
+          ),
+        );
+      }).toList(),
     );
   }
 
@@ -438,7 +396,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           controller: controller,
           focusNode: focusNode,
           decoration: InputDecoration(
-            labelText: 'Search Events',
+            labelText: 'Event',
+            hintText: 'Search by name or code',
+            helperText: settings.selectedEventKey == null
+                ? 'Pick an event to start scouting'
+                : null,
             border: const OutlineInputBorder(),
             prefixIcon: const Icon(Icons.event),
             suffixIcon: controller.text.isNotEmpty

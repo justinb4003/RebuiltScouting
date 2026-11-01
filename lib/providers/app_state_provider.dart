@@ -110,17 +110,21 @@ class AppStateProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadEvents(int year) async {
-    _loadingCount++;
-    _error = null;
-    notifyListeners();
+  /// [quiet] refreshes in the background: no spinner, and a failure keeps
+  /// the cached list without showing an error.
+  Future<void> loadEvents(int year, {bool quiet = false}) async {
+    if (!quiet) {
+      _loadingCount++;
+      _error = null;
+      notifyListeners();
+    }
     try {
       _events = await _api.getEvents(year);
       await _storage.cacheEvents(_events);
     } catch (e) {
-      _error = 'Failed to load events: $e';
+      if (!quiet) _error = 'Failed to load events: $e';
     }
-    _loadingCount--;
+    if (!quiet) _loadingCount--;
     notifyListeners();
   }
 
