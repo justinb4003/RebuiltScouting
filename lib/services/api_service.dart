@@ -11,6 +11,7 @@ import '../models/pick_list.dart';
 import '../models/pick_board.dart';
 import '../models/cluster_config.dart';
 import '../models/cluster_result.dart';
+import '../models/game_score.dart';
 import '../models/rankings.dart';
 import '../models/match_result.dart';
 import '../models/opr.dart';
@@ -320,6 +321,53 @@ class ApiService {
       throw Exception('Publishing failed: ${response.statusCode}');
     }
     return ClusterConfig.fromJson(jsonDecode(response.body));
+  }
+
+  /// A game's leaderboard for the team, highest score first.
+  Future<List<GameScore>> getGameScores({
+    required String secretKey,
+    required String game,
+  }) async {
+    final uri = Uri.parse('$baseUrl/GetGameScores')
+        .replace(queryParameters: {'secret_key': secretKey, 'game': game});
+    final response = await http.get(uri).timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint('getGameScores failed: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load leaderboard: ${response.statusCode}');
+    }
+    return (jsonDecode(response.body) as List)
+        .map((j) => GameScore.fromJson(j))
+        .toList();
+  }
+
+  /// Publish a finished game's score. [id] makes a retry an upsert.
+  Future<GameScore> postGameScore({
+    required String id,
+    required String secretKey,
+    required String game,
+    required String player,
+    required int score,
+    required String eventKey,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/PostGameScore'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'id': id,
+            'secret_key': secretKey,
+            'game': game,
+            'player': player,
+            'score': score,
+            'event_key': eventKey,
+          }),
+        )
+        .timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint('postGameScore failed: ${response.statusCode} ${response.body}');
+      throw Exception('Publishing failed: ${response.statusCode}');
+    }
+    return GameScore.fromJson(jsonDecode(response.body));
   }
 
   Future<List<PitResult>> getPitResults(String eventKey) async {

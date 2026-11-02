@@ -16,6 +16,7 @@ import 'screens/rankings_screen.dart';
 import 'screens/team_details_screen.dart';
 import 'screens/match_breakdowns_screen.dart';
 import 'screens/head_to_head_screen.dart';
+import 'screens/name_that_team_screen.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -54,6 +55,7 @@ class App extends StatelessWidget {
         '/team-details': (context) => const TeamDetailsScreen(),
         '/match-breakdowns': (context) => const MatchBreakdownsScreen(),
         '/head-to-head': (context) => const HeadToHeadScreen(),
+        '/name-that-team': (context) => const NameThatTeamScreen(),
       },
     );
   }
