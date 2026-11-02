@@ -12,6 +12,7 @@ import '../models/pick_board.dart';
 import '../models/cluster_config.dart';
 import '../models/cluster_result.dart';
 import '../models/game_score.dart';
+import '../models/team_location.dart';
 import '../models/rankings.dart';
 import '../models/match_result.dart';
 import '../models/opr.dart';
@@ -321,6 +322,18 @@ class ApiService {
       throw Exception('Publishing failed: ${response.statusCode}');
     }
     return ClusterConfig.fromJson(jsonDecode(response.body));
+  }
+
+  /// Where the event is and where its US/Canadian teams are from.
+  Future<TeamLocations> getTeamLocations(String eventKey) async {
+    final uri = Uri.parse('$baseUrl/GetTeamLocations')
+        .replace(queryParameters: {'event_key': eventKey});
+    final response = await http.get(uri).timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint('getTeamLocations failed: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load team hometowns: ${response.statusCode}');
+    }
+    return TeamLocations.fromJson(jsonDecode(response.body));
   }
 
   /// A game's leaderboard for the team, highest score first.

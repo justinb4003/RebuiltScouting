@@ -7,7 +7,7 @@ class NavDrawer extends StatelessWidget {
 
   const NavDrawer({super.key, required this.selectedIndex});
 
-  static const _routes = ['/scout', '/pit', '/robot-note', '/held', '/settings', '/scouting-status', '/pit-status', '/match-breakdowns', '/rankings', '/team-details', '/head-to-head', '/pick-list', '/clusters', '/dimensions', '/name-that-team'];
+  static const _routes = ['/scout', '/pit', '/robot-note', '/held', '/settings', '/scouting-status', '/pit-status', '/match-breakdowns', '/rankings', '/team-details', '/head-to-head', '/pick-list', '/clusters', '/dimensions', '/name-that-team', '/spot-the-bot', '/hometown'];
 
   @override
   Widget build(BuildContext context) {
@@ -119,6 +119,16 @@ class NavDrawer extends StatelessWidget {
           selectedIcon: Icon(Icons.quiz),
           label: Text('Name That Team'),
         ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.photo_camera_outlined),
+          selectedIcon: Icon(Icons.photo_camera),
+          label: Text('Spot The Bot'),
+        ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.place_outlined),
+          selectedIcon: Icon(Icons.place),
+          label: Text('Hometown'),
+        ),
         const Divider(indent: 28, endIndent: 28),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 28),
@@ -186,7 +196,10 @@ class _SectionLabel extends StatelessWidget {
     final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 12, 16, 8),
-      child: Text(text, style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+      child: Semantics(
+        header: true,
+        child: Text(text, style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+      ),
     );
   }
 }

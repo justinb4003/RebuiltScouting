@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../models/team_location.dart';
 import '../models/app_settings.dart';
 import '../models/tba_event.dart';
 import '../models/tba_team.dart';
@@ -41,6 +42,7 @@ class StorageService {
   static const String _scoutedCacheKey = 'scouted_matches_cache';
   static const String _matchResultsCacheKey = 'match_results_cache';
   static const String _oprCacheKey = 'opr_cache';
+  static const String _teamLocationsCacheKey = 'team_locations_cache';
   static const String _collapsedSectionsKey = 'team_details_collapsed';
   static const String _sectionOrderKey = 'team_details_section_order';
   static const String _h2hOrderKey = 'head_to_head_section_order';
@@ -418,6 +420,16 @@ class StorageService {
   Future<void> cacheRankings(String eventKey, RankingsData data) async {
     await _cachePerEvent(_rankingsCacheKey, eventKey, [data.toJson()]);
   }
+
+  Future<TeamLocations?> loadCachedTeamLocations(String eventKey) async {
+    final data = await _loadPerEvent(_teamLocationsCacheKey, eventKey);
+    return data.isEmpty
+        ? null
+        : TeamLocations.fromJson(Map<String, dynamic>.from(data.first));
+  }
+
+  Future<void> cacheTeamLocations(String eventKey, TeamLocations data) =>
+      _cachePerEvent(_teamLocationsCacheKey, eventKey, [data.toJson()]);
 
   // Scouted match rows (trimmed) and official match results, per event.
   // Scouted rows are also keyed by secret team key since each team only
