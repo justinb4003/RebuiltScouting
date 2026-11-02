@@ -402,35 +402,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _eventSearchController.text = event.name;
       },
       fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-        return TextField(
-          controller: controller,
-          focusNode: focusNode,
-          decoration: InputDecoration(
-            hintText: 'Search by name or code',
-            helperText: settings.selectedEventKey == null
-                ? 'Pick an event to start scouting'
-                : null,
-            border: const OutlineInputBorder(),
-            prefixIcon: const Icon(Icons.event),
-            suffixIcon: controller.text.isNotEmpty
-                ? IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: () {
-                      controller.clear();
-                      appState.setEventKey('');
-                      setState(() {});
-                    },
-                  )
-                : null,
+        // No visible label (the section header says Event), but screen
+        // readers still need one, also once an event fills the field.
+        return Semantics(
+          label: 'Event',
+          child: TextField(
+            controller: controller,
+            focusNode: focusNode,
+            decoration: InputDecoration(
+              hintText: 'Search by name or code',
+              helperText: settings.selectedEventKey == null
+                  ? 'Pick an event to start scouting'
+                  : null,
+              border: const OutlineInputBorder(),
+              prefixIcon: const Icon(Icons.event),
+              suffixIcon: controller.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear,
+                          semanticLabel: 'Clear event'),
+                      onPressed: () {
+                        controller.clear();
+                        appState.setEventKey('');
+                        setState(() {});
+                      },
+                    )
+                  : null,
+            ),
+            onTap: () {
+              if (controller.text.isNotEmpty) {
+                controller.selection = TextSelection(
+                  baseOffset: 0,
+                  extentOffset: controller.text.length,
+                );
+              }
+            },
           ),
-          onTap: () {
-            if (controller.text.isNotEmpty) {
-              controller.selection = TextSelection(
-                baseOffset: 0,
-                extentOffset: controller.text.length,
-              );
-            }
-          },
         );
       },
       optionsViewBuilder: (context, onSelected, options) {

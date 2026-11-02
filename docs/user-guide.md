@@ -2,13 +2,13 @@
 
 This guide covers the parts of the scouting app that work the same every season. The match and pit scouting forms change with each year's game, so they have their own guide.
 
-Everything is in the menu: tap **☰** in the top-left corner.
+Everything is in the menu: tap **☰** in the top-left corner. Scouting screens are at the top, then Management, then Analytics. The first time you open the app, it starts on Settings.
 
 ---
 
 ## 1. Settings (do this first)
 
-The app opens on Settings. Before your first match:
+Before your first match, fill in these three. **Nothing else in the app works until you have a scouter name, the secret team key and an event.**
 
 1. **Scouter name.** Type your name, so your team can see who scouted what. Your pick list is also saved under this name.
 2. **Secret team key.** Your mentors will give you this. It keeps your team's data separate from other teams that use the app. Every scout on the team has to use the same key.
@@ -34,10 +34,12 @@ What doesn't change is what happens when you press Submit: see *Held Data* below
 
 ## 3. Robot Note
 
-A quick note about any robot, any time: something you saw in the pits, in the queue, or in a match you weren't assigned to.
+For when you're not scouting a match and not pit scouting, but you learn something about a robot, or spot something in a match the team should know about: a new intake since lunch, a fix in the pits, a robot that tips on the bump.
+
+Think of it as a mini pit-scouting report. It's for mentors too, not just students.
 
 1. Pick the team (type its number or name).
-2. Write what you saw.
+2. Write what you saw or learned.
 3. Press **Submit**.
 
 Notes show up in that team's **Team Details** under Pit scouting → Robot notes.
