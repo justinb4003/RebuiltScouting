@@ -26,8 +26,8 @@ class TeamInfoButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => IconButton(
-        tooltip: 'Team details',
-        icon: const Icon(Icons.info_outline, size: 18),
+        icon: const Icon(Icons.info_outline,
+            size: 18, semanticLabel: 'Team details'),
         visualDensity: VisualDensity.compact,
         constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
         padding: EdgeInsets.zero,
