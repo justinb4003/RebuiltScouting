@@ -76,6 +76,10 @@ class AppStateProvider extends ChangeNotifier {
     _settings.secretTeamKey = key;
   }
 
+  void updateTeamNumber(int? teamNumber) {
+    _settings.teamNumber = teamNumber;
+  }
+
   Future<void> setEventYear(int year) async {
     _settings.eventYear = year;
     await persistSettings();

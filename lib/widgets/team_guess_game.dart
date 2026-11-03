@@ -93,6 +93,22 @@ class TeamGuessGame extends StatefulWidget {
   /// What [preload] is loading, e.g. 'robot photos'.
   final String preloadLabel;
 
+  /// Whether the prompt grows to fill the screen (a photo or map). When
+  /// false the play screen is just as tall as its contents.
+  final bool expandPrompt;
+
+  /// Shown above the rules on the start screen, e.g. a This event /
+  /// Statewide switch.
+  final Widget? lobbyHeader;
+
+  /// Whether the game draws from the selected event's teams (so needs an
+  /// event and its team list). When false, [blocker] covers what's missing.
+  final bool needsEvent;
+
+  /// Stored with a published score in place of the event key, e.g. 'MI'
+  /// for a statewide game.
+  final String? scoreLabel;
+
   /// What's shown above the choices.
   final Widget Function(BuildContext context, GuessRound round) prompt;
 
@@ -113,6 +129,10 @@ class TeamGuessGame extends StatefulWidget {
     this.nextButton = false,
     this.preload,
     this.preloadLabel = 'game data',
+    this.lobbyHeader,
+    this.expandPrompt = false,
+    this.needsEvent = true,
+    this.scoreLabel,
   });
 
   @override
@@ -161,6 +181,18 @@ class _TeamGuessGameState extends State<TeamGuessGame>
   }
 
   @override
+  void didUpdateWidget(TeamGuessGame old) {
+    super.didUpdateWidget(old);
+    // Another leaderboard (e.g. switched to statewide).
+    if (old.gameId != widget.gameId) {
+      _scores = null;
+      _scoresError = null;
+      _publishedId = null;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _loadScores());
+    }
+  }
+
+  @override
   void dispose() {
     _clock.dispose();
     super.dispose();
@@ -170,10 +202,11 @@ class _TeamGuessGameState extends State<TeamGuessGame>
     final secretKey =
         context.read<AppStateProvider>().settings.secretTeamKey.trim();
     if (secretKey.isEmpty) return;
+    final gameId = widget.gameId;
     try {
       final scores = await ApiService.instance
-          .getGameScores(secretKey: secretKey, game: widget.gameId);
-      if (!mounted) return;
+          .getGameScores(secretKey: secretKey, game: gameId);
+      if (!mounted || gameId != widget.gameId) return;
       setState(() {
         _scores = scores;
         _scoresError = null;
@@ -371,8 +404,9 @@ class _TeamGuessGameState extends State<TeamGuessGame>
   }
 
   Future<void> _publish(String player, String secretKey, int score) async {
-    final eventKey =
-        context.read<AppStateProvider>().settings.selectedEventKey ?? '';
+    final eventKey = widget.scoreLabel ??
+        context.read<AppStateProvider>().settings.selectedEventKey ??
+        '';
     final id = const Uuid().v4();
     try {
       await ApiService.instance.postGameScore(
@@ -402,9 +436,11 @@ class _TeamGuessGameState extends State<TeamGuessGame>
     final blocked = widget.blocker?.call(appState);
 
     final Widget body;
-    if (eventKey.isEmpty) {
-      body = _message('Pick an event in Settings to play.');
-    } else if (named.length < 3) {
+    if (_phase == _Phase.playing) {
+      body = _playing(context);
+    } else if (widget.needsEvent && eventKey.isEmpty) {
+      body = _lobbyMessage('Pick an event in Settings to play.');
+    } else if (widget.needsEvent && named.length < 3) {
       body = _message(
         appState.loading
             ? 'Loading teams…'
@@ -416,10 +452,8 @@ class _TeamGuessGameState extends State<TeamGuessGame>
                 child: const Text('Load teams'),
               ),
       );
-    } else if (_phase == _Phase.playing) {
-      body = _playing(context);
     } else if (blocked != null) {
-      body = _message(blocked);
+      body = _lobbyMessage(blocked);
     } else {
       body = _lobby(context, widget.answers(appState).length);
     }
@@ -430,6 +464,24 @@ class _TeamGuessGameState extends State<TeamGuessGame>
       body: SafeArea(child: body),
     );
   }
+
+  /// A message in place of the game, under the lobby header (so the scope
+  /// switch stays reachable).
+  Widget _lobbyMessage(String text) => widget.lobbyHeader == null
+      ? _message(text)
+      : ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 472),
+                child: widget.lobbyHeader,
+              ),
+            ),
+            const SizedBox(height: 32),
+            Text(text, textAlign: TextAlign.center),
+          ],
+        );
 
   Widget _message(String text, {Widget? action}) => Center(
         child: Padding(
@@ -455,6 +507,10 @@ class _TeamGuessGameState extends State<TeamGuessGame>
         child: ListView(
           padding: const EdgeInsets.all(24),
           children: [
+            if (widget.lobbyHeader != null) ...[
+              widget.lobbyHeader!,
+              const SizedBox(height: 24),
+            ],
             if (over) ...[
               Text('$_correct correct',
                   textAlign: TextAlign.center,
@@ -567,8 +623,14 @@ class _TeamGuessGameState extends State<TeamGuessGame>
                 value: _loadTotal == 0 ? null : _loadDone / _loadTotal,
                 minHeight: 8,
                 borderRadius: BorderRadius.circular(4),
-                semanticsLabel: 'Loading ${widget.preloadLabel}',
-                semanticsValue: '$_loadDone of $_loadTotal',
+                // The value has to be a number (a percentage); the count
+                // goes in the label.
+                semanticsLabel: _loadTotal == 0
+                    ? 'Loading ${widget.preloadLabel}'
+                    : 'Loading ${widget.preloadLabel}, $_loadDone of $_loadTotal',
+                semanticsValue: _loadTotal == 0
+                    ? null
+                    : '${(_loadDone * 100 / _loadTotal).round()}',
               ),
             ),
             const SizedBox(height: 16),
@@ -582,6 +644,12 @@ class _TeamGuessGameState extends State<TeamGuessGame>
       ),
     );
   }
+
+  /// The prompt fills the leftover height, or just sits between the timer
+  /// and the choices.
+  Widget _promptSlot(Widget child) => widget.expandPrompt
+      ? Expanded(child: child)
+      : Padding(padding: const EdgeInsets.only(top: 8), child: child);
 
   Widget _playing(BuildContext context) {
     if (_preloading) return _preloadView(context);
@@ -658,7 +726,9 @@ class _TeamGuessGameState extends State<TeamGuessGame>
 
     final revealed = _picked != null;
     final right = revealed && _picked! >= 0 && q!.options[_picked!] == q.answer;
-    return Center(
+    // Top-aligned like the start screen, so nothing jumps on Start.
+    return Align(
+      alignment: Alignment.topCenter,
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
         // Fills the screen exactly: the prompt (number, photo or map) gets
@@ -668,7 +738,9 @@ class _TeamGuessGameState extends State<TeamGuessGame>
         child: LayoutBuilder(
           builder: (context, box) => SingleChildScrollView(
             child: SizedBox(
-              height: max(box.maxHeight, _minPlayHeight),
+              height: widget.expandPrompt
+                  ? max(box.maxHeight, _minPlayHeight)
+                  : null,
               child: Padding(
                 padding: const EdgeInsets.all(24),
                 child: Column(
@@ -719,21 +791,17 @@ class _TeamGuessGameState extends State<TeamGuessGame>
                     ),
                     const SizedBox(height: 16),
                     if (q == null)
-                      const Expanded(
-                        child: Center(
-                          child: CircularProgressIndicator(
-                              semanticsLabel: 'Loading the next question'),
-                        ),
-                      )
+                      _promptSlot(const Center(
+                        child: CircularProgressIndicator(
+                            semanticsLabel: 'Loading the next question'),
+                      ))
                     else ...[
-                      Expanded(
-                        child: Semantics(
-                          liveRegion: true,
-                          container: true,
-                          child: widget.prompt(context,
-                              GuessRound(q.answer, q.options, q.extra, _picked)),
-                        ),
-                      ),
+                      _promptSlot(Semantics(
+                        liveRegion: true,
+                        container: true,
+                        child: widget.prompt(context,
+                            GuessRound(q.answer, q.options, q.extra, _picked)),
+                      )),
                       SizedBox(
                         height: _resultHeight,
                         child: Center(

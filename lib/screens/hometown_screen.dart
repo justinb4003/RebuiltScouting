@@ -8,6 +8,7 @@ import '../models/team_location.dart';
 import '../providers/app_state_provider.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../widgets/game_scope.dart';
 import '../widgets/hometown_map.dart';
 import '../widgets/team_guess_game.dart';
 
@@ -42,6 +43,24 @@ class HometownScreen extends StatefulWidget {
 class _HometownScreenState extends State<HometownScreen> {
   // Fetched from the API at most once per event per app session.
   static final Set<String> _fetched = {};
+  // The last scope picked, for this app session.
+  static GameScope? _picked;
+  final _stateTeams = StateTeamsLoader(locations: true);
+
+  @override
+  void initState() {
+    super.initState();
+    _stateTeams.addListener(_changed);
+  }
+
+  void _changed() => setState(() {});
+
+  @override
+  void dispose() {
+    _stateTeams.removeListener(_changed);
+    _stateTeams.dispose();
+    super.dispose();
+  }
 
   String? _eventKey;
   TeamLocations? _locations;
@@ -85,28 +104,70 @@ class _HometownScreenState extends State<HometownScreen> {
     if (mounted && eventKey == _eventKey) setState(() => _loading = false);
   }
 
-  Map<int, TeamLocation> get _placed => {
-        for (final t in _locations?.teams ?? <TeamLocation>[])
-          if (t.placed) t.teamNumber: t,
-      };
-
   @override
   Widget build(BuildContext context) {
-    final placed = _placed;
+    final settings = context.watch<AppStateProvider>().settings;
+    final eventAvailable = settings.selectedEventKey != null;
+    final teamNumber = settings.teamNumber;
+    final stateAvailable = teamNumber != null;
+    final scope = !stateAvailable
+        ? GameScope.event
+        : !eventAvailable
+            ? GameScope.state
+            : (_picked ?? GameScope.event);
+    final statewide = scope == GameScope.state;
+    if (statewide) {
+      WidgetsBinding.instance.addPostFrameCallback(
+          (_) => _stateTeams.ensure(teamNumber!, settings.eventYear));
+    }
+    final data = statewide ? _stateTeams.data : null;
+
+    final placed = <int, TeamLocation>{
+      for (final t in statewide
+          ? data?.locations ?? <TeamLocation>[]
+          : _locations?.teams ?? <TeamLocation>[])
+        if (t.placed) t.teamNumber: t,
+    };
     final places = placed.values.map((t) => t.label).toSet();
-    List<TbaTeam> located(AppStateProvider appState) => appState.teams
-        .where((t) => placed.containsKey(t.teamNumber))
-        .toList();
+    final stateTeams = [
+      for (final t in data?.teams ?? <TbaTeam>[])
+        if (placed.containsKey(t.teamNumber)) t,
+    ];
+    List<TbaTeam> located(AppStateProvider appState) => statewide
+        ? stateTeams
+        : appState.teams
+            .where((t) => placed.containsKey(t.teamNumber))
+            .toList();
+    final homeState = statewide ? data?.state : _locations?.eventState;
 
     return TeamGuessGame(
-      gameId: 'hometown',
+      gameId: statewide ? 'hometown-state' : 'hometown',
+      expandPrompt: true,
       title: 'Hometown',
       navIndex: 16,
       rules: 'A team comes up with three places on the map. Pick where '
           'it\'s from before time runs out, then see where it is and '
           'press Next.',
+      lobbyHeader: GameScopePicker(
+        scope: scope,
+        eventAvailable: eventAvailable,
+        stateAvailable: stateAvailable,
+        state: _stateTeams.data?.state,
+        onChanged: (s) => setState(() => _picked = s),
+      ),
+      needsEvent: !statewide && eventAvailable,
+      scoreLabel: statewide ? data?.state : null,
       blocker: (_) {
-        if (_locations == null) {
+        if (!eventAvailable && !stateAvailable) {
+          return 'Pick an event in Settings, or add your team number there '
+              'to play with every team in your state.';
+        }
+        if (statewide && data == null) {
+          return _stateTeams.error ??
+              'Finding where the teams in your state are from… The first '
+                  'time can take half a minute.';
+        }
+        if (!statewide && _locations == null) {
           return _error ?? (_loading ? 'Finding where the teams are from…' : 'Loading…');
         }
         if (places.length < 3) {
@@ -147,7 +208,7 @@ class _HometownScreenState extends State<HometownScreen> {
             const SizedBox(height: 12),
             Expanded(
               child: HometownMap(
-                homeState: _locations?.eventState,
+                homeState: homeState,
                 points: [
                   for (var i = 0; i < round.options.length; i++)
                     MapPoint(
