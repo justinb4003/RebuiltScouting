@@ -44,6 +44,14 @@ Think of it as a mini pit-scouting report. It's for mentors too, not just studen
 
 Notes show up in that team's **Team Details** under Pit scouting → Robot notes.
 
+## 3a. My Schedule
+
+If your lead has published a scouting schedule, **My Schedule** shows who published it and when, **your shifts** (robot station, match numbers, and about when each starts), and everyone else's shifts by station or by match.
+
+- It finds your shifts by the **scouter name in Settings**, so type your name the same way every time.
+- **Add to my calendar** subscribes your phone's calendar to your shifts, with a reminder 15 minutes before each one. It updates itself when a new schedule is published. For Google Calendar, press **Copy calendar link** and use *Add by URL*.
+- Press the refresh button to get the latest schedule.
+
 ---
 
 ## 4. Held Data (no signal? no problem)
@@ -66,6 +74,7 @@ Gyms and arenas often have bad or no Wi-Fi or cell signal. The app is built for 
 These are mostly for the one or two people running scouting.
 
 - **Scouting Status:** every match, with one column per robot (B1–B3, R1–R3). A green check means someone scouted that robot; a red X means nobody did; a number means more than one person did. Tap a mark to see who scouted it. If the schedule isn't loaded yet, press *Load match schedule*.
+- **Schedule Builder:** for the scouting lead. Tick who's scouting, put friends who like to scout together in groups (2–6), choose how many shifts each person does and the most matches anyone should scout (default 10; both are remembered on your device), and press **Generate schedule**. Every block gets six scouts, groups always land in the same block, and everyone gets the same number of shifts. The first round of shifts is random; after that the same crews come around again in the same order, and nobody gets a second shift until everyone has had a first. If there aren't enough scouts to stay under the max, the builder says so before you generate, with how many scouts you'd need. Press it again for a whole new schedule, or tap any name to swap one spot, then **Publish**. Publishing as you replaces your earlier schedule; the newest published schedule is the one everyone sees.
 - **Pit Status:** every team, and how many pit scouting results it has. Filter to *Unscouted* to see who still needs a visit.
 
 ---

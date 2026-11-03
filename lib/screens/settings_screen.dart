@@ -90,7 +90,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
-      drawer: const NavDrawer(selectedIndex: 4),
+      drawer: const NavDrawer(selectedIndex: 5),
       body: Stack(
         children: [
           Align(

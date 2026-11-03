@@ -7,7 +7,7 @@ class NavDrawer extends StatelessWidget {
 
   const NavDrawer({super.key, required this.selectedIndex});
 
-  static const _routes = ['/scout', '/pit', '/robot-note', '/held', '/settings', '/scouting-status', '/pit-status', '/match-breakdowns', '/rankings', '/team-details', '/head-to-head', '/pick-list', '/clusters', '/dimensions', '/name-that-team', '/spot-the-bot', '/hometown'];
+  static const _routes = ['/scout', '/pit', '/robot-note', '/my-schedule', '/held', '/settings', '/scouting-status', '/pit-status', '/schedule-builder', '/match-breakdowns', '/rankings', '/team-details', '/head-to-head', '/pick-list', '/clusters', '/dimensions', '/hometown', '/name-that-team', '/spot-the-bot'];
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +44,11 @@ class NavDrawer extends StatelessWidget {
           selectedIcon: Icon(Icons.sticky_note_2),
           label: Text('Robot Note'),
         ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.event_note_outlined),
+          selectedIcon: Icon(Icons.event_note),
+          label: Text('My Schedule'),
+        ),
         NavigationDrawerDestination(
           icon: Badge(
             isLabelVisible: heldCount > 0,
@@ -74,6 +79,11 @@ class NavDrawer extends StatelessWidget {
           icon: Icon(Icons.fact_check_outlined),
           selectedIcon: Icon(Icons.fact_check),
           label: Text('Pit Status'),
+        ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.edit_calendar_outlined),
+          selectedIcon: Icon(Icons.edit_calendar),
+          label: Text('Schedule Builder'),
         ),
         const Divider(indent: 28, endIndent: 28),
         const _SectionLabel('Analytics'),
@@ -113,7 +123,13 @@ class NavDrawer extends StatelessWidget {
           label: Text('Dimensions'),
         ),
         const Divider(indent: 28, endIndent: 28),
+        // Games, alphabetical.
         const _SectionLabel('Games'),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.place_outlined),
+          selectedIcon: Icon(Icons.place),
+          label: Text('Hometown'),
+        ),
         const NavigationDrawerDestination(
           icon: Icon(Icons.quiz_outlined),
           selectedIcon: Icon(Icons.quiz),
@@ -123,11 +139,6 @@ class NavDrawer extends StatelessWidget {
           icon: Icon(Icons.photo_camera_outlined),
           selectedIcon: Icon(Icons.photo_camera),
           label: Text('Spot The Bot'),
-        ),
-        const NavigationDrawerDestination(
-          icon: Icon(Icons.place_outlined),
-          selectedIcon: Icon(Icons.place),
-          label: Text('Hometown'),
         ),
         const Divider(indent: 28, endIndent: 28),
         Padding(

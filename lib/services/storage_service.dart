@@ -18,6 +18,7 @@ import '../models/rankings.dart';
 import '../models/match_result.dart';
 import '../models/opr.dart';
 import '../models/scouted_match.dart';
+import '../models/scout_schedule.dart';
 import '../models/cluster_config.dart';
 import '../models/cluster_result.dart';
 
@@ -53,6 +54,11 @@ class StorageService {
   static const String _clusterTeamConfigKey = 'cluster_config_team';
   static const String _clusterCustomConfigKey = 'cluster_config_custom';
   static const String _clusterResultCacheKey = 'cluster_result_cache';
+  static const String _scheduleCacheKey = 'scout_schedule_cache';
+  static const String _scheduleSetupKey = 'schedule_builder_setup';
+  static const String _scheduleShiftsKey = 'schedule_builder_shifts_per_person';
+  static const String _scheduleMaxMatchesKey = 'schedule_builder_max_matches';
+  static const String _calendarTokensKey = 'scouter_calendar_tokens';
 
   // Settings
   Future<AppSettings> loadSettings() async {
@@ -467,6 +473,78 @@ class StorageService {
     await _cachePerEvent(
         _matchResultsCacheKey, eventKey, matches.map((m) => m.toJson()).toList());
   }
+
+  // Schedule Builder setup on this device (per event + secret key): who's
+  // scouting, the groups, and the block length.
+  Future<Map<String, dynamic>?> loadScheduleSetup(String eventKey, String secretKey) async {
+    final data = await _loadPerEvent(_scheduleSetupKey, '$eventKey|$secretKey');
+    return data.isEmpty ? null : Map<String, dynamic>.from(data.first);
+  }
+
+  Future<void> saveScheduleSetup(String eventKey, String secretKey, Map<String, dynamic> setup) =>
+      _cachePerEvent(_scheduleSetupKey, '$eventKey|$secretKey', [setup]);
+
+  // Schedule Builder preferences on this device (every event): shifts per
+  // person and the most matches anyone should scout.
+  Future<({int? shiftsPerPerson, int? maxMatches})> loadSchedulePrefs() async {
+    final prefs = await _getPrefs();
+    return (
+      shiftsPerPerson: prefs.getInt(_scheduleShiftsKey),
+      maxMatches: prefs.getInt(_scheduleMaxMatchesKey),
+    );
+  }
+
+  Future<void> saveScheduleShiftsPerPerson(int shifts) async =>
+      (await _getPrefs()).setInt(_scheduleShiftsKey, shifts);
+
+  Future<void> saveScheduleMaxMatches(int max) async =>
+      (await _getPrefs()).setInt(_scheduleMaxMatchesKey, max);
+
+  // Match-scouting schedule (per event + secret key): published schedules and
+  // registered scouters, so the schedule is readable offline.
+  Future<({List<ScoutSchedule> schedules, List<ScouterInfo> scouters})?> loadCachedSchedule(
+      String eventKey, String secretKey) async {
+    final data = await _loadPerEvent(_scheduleCacheKey, '$eventKey|$secretKey');
+    if (data.isEmpty) return null;
+    final m = Map<String, dynamic>.from(data.first);
+    return (
+      schedules: [
+        for (final j in (m['schedules'] as List? ?? const []))
+          ScoutSchedule.fromJson(Map<String, dynamic>.from(j)),
+      ],
+      scouters: [
+        for (final j in (m['scouters'] as List? ?? const []))
+          ScouterInfo.fromJson(Map<String, dynamic>.from(j)),
+      ],
+    );
+  }
+
+  Future<void> cacheSchedule(String eventKey, String secretKey,
+      List<ScoutSchedule> schedules, List<ScouterInfo> scouters) async {
+    await _cachePerEvent(_scheduleCacheKey, '$eventKey|$secretKey', [
+      {
+        'schedules': [for (final s in schedules) s.toJson()],
+        'scouters': [for (final s in scouters) s.toJson()],
+      }
+    ]);
+  }
+
+  /// Calendar tokens from RegisterScouter, keyed by "secret|event|namekey".
+  /// A token being here also means this device already registered the name.
+  Future<Map<String, String>> loadCalendarTokens() async {
+    final prefs = await _getPrefs();
+    final json = prefs.getString(_calendarTokensKey);
+    if (json == null) return {};
+    return Map<String, String>.from(jsonDecode(json));
+  }
+
+  Future<void> setCalendarToken(String key, String token) => _locked(() async {
+        final prefs = await _getPrefs();
+        final json = prefs.getString(_calendarTokensKey);
+        final tokens = json == null ? <String, dynamic>{} : jsonDecode(json) as Map<String, dynamic>;
+        tokens[key] = token;
+        await _setString(prefs, _calendarTokensKey, jsonEncode(tokens));
+      });
 
   // Team Details layout: collapsed sections per team, one section order.
   Future<Set<String>> loadCollapsedSections(int team) async {
