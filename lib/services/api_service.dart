@@ -13,6 +13,7 @@ import '../models/cluster_config.dart';
 import '../models/cluster_result.dart';
 import '../models/game_score.dart';
 import '../models/team_location.dart';
+import '../models/state_teams.dart';
 import '../models/rankings.dart';
 import '../models/match_result.dart';
 import '../models/opr.dart';
@@ -322,6 +323,29 @@ class ApiService {
       throw Exception('Publishing failed: ${response.statusCode}');
     }
     return ClusterConfig.fromJson(jsonDecode(response.body));
+  }
+
+  /// Every team in [teamNumber]'s state for the [year] season, with
+  /// hometowns if [locations] (slow the first time a state is looked up).
+  Future<StateTeams> getStateTeams({
+    required int teamNumber,
+    required int year,
+    bool locations = false,
+  }) async {
+    final uri = Uri.parse('$baseUrl/GetStateTeams').replace(queryParameters: {
+      'team_number': '$teamNumber',
+      'year': '$year',
+      if (locations) 'locations': '1',
+    });
+    // The first statewide hometown lookup geocodes a few hundred towns.
+    final response = await http
+        .get(uri)
+        .timeout(locations ? const Duration(seconds: 120) : _timeout);
+    if (response.statusCode != 200) {
+      debugPrint('getStateTeams failed: ${response.statusCode} ${response.body}');
+      throw ApiStatusException(response.statusCode, response.body);
+    }
+    return StateTeams.fromJson(jsonDecode(response.body));
   }
 
   /// Where the event is and where its US/Canadian teams are from.
