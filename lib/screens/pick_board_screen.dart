@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../models/pick_board.dart';
 import '../models/pick_list.dart';
 import '../models/rankings.dart';
+import '../app.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/pick_board_provider.dart';
 import '../providers/pick_list_provider.dart' show PickListSync;
@@ -30,14 +31,22 @@ class PickBoardScreen extends StatefulWidget {
   State<PickBoardScreen> createState() => _PickBoardScreenState();
 }
 
-class _PickBoardScreenState extends State<PickBoardScreen> {
+class _PickBoardScreenState extends State<PickBoardScreen> with RouteAware {
   late final PickBoardProvider _board;
+  // Watching only while this page is the top one (see routeObserver).
+  bool _watching = false;
+  bool _subscribed = false;
+
+  void _setWatching(bool watching) {
+    if (watching == _watching) return;
+    _watching = watching;
+    watching ? _board.watch() : _board.unwatch();
+  }
 
   @override
   void initState() {
     super.initState();
     _board = context.read<PickBoardProvider>();
-    _board.watch();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final settings = context.read<AppStateProvider>().settings;
       _board.configure(
@@ -52,8 +61,32 @@ class _PickBoardScreenState extends State<PickBoardScreen> {
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final route = ModalRoute.of(context);
+    if (!_subscribed && route is PageRoute) {
+      _subscribed = true;
+      // Calls didPush right away, which starts watching.
+      routeObserver.subscribe(this, route);
+    }
+  }
+
+  @override
+  void didPush() => _setWatching(true);
+
+  @override
+  void didPopNext() => _setWatching(true);
+
+  @override
+  void didPushNext() => _setWatching(false);
+
+  @override
+  void didPop() => _setWatching(false);
+
+  @override
   void dispose() {
-    _board.unwatch();
+    if (_subscribed) routeObserver.unsubscribe(this);
+    _setWatching(false);
     super.dispose();
   }
 
