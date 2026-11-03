@@ -106,6 +106,7 @@ class _SpotTheBotScreenState extends State<SpotTheBotScreen> {
   @override
   Widget build(BuildContext context) => TeamGuessGame(
         gameId: 'spot-the-bot',
+        expandPrompt: true,
         title: 'Spot The Bot',
         navIndex: 15,
         rules: 'A robot photo from pit scouting comes up with three teams. '

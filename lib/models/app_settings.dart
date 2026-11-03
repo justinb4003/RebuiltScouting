@@ -1,6 +1,11 @@
+const defaultTeamNumber = 4003;
+
 class AppSettings {
   String scouterName;
   String secretTeamKey;
+  // The user's own team (optional). Used by the statewide games; 4003 until
+  // someone changes it.
+  int? teamNumber;
   int eventYear;
   String? selectedEventKey;
   String? selectedEventName;
@@ -14,6 +19,7 @@ class AppSettings {
   AppSettings({
     this.scouterName = '',
     this.secretTeamKey = '',
+    this.teamNumber = defaultTeamNumber,
     this.eventYear = 2026,
     this.selectedEventKey,
     this.selectedEventName,
@@ -28,6 +34,7 @@ class AppSettings {
   Map<String, dynamic> toJson() => {
         'scouterName': scouterName,
         'secretTeamKey': secretTeamKey,
+        'teamNumber': teamNumber,
         'eventYear': eventYear,
         'selectedEventKey': selectedEventKey,
         'selectedEventName': selectedEventName,
@@ -42,6 +49,11 @@ class AppSettings {
   factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
         scouterName: json['scouterName'] ?? '',
         secretTeamKey: json['secretTeamKey'] ?? '',
+        // Missing (settings saved before this field existed) means the
+        // default; a saved null means the user cleared it.
+        teamNumber: json.containsKey('teamNumber')
+            ? (json['teamNumber'] as num?)?.toInt()
+            : defaultTeamNumber,
         eventYear: json['eventYear'] ?? 2026,
         selectedEventKey: json['selectedEventKey'],
         selectedEventName: json['selectedEventName'],

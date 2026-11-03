@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/app_settings.dart';
 import '../models/tba_event.dart';
@@ -21,6 +22,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   static bool _eventsRefreshed = false;
   late TextEditingController _nameController;
   late TextEditingController _keyController;
+  late TextEditingController _teamController;
   late TextEditingController _eventSearchController;
   final FocusNode _eventSearchFocusNode = FocusNode();
   final _confettiKey = GlobalKey<ConfettiOverlayState>();
@@ -35,6 +37,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final settings = appState.settings;
     _nameController = TextEditingController(text: settings.scouterName);
     _keyController = TextEditingController(text: settings.secretTeamKey);
+    _teamController =
+        TextEditingController(text: settings.teamNumber?.toString() ?? '');
     _eventSearchController = TextEditingController(
       text: settings.selectedEventName ?? '',
     );
@@ -56,8 +60,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // Final save of all text fields on dispose
     _appState.updateScouterName(_nameController.text.trim());
     _appState.updateSecretKey(_keyController.text.trim());
+    _appState.updateTeamNumber(int.tryParse(_teamController.text.trim()));
     _appState.persistSettings();
     _nameController.dispose();
+    _teamController.dispose();
     _keyController.dispose();
     _eventSearchController.dispose();
     _eventSearchFocusNode.dispose();
@@ -70,6 +76,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final appState = context.read<AppStateProvider>();
       appState.updateScouterName(_nameController.text.trim());
       appState.updateSecretKey(_keyController.text.trim());
+      appState.updateTeamNumber(int.tryParse(_teamController.text.trim()));
       appState.persistSettings();
     });
   }
@@ -110,6 +117,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       labelText: 'Secret team key',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.key),
+                    ),
+                    onChanged: (_) => _debouncedSaveTextFields(),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _teamController,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(5),
+                    ],
+                    decoration: const InputDecoration(
+                      labelText: 'Your team number (optional)',
+                      helperText: 'Used by the statewide games',
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.groups),
                     ),
                     onChanged: (_) => _debouncedSaveTextFields(),
                   ),
