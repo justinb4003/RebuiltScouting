@@ -145,9 +145,7 @@ class _HometownScreenState extends State<HometownScreen> {
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleMedium),
             const SizedBox(height: 12),
-            SizedBox(
-              height:
-                  (MediaQuery.sizeOf(context).height - 540).clamp(160.0, 420.0),
+            Expanded(
               child: HometownMap(
                 homeState: _locations?.eventState,
                 points: [
