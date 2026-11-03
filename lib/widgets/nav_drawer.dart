@@ -7,7 +7,7 @@ class NavDrawer extends StatelessWidget {
 
   const NavDrawer({super.key, required this.selectedIndex});
 
-  static const _routes = ['/scout', '/pit', '/robot-note', '/my-schedule', '/held', '/settings', '/scouting-status', '/pit-status', '/schedule-builder', '/match-breakdowns', '/rankings', '/team-details', '/head-to-head', '/pick-list', '/clusters', '/dimensions', '/name-that-team', '/spot-the-bot', '/hometown'];
+  static const _routes = ['/scout', '/pit', '/robot-note', '/my-schedule', '/held', '/settings', '/scouting-status', '/pit-status', '/schedule-builder', '/match-breakdowns', '/rankings', '/team-details', '/head-to-head', '/pick-list', '/clusters', '/dimensions', '/hometown', '/name-that-team', '/spot-the-bot'];
 
   @override
   Widget build(BuildContext context) {
@@ -123,7 +123,13 @@ class NavDrawer extends StatelessWidget {
           label: Text('Dimensions'),
         ),
         const Divider(indent: 28, endIndent: 28),
+        // Games, alphabetical.
         const _SectionLabel('Games'),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.place_outlined),
+          selectedIcon: Icon(Icons.place),
+          label: Text('Hometown'),
+        ),
         const NavigationDrawerDestination(
           icon: Icon(Icons.quiz_outlined),
           selectedIcon: Icon(Icons.quiz),
@@ -133,11 +139,6 @@ class NavDrawer extends StatelessWidget {
           icon: Icon(Icons.photo_camera_outlined),
           selectedIcon: Icon(Icons.photo_camera),
           label: Text('Spot The Bot'),
-        ),
-        const NavigationDrawerDestination(
-          icon: Icon(Icons.place_outlined),
-          selectedIcon: Icon(Icons.place),
-          label: Text('Hometown'),
         ),
         const Divider(indent: 28, endIndent: 28),
         Padding(

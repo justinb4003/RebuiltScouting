@@ -144,7 +144,7 @@ class _HometownScreenState extends State<HometownScreen> {
       gameId: statewide ? 'hometown-state' : 'hometown',
       expandPrompt: true,
       title: 'Hometown',
-      navIndex: 18,
+      navIndex: 16,
       rules: 'A team comes up with three places on the map. Pick where '
           'it\'s from before time runs out, then see where it is and '
           'press Next.',

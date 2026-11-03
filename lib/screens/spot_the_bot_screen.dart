@@ -108,7 +108,7 @@ class _SpotTheBotScreenState extends State<SpotTheBotScreen> {
         gameId: 'spot-the-bot',
         expandPrompt: true,
         title: 'Spot The Bot',
-        navIndex: 17,
+        navIndex: 18,
         rules: 'A robot photo from pit scouting comes up with three teams. '
             'Pick the right one before time runs out.',
         blocker: (appState) {

@@ -7,6 +7,8 @@ class TbaMatch {
   final List<String> blueTeams;
   // Scheduled (or predicted) start, epoch seconds; null until TBA has one.
   final int? time;
+  // When it actually started, epoch seconds; null until it's been played.
+  final int? actualTime;
 
   TbaMatch({
     required this.key,
@@ -16,6 +18,7 @@ class TbaMatch {
     required this.redTeams,
     required this.blueTeams,
     this.time,
+    this.actualTime,
   });
 
   Map<String, dynamic> toJson() => {
@@ -26,6 +29,7 @@ class TbaMatch {
         'redTeams': redTeams,
         'blueTeams': blueTeams,
         'time': time,
+        'actualTime': actualTime,
       };
 
   factory TbaMatch.fromJson(Map<String, dynamic> json) {
@@ -51,6 +55,7 @@ class TbaMatch {
       redTeams: redTeams,
       blueTeams: blueTeams,
       time: _toInt(json['predicted_time'] ?? json['time']),
+      actualTime: _toInt(json['actualTime'] ?? json['actual_time']),
     );
   }
 

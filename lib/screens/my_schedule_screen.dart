@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../services/browser.dart';
 import '../services/scouter_registry.dart';
 import '../widgets/nav_drawer.dart';
+import '../widgets/schedule_grid.dart';
 
 /// Students' screen: my shifts, add them to a calendar, and everyone's.
 class MyScheduleScreen extends StatefulWidget {
@@ -20,9 +21,6 @@ class MyScheduleScreen extends StatefulWidget {
 class _MyScheduleScreenState extends State<MyScheduleScreen> {
   // Match times arrive with the match list; refresh it once per session.
   static final Set<String> _matchesRefreshed = {};
-  // Kept across visits within a session.
-  static bool _byMatch = false;
-
   @override
   void initState() {
     super.initState();
@@ -68,7 +66,7 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
 
     String? startOf(int match) {
       final t = times[match];
-      return t == null ? null : formatWhen(DateTime.fromMillisecondsSinceEpoch(t * 1000));
+      return t == null ? null : formatWhen(t.at);
     }
 
     Widget body;
@@ -117,7 +115,9 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
                     ListTile(
                       contentPadding: EdgeInsets.zero,
                       title: Text('${stationLabel(s.station)} · ${s.range}'),
-                      subtitle: startOf(s.firstMatch) == null ? null : Text('Starts about ${startOf(s.firstMatch)}'),
+                      subtitle: startOf(s.firstMatch) == null
+                          ? null
+                          : Text('${times[s.firstMatch]!.actual ? 'Started' : 'Starts about'} ${startOf(s.firstMatch)}'),
                     ),
                 if (name.isNotEmpty) ...[
                   const SizedBox(height: 8),
@@ -147,20 +147,12 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
                 const SizedBox(height: 24),
                 Semantics(header: true, child: Text('Everyone', style: theme.textTheme.titleMedium)),
                 const SizedBox(height: 8),
-                SegmentedButton<bool>(
-                  showSelectedIcon: false,
-                  segments: const [
-                    ButtonSegment(value: false, label: Text('By station')),
-                    ButtonSegment(value: true, label: Text('By match')),
-                  ],
-                  selected: {_byMatch},
-                  onSelectionChanged: (v) => setState(() => _byMatch = v.first),
+                ScheduleGrid(
+                  blocks: toBlocks(current.shifts),
+                  me: name,
+                  times: times,
+                  breaks: findBreaks(times),
                 ),
-                const SizedBox(height: 8),
-                if (_byMatch)
-                  ..._byMatchBlocks(context, current, name, startOf)
-                else
-                  ..._byStation(context, current, name),
               ],
             ],
           ),
@@ -193,83 +185,8 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
     );
   }
 
-  static Map<int, int> _qualTimes(AppStateProvider app) => {
+  static Map<int, MatchTime> _qualTimes(AppStateProvider app) => qualTimes([
         for (final m in app.matches)
-          if (m.compLevel == 'qm' && m.time != null) m.matchNumber: m.time!,
-      };
-
-  /// One line, read as one item: "Q1-Q6, Ann (you)".
-  Widget _line(BuildContext context, String left, String name, bool isMe) {
-    final style = isMe ? const TextStyle(fontWeight: FontWeight.bold) : null;
-    return Semantics(
-      container: true,
-      label: '$left, $name${isMe ? ', you' : ''}',
-      excludeSemantics: true,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 3),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(width: 110, child: Text(left, style: style)),
-            Expanded(child: Text(isMe ? '$name (you)' : name, style: style)),
-          ],
-        ),
-      ),
-    );
-  }
-
-  List<Widget> _byStation(BuildContext context, ScoutSchedule schedule, String me) {
-    final theme = Theme.of(context);
-    final meKey = nameKey(me);
-    return [
-      for (final station in scheduleStations) ...[
-        Padding(
-          padding: const EdgeInsets.only(top: 12, bottom: 2),
-          child: Semantics(header: true, child: Text(stationLabel(station), style: theme.textTheme.titleSmall)),
-        ),
-        for (final s in ([
-          for (final s in schedule.shifts)
-            if (s.station == station) s,
-        ]..sort((a, b) => a.firstMatch.compareTo(b.firstMatch))))
-          _line(context, s.range, s.scouterName, meKey.isNotEmpty && nameKey(s.scouterName) == meKey),
-      ],
-    ];
-  }
-
-  List<Widget> _byMatchBlocks(
-      BuildContext context, ScoutSchedule schedule, String me, String? Function(int) startOf) {
-    final theme = Theme.of(context);
-    final meKey = nameKey(me);
-    // Split the qualification matches wherever any shift starts or ends.
-    final edges = <int>{};
-    for (final s in schedule.shifts) {
-      edges..add(s.firstMatch)..add(s.lastMatch + 1);
-    }
-    final sorted = edges.toList()..sort();
-    final out = <Widget>[];
-    for (var i = 0; i + 1 < sorted.length; i++) {
-      final first = sorted[i], last = sorted[i + 1] - 1;
-      final here = [
-        for (final s in schedule.shifts)
-          if (s.firstMatch <= first && last <= s.lastMatch) s,
-      ];
-      if (here.isEmpty) continue;
-      final start = startOf(first);
-      out.add(Padding(
-        padding: const EdgeInsets.only(top: 12, bottom: 2),
-        child: Semantics(
-          header: true,
-          child: Text('${matchRange(first, last)}${start == null ? '' : ' · about $start'}',
-              style: theme.textTheme.titleSmall),
-        ),
-      ));
-      for (final station in scheduleStations) {
-        for (final s in here.where((s) => s.station == station)) {
-          out.add(_line(context, stationLabel(station), s.scouterName,
-              meKey.isNotEmpty && nameKey(s.scouterName) == meKey));
-        }
-      }
-    }
-    return out;
-  }
+          if (m.compLevel == 'qm') (match: m.matchNumber, time: m.time, actualTime: m.actualTime),
+      ]);
 }

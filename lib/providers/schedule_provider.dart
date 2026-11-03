@@ -20,6 +20,16 @@ class ScheduleProvider extends ChangeNotifier {
   String? _error;
   final Set<String> _autoFetched = {};
 
+  // Builder setup (saved on this device per event + key): who's scouting,
+  // and the groups.
+  Set<String> _roster = {};
+  // People who scout together (2–6 each).
+  List<ScoutGroup> _groups = [];
+  // Preferences on this device, for every event.
+  int _shiftsPerPerson = 3;
+  int _maxMatches = 10;
+  bool _prefsLoaded = false;
+
   // Builder draft, per event + secret key. null = not started yet.
   List<Shift>? _draft;
   ScoutSchedule? _draftSource;
@@ -36,6 +46,69 @@ class ScheduleProvider extends ChangeNotifier {
   /// The published schedule the draft started from, or null when it began
   /// empty.
   ScoutSchedule? get draftSource => _draftSource;
+
+  /// Names ticked as scouting at this event (registered or added by hand).
+  Set<String> get roster => _roster;
+  List<ScoutGroup> get groups => _groups;
+  /// How many blocks each person scouts; sets how many blocks there are.
+  int get shiftsPerPerson => _shiftsPerPerson;
+  /// The most qualification matches anyone should scout; more is a problem.
+  int get maxMatches => _maxMatches;
+
+  void setRoster(Set<String> roster) {
+    _roster = Set.of(roster);
+    // Drop people no longer scouting from the groups, and groups left with
+    // fewer than two.
+    _groups = [
+      for (final g in _groups) [for (final n in g) if (_roster.contains(n)) n],
+    ]..removeWhere((g) => g.length < 2);
+    _saveSetup();
+  }
+
+  void setGroups(List<ScoutGroup> groups) {
+    _groups = [for (final g in groups) List.of(g)];
+    _saveSetup();
+  }
+
+  void setShiftsPerPerson(int shifts) {
+    _shiftsPerPerson = shifts;
+    notifyListeners();
+    _storage.saveScheduleShiftsPerPerson(shifts);
+  }
+
+  void setMaxMatches(int max) {
+    _maxMatches = max;
+    notifyListeners();
+    _storage.saveScheduleMaxMatches(max);
+  }
+
+  Future<void> _loadPrefs() async {
+    if (_prefsLoaded) return;
+    _prefsLoaded = true;
+    final p = await _storage.loadSchedulePrefs();
+    _shiftsPerPerson = p.shiftsPerPerson ?? _shiftsPerPerson;
+    _maxMatches = p.maxMatches ?? _maxMatches;
+  }
+
+  void _saveSetup() {
+    notifyListeners();
+    final eventKey = _eventKey, secretKey = _secretKey;
+    if (eventKey == null || secretKey == null) return;
+    _storage.saveScheduleSetup(eventKey, secretKey, {
+      'roster': _roster.toList(),
+      'groups': _groups,
+    });
+  }
+
+  Future<void> _loadSetup(String eventKey, String secretKey) async {
+    final setup = await _storage.loadScheduleSetup(eventKey, secretKey);
+    if (_eventKey != eventKey || _secretKey != secretKey) return;
+    _roster = {for (final n in (setup?['roster'] as List? ?? const [])) n.toString()};
+    _groups = [
+      for (final g in (setup?['groups'] as List? ?? const []))
+        if (g is List) [for (final n in g) n.toString()],
+    ];
+  }
 
   void setDraft(List<Shift> shifts) {
     _draft = List.of(shifts);
@@ -63,6 +136,10 @@ class ScheduleProvider extends ChangeNotifier {
       _draftSource = null;
       _error = null;
       notifyListeners();
+      _roster = {};
+      _groups = [];
+      await _loadPrefs();
+      await _loadSetup(eventKey, secretKey);
       final cached = await _storage.loadCachedSchedule(eventKey, secretKey);
       if (_eventKey != eventKey || _secretKey != secretKey) return;
       if (cached != null) {

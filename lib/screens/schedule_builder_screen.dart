@@ -1,12 +1,15 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/scout_schedule.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/schedule_provider.dart';
 import '../widgets/nav_drawer.dart';
+import '../widgets/schedule_grid.dart';
 
-/// Lead's screen: build the match-scouting schedule and publish it.
+/// Lead's screen: pick who's scouting, put them in groups of up to six, let
+/// the groups take turns in blocks of matches, adjust, and publish.
 class ScheduleBuilderScreen extends StatefulWidget {
   const ScheduleBuilderScreen({super.key});
 
@@ -15,17 +18,22 @@ class ScheduleBuilderScreen extends StatefulWidget {
 }
 
 class _ScheduleBuilderScreenState extends State<ScheduleBuilderScreen> {
-  // Kept across visits within a session.
-  static int _blockLength = 8;
+  // Match times (estimated and actual) come with the match list; refresh it
+  // once per session.
+  static final Set<String> _matchesRefreshed = {};
   bool _publishing = false;
+  final _rng = Random();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
-      final s = context.read<AppStateProvider>().settings;
+      final app = context.read<AppStateProvider>();
+      final s = app.settings;
       final schedule = context.read<ScheduleProvider>();
+      final event = s.selectedEventKey ?? '';
+      if (event.isNotEmpty && _matchesRefreshed.add(event)) app.loadMatches();
       await schedule.load(s.selectedEventKey ?? '', s.secretTeamKey);
       if (mounted) schedule.startDraftIfNeeded();
       if (mounted) setState(() {});
@@ -36,9 +44,21 @@ class _ScheduleBuilderScreenState extends State<ScheduleBuilderScreen> {
       .where((m) => m.compLevel == 'qm')
       .fold(0, (a, m) => m.matchNumber > a ? m.matchNumber : a);
 
-  List<String> _names(ScheduleProvider schedule) => [
-        for (final s in schedule.scouters) s.name,
-      ];
+  /// Everyone who could be picked: registered scouters plus names added by
+  /// hand, alphabetical.
+  List<String> _everyone(ScheduleProvider schedule) {
+    final seen = <String>{};
+    final names = <String>[];
+    for (final n in [for (final s in schedule.scouters) s.name, ...schedule.roster]) {
+      if (seen.add(nameKey(n))) names.add(n);
+    }
+    names.sort((a, b) => a.toLowerCase().compareTo(b.toLowerCase()));
+    return names;
+  }
+
+  /// Ticked names in the same order as [_everyone].
+  List<String> _picked(ScheduleProvider schedule) =>
+      [for (final n in _everyone(schedule)) if (schedule.roster.contains(n)) n];
 
   Future<bool> _confirm(String title, String body, String ok) async {
     final r = await showDialog<bool>(
@@ -55,49 +75,77 @@ class _ScheduleBuilderScreenState extends State<ScheduleBuilderScreen> {
     return r == true;
   }
 
-  Future<void> _fill(ScheduleProvider schedule, int qualCount) async {
-    final names = _names(schedule);
-    if (names.isEmpty) return;
-    if (schedule.draft.isNotEmpty &&
-        !await _confirm('Replace the draft?',
-            'Fill evenly starts over and replaces every block in the draft.', 'Replace')) {
-      return;
-    }
-    schedule.setDraft(fillEvenly(names, qualCount, _blockLength));
+  Future<void> _addName(ScheduleProvider schedule) async {
+    final name = await showDialog<String>(
+      context: context,
+      builder: (ctx) => const _NameDialog(),
+    );
+    if (name == null || name.trim().isEmpty) return;
+    final existing = _everyone(schedule).where((n) => nameKey(n) == nameKey(name));
+    schedule.setRoster({...schedule.roster, existing.isEmpty ? name.trim() : existing.first});
   }
 
-  Future<void> _edit(ScheduleProvider schedule, int qualCount, String station, int? index) async {
-    final draft = schedule.draft;
-    final existing = index == null ? null : draft[index];
-    Shift? initial = existing;
-    if (initial == null) {
-      var next = 1;
-      for (final s in draft) {
-        if (s.station == station && s.lastMatch >= next) next = s.lastMatch + 1;
-      }
-      if (qualCount > 0 && next > qualCount) next = qualCount;
-      final last = next + _blockLength - 1 > qualCount ? qualCount : next + _blockLength - 1;
-      initial = Shift(scouterName: '', station: station, firstMatch: next, lastMatch: last);
+  /// Roll a whole new schedule from the groups and everyone else.
+  void _generate(ScheduleProvider schedule, List<(int, int)> ranges) {
+    final before = schedule.draft;
+    // Roll a few times if someone ends up over the max (block lengths
+    // differ, so who gets the long ones matters).
+    final picked = _picked(schedule);
+    var shifts = <Shift>[];
+    for (var roll = 0; roll < 40; roll++) {
+      shifts = generateSchedule(picked, schedule.groups, ranges, _rng, maxMatches: schedule.maxMatches);
+      if (matchesPerPerson(shifts).values.every((n) => n <= schedule.maxMatches)) break;
     }
-    final result = await showDialog<_BlockResult>(
+    schedule.setDraft(shifts);
+    if (before.isEmpty) return;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: const Text('New schedule generated'),
+        action: SnackBarAction(label: 'Undo', onPressed: () => schedule.setDraft(before)),
+      ));
+  }
+
+  /// Add (index == null) or edit a group of people who scout together.
+  Future<void> _editGroup(ScheduleProvider schedule, int? index) async {
+    final current = index == null ? <String>[] : schedule.groups[index];
+    final elsewhere = {
+      for (var g = 0; g < schedule.groups.length; g++)
+        if (g != index) ...schedule.groups[g].map(nameKey),
+    };
+    final result = await showDialog<List<String>>(
       context: context,
-      builder: (ctx) => _BlockDialog(
-        initial: initial!,
-        isNew: existing == null,
-        names: _names(schedule),
-        qualCount: qualCount,
+      builder: (ctx) => _GroupDialog(
+        title: index == null ? 'New group' : 'Group ${index + 1}',
+        candidates: [for (final n in _picked(schedule)) if (!elsewhere.contains(nameKey(n))) n],
+        initial: current,
       ),
     );
     if (result == null) return;
-    final updated = List<Shift>.of(draft);
-    if (result.delete) {
-      updated.removeAt(index!);
-    } else if (index == null) {
-      updated.add(result.shift!);
+    final groups = [...schedule.groups];
+    if (index == null) {
+      groups.add(result);
     } else {
-      updated[index] = result.shift!;
+      groups[index] = result;
     }
-    schedule.setDraft(updated);
+    schedule.setGroups(groups);
+  }
+
+  Future<void> _editCell(ScheduleProvider schedule, ScheduleBlock block, String station) async {
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => _CellDialog(
+        title: '${block.range}, ${stationLabel(station)}',
+        current: block.names[station] ?? '',
+        roster: _picked(schedule),
+        others: [
+          for (final n in _everyone(schedule))
+            if (!schedule.roster.contains(n)) n,
+        ],
+      ),
+    );
+    if (result == null) return;
+    schedule.setDraft(setCell(schedule.draft, station, block.firstMatch, block.lastMatch, result));
   }
 
   Future<void> _publish(ScheduleProvider schedule, String publisher, int problems) async {
@@ -120,6 +168,21 @@ class _ScheduleBuilderScreenState extends State<ScheduleBuilderScreen> {
     if (mounted) setState(() => _publishing = false);
   }
 
+  Widget _section(ThemeData theme, String title, {String? trailing}) => Padding(
+        padding: const EdgeInsets.only(top: 20, bottom: 8),
+        child: Semantics(
+          header: true,
+          child: Text.rich(TextSpan(children: [
+            TextSpan(text: title, style: theme.textTheme.titleMedium),
+            if (trailing != null)
+              TextSpan(
+                text: '  $trailing',
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+          ])),
+        ),
+      );
+
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppStateProvider>();
@@ -130,10 +193,34 @@ class _ScheduleBuilderScreenState extends State<ScheduleBuilderScreen> {
     final ready = eventKey.isNotEmpty && settings.secretTeamKey.isNotEmpty;
     final qualCount = _qualCount(app);
     final draft = schedule.draft;
-    final problems = qualCount == 0 ? <String>[] : scheduleProblems(draft, qualCount);
+    final problems = qualCount == 0 || draft.isEmpty ? <String>[] : scheduleProblems(draft, qualCount, maxMatches: schedule.maxMatches);
     final publisher = settings.scouterName.trim();
     final source = schedule.draftSource;
     final muted = theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    final everyone = _everyone(schedule);
+    final picked = _picked(schedule);
+    final grouped = {for (final g in schedule.groups) ...g.map(nameKey)};
+    final times = qualTimes([
+      for (final m in app.matches)
+        if (m.compLevel == 'qm') (match: m.matchNumber, time: m.time, actualTime: m.actualTime),
+    ]);
+    final perPerson = blocksPerPerson(draft);
+    // "22 scouts × 3 shifts → 11 blocks of 7–8 matches"
+    // Shifts end at lunch and the end of each day.
+    final breaks = findBreaks(times);
+    final cuts = shiftCuts(breaks);
+    final ranges = blockRanges(
+        qualCount, blockCountFor(picked.length, schedule.shiftsPerPerson, qualCount),
+        cuts: cuts);
+    final lengths = [for (final (a, b) in ranges) b - a + 1];
+    final cantFit = maxMatchesProblem(picked.length, qualCount, schedule.maxMatches);
+    final plan = ranges.isEmpty
+        ? null
+        : '${picked.length} scouts × ${schedule.shiftsPerPerson} '
+            '${schedule.shiftsPerPerson == 1 ? 'shift' : 'shifts'} → ${ranges.length} '
+            '${ranges.length == 1 ? 'block' : 'blocks'} of '
+            '${lengths.reduce(min) == lengths.reduce(max) ? '${lengths.first}' : '${lengths.reduce(min)}–${lengths.reduce(max)}'} matches'
+            '${cuts.isEmpty ? '' : ', ending at ${[for (final b in breaks) if (b.kind != BreakKind.other) b.label.toLowerCase()].join(' and ')}'}';
 
     Widget body;
     if (!ready) {
@@ -166,7 +253,71 @@ class _ScheduleBuilderScreenState extends State<ScheduleBuilderScreen> {
                         padding: const EdgeInsets.only(top: 4),
                         child: Text(schedule.error!, style: TextStyle(color: theme.colorScheme.error)),
                       ),
-                    const SizedBox(height: 12),
+
+                    // 1. Who's scouting
+                    _section(theme, '1. Who\'s scouting', trailing: '${picked.length} of ${everyone.length}'),
+                    if (everyone.isEmpty)
+                      Text('Nobody has registered for this event yet. Names appear once people use the app '
+                          'with this team key and event, or add them below.', style: muted),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final n in everyone)
+                          FilterChip(
+                            label: Text(n),
+                            selected: schedule.roster.contains(n),
+                            onSelected: (on) => schedule.setRoster(
+                                on ? {...schedule.roster, n} : ({...schedule.roster}..remove(n))),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Wrap(
+                      spacing: 4,
+                      children: [
+                        TextButton(
+                          onPressed: everyone.isEmpty ? null : () => schedule.setRoster(everyone.toSet()),
+                          child: const Text('Select all'),
+                        ),
+                        TextButton(
+                          onPressed: picked.isEmpty ? null : () => schedule.setRoster({}),
+                          child: const Text('Select none'),
+                        ),
+                        TextButton.icon(
+                          onPressed: () => _addName(schedule),
+                          icon: const Icon(Icons.person_add_alt),
+                          label: const Text('Add a name'),
+                        ),
+                      ],
+                    ),
+
+                    // 2. Groups
+                    _section(theme, '2. Scout together', trailing: '2–6 per group'),
+                    Text('Put people who like to scout together in a group; they always get the same blocks. '
+                        'Everyone else is placed at random.', style: muted),
+                    for (var g = 0; g < schedule.groups.length; g++)
+                      _FriendGroup(
+                        index: g,
+                        names: schedule.groups[g],
+                        onEdit: () => _editGroup(schedule, g),
+                        onRemove: () {
+                          final groups = [...schedule.groups]..removeAt(g);
+                          schedule.setGroups(groups);
+                        },
+                      ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: picked.length - grouped.length < 2 ? null : () => _editGroup(schedule, null),
+                        icon: const Icon(Icons.group_add_outlined),
+                        label: const Text('Add group'),
+                      ),
+                    ),
+
+                    // 3. Schedule
+                    _section(theme, '3. Schedule',
+                        trailing: qualCount == 0 ? null : '$qualCount qualification matches'),
                     if (qualCount == 0) ...[
                       const Text('The qualification match schedule isn\'t loaded yet.'),
                       const SizedBox(height: 8),
@@ -179,55 +330,89 @@ class _ScheduleBuilderScreenState extends State<ScheduleBuilderScreen> {
                         ),
                       ),
                     ] else ...[
-                      Text('$qualCount qualification matches, ${schedule.scouters.length} registered scouters.',
-                          style: muted),
-                      const SizedBox(height: 8),
                       Wrap(
                         spacing: 12,
                         runSpacing: 8,
                         crossAxisAlignment: WrapCrossAlignment.center,
                         children: [
-                          Text('Block length', style: theme.textTheme.bodyLarge),
+                          Text('Shifts per person', style: theme.textTheme.bodyLarge),
                           DropdownButton<int>(
-                            value: _blockLength,
+                            value: schedule.shiftsPerPerson,
                             items: [
-                              for (final n in const [6, 8, 10, 12])
-                                DropdownMenuItem(value: n, child: Text('$n matches')),
+                              for (var n = 1; n <= 8; n++) DropdownMenuItem(value: n, child: Text('$n')),
                             ],
-                            onChanged: (v) => setState(() => _blockLength = v ?? _blockLength),
+                            onChanged: (v) => schedule.setShiftsPerPerson(v ?? schedule.shiftsPerPerson),
                           ),
-                          OutlinedButton(
-                            onPressed: schedule.scouters.isEmpty ? null : () => _fill(schedule, qualCount),
-                            child: const Text('Fill evenly'),
+                          Text('Max matches', style: theme.textTheme.bodyLarge),
+                          DropdownButton<int>(
+                            value: schedule.maxMatches,
+                            items: [
+                              for (final n in {
+                                for (var n = 4; n <= 40; n += n < 20 ? 1 : 5) n,
+                                schedule.maxMatches,
+                              }.toList()..sort())
+                                DropdownMenuItem(value: n, child: Text('$n')),
+                            ],
+                            onChanged: (v) => schedule.setMaxMatches(v ?? schedule.maxMatches),
+                          ),
+                          FilledButton.icon(
+                            onPressed: picked.isEmpty || cantFit != null ? null : () => _generate(schedule, ranges),
+                            icon: const Icon(Icons.casino_outlined),
+                            label: Text(draft.isEmpty ? 'Generate schedule' : 'Generate again'),
                           ),
                           TextButton(
                             onPressed: draft.isEmpty
                                 ? null
                                 : () async {
-                                    if (await _confirm('Clear the draft?',
-                                        'This removes every block from the draft.', 'Clear')) {
+                                    if (await _confirm('Clear the schedule?',
+                                        'This removes every block from the schedule below.', 'Clear')) {
                                       schedule.setDraft([]);
                                     }
                                   },
-                            child: const Text('Clear all'),
+                            child: const Text('Clear'),
                           ),
                         ],
                       ),
-                      if (schedule.scouters.isEmpty)
+                      if (cantFit != null)
                         Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text('No registered scouters yet. Names appear once people use the app '
-                              'with this team key and event. You can still type names into blocks.',
-                              style: muted),
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(Icons.error_outline, size: 18, color: theme.colorScheme.error,
+                                  semanticLabel: 'Problem'),
+                              const SizedBox(width: 8),
+                              Expanded(child: Text(cantFit, style: TextStyle(color: theme.colorScheme.error))),
+                            ],
+                          ),
                         ),
-                      const SizedBox(height: 16),
-                      _Problems(problems: problems),
-                      const SizedBox(height: 8),
-                      for (final station in scheduleStations)
-                        _StationSection(
-                          station: station,
-                          shifts: draft,
-                          onEdit: (i) => _edit(schedule, qualCount, station, i),
+                      if (plan != null)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Text(plan, style: theme.textTheme.bodyLarge),
+                        ),
+                      Text('Six scouts per block, chosen at random so everyone gets the same number of shifts. '
+                          'Generate again for a whole new schedule, or tap a name to change just that spot.',
+                          style: muted),
+                      const SizedBox(height: 12),
+                      if (draft.isNotEmpty) ...[
+                        _Problems(
+                          problems: problems,
+                          warnings: scheduleWarnings(draft, picked),
+                          qualCount: qualCount,
+                          shifts: perPerson.isEmpty ? null : perPerson.values.first,
+                          maxMatches: schedule.maxMatches,
+                        ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (draft.isEmpty)
+                        Text('No blocks yet.', style: muted)
+                      else
+                        ScheduleGrid(
+                          blocks: toBlocks(draft),
+                          times: times,
+                          breaks: breaks,
+                          onTapCell: (b, station) => _editCell(schedule, b, station),
                         ),
                     ],
                   ],
@@ -284,262 +469,323 @@ class _ScheduleBuilderScreenState extends State<ScheduleBuilderScreen> {
   }
 }
 
+/// Errors (red) and things that could be better (amber), or exactly what
+/// was checked when there's nothing to fix.
 class _Problems extends StatelessWidget {
   final List<String> problems;
-  const _Problems({required this.problems});
+  final List<String> warnings;
+  final int qualCount;
+  // Shifts each person has, when it's the same for everyone.
+  final int? shifts;
+  final int maxMatches;
+
+  const _Problems({
+    required this.maxMatches,
+    required this.problems,
+    required this.warnings,
+    required this.qualCount,
+    required this.shifts,
+  });
+
+  Widget _list(ThemeData theme, String title, List<String> items, Color color, IconData icon, String kind) =>
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Semantics(
+            header: true,
+            child: Text('$title (${items.length})', style: theme.textTheme.titleSmall?.copyWith(color: color)),
+          ),
+          const SizedBox(height: 4),
+          for (final p in items)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 2),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(icon, size: 18, color: color, semanticLabel: kind),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(p)),
+                ],
+              ),
+            ),
+        ],
+      );
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (problems.isEmpty) {
-      return Row(children: [
-        Icon(Icons.check_circle_outline, size: 18, color: theme.colorScheme.primary, semanticLabel: 'OK'),
-        const SizedBox(width: 8),
-        const Expanded(child: Text('No problems: every station is covered and nobody is double-booked.')),
-      ]);
+    if (problems.isEmpty && warnings.isEmpty) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.check_circle_outline, size: 18, color: theme.colorScheme.primary, semanticLabel: 'OK'),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text('All 6 positions covered for all $qualCount quals · nobody double-booked'
+                '${shifts == null ? '' : ' · everyone has $shifts ${shifts == 1 ? 'shift' : 'shifts'}'}'
+                ' · nobody over $maxMatches matches'),
+          ),
+        ],
+      );
     }
+    final amber = theme.brightness == Brightness.dark ? Colors.amber.shade300 : Colors.amber.shade900;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Semantics(
-          header: true,
-          child: Text('Problems (${problems.length})',
-              style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.error)),
-        ),
-        const SizedBox(height: 4),
-        for (final p in problems)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 2),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(Icons.warning_amber, size: 18, color: theme.colorScheme.error, semanticLabel: 'Problem'),
-                const SizedBox(width: 8),
-                Expanded(child: Text(p)),
-              ],
-            ),
-          ),
+        if (problems.isNotEmpty)
+          _list(theme, 'Problems', problems, theme.colorScheme.error, Icons.error_outline, 'Problem'),
+        if (problems.isNotEmpty && warnings.isNotEmpty) const SizedBox(height: 8),
+        if (warnings.isNotEmpty)
+          _list(theme, 'Could be better', warnings, amber, Icons.warning_amber, 'Could be better'),
       ],
     );
   }
 }
 
-class _StationSection extends StatelessWidget {
-  final String station;
-  final List<Shift> shifts;
-  final void Function(int? index) onEdit;
+/// A group of people who scout together, as chips.
+class _FriendGroup extends StatelessWidget {
+  final int index;
+  final List<String> names;
+  final VoidCallback onEdit;
+  final VoidCallback onRemove;
 
-  const _StationSection({required this.station, required this.shifts, required this.onEdit});
+  const _FriendGroup({
+    required this.index,
+    required this.names,
+    required this.onEdit,
+    required this.onRemove,
+  });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final mine = [
-      for (var i = 0; i < shifts.length; i++)
-        if (shifts[i].station == station) i,
-    ]..sort((a, b) => shifts[a].firstMatch.compareTo(shifts[b].firstMatch));
     return Padding(
-      padding: const EdgeInsets.only(top: 12),
+      padding: const EdgeInsets.only(top: 10),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Row(
+            children: [
+              Expanded(
+                child: Semantics(
+                  header: true,
+                  child: Text('Group ${index + 1}  ·  ${names.length} together', style: theme.textTheme.titleSmall),
+                ),
+              ),
+              TextButton(
+                onPressed: onEdit,
+                child: Text('Edit', semanticsLabel: 'Edit group ${index + 1}'),
+              ),
+              IconButton(
+                icon: Icon(Icons.delete_outline, semanticLabel: 'Remove group ${index + 1}'),
+                visualDensity: VisualDensity.compact,
+                onPressed: onRemove,
+              ),
+            ],
+          ),
           Semantics(
-            header: true,
-            child: Text(stationLabel(station), style: theme.textTheme.titleMedium),
-          ),
-          if (mine.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text('No blocks', style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
-            ),
-          for (final i in mine)
-            Semantics(
-              button: true,
-              label: 'Edit ${stationLabel(station)} block: ${shifts[i].scouterName}, ${shifts[i].range}',
-              excludeSemantics: true,
-              child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(shifts[i].scouterName),
-                subtitle: Text(shifts[i].range),
-                trailing: const Icon(Icons.edit_outlined),
-                onTap: () => onEdit(i),
-              ),
-            ),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Semantics(
-              label: 'Add block to ${stationLabel(station)}',
-              button: true,
-              excludeSemantics: true,
-              child: TextButton.icon(
-                onPressed: () => onEdit(null),
-                icon: const Icon(Icons.add),
-                label: const Text('Add block'),
-              ),
+            container: true,
+            label: 'Group ${index + 1}: ${names.join(', ')}',
+            excludeSemantics: true,
+            child: Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                for (final n in names)
+                  Chip(
+                    avatar: const Icon(Icons.person_outline, size: 18),
+                    label: Text(n),
+                    visualDensity: VisualDensity.compact,
+                  ),
+              ],
             ),
           ),
-          const Divider(),
         ],
       ),
     );
   }
 }
 
-class _BlockResult {
-  final Shift? shift;
-  final bool delete;
-  const _BlockResult.save(Shift this.shift) : delete = false;
-  const _BlockResult.remove()
-      : shift = null,
-        delete = true;
-}
+/// OK/Cancel: who scouts one station for one block.
+class _CellDialog extends StatefulWidget {
+  final String title;
+  final String current;
+  final List<String> roster;
+  final List<String> others;
 
-/// OK/Cancel dialog editing a draft of one block.
-class _BlockDialog extends StatefulWidget {
-  final Shift initial;
-  final bool isNew;
-  final List<String> names;
-  final int qualCount;
-
-  const _BlockDialog({
-    required this.initial,
-    required this.isNew,
-    required this.names,
-    required this.qualCount,
+  const _CellDialog({
+    required this.title,
+    required this.current,
+    required this.roster,
+    required this.others,
   });
 
   @override
-  State<_BlockDialog> createState() => _BlockDialogState();
+  State<_CellDialog> createState() => _CellDialogState();
 }
 
-class _BlockDialogState extends State<_BlockDialog> {
+class _CellDialogState extends State<_CellDialog> {
   static const _other = '\u0000other';
-  late final List<String> _options;
-  String? _choice;
+  late String _choice;
   late final TextEditingController _custom;
-  late final TextEditingController _first;
-  late final TextEditingController _last;
-  String? _error;
 
   @override
   void initState() {
     super.initState();
-    final name = widget.initial.scouterName;
-    final key = nameKey(name);
-    _options = [...widget.names];
-    final match = _options.where((n) => nameKey(n) == key);
     _custom = TextEditingController();
-    if (name.isEmpty) {
-      _choice = null;
+    final all = [...widget.roster, ...widget.others];
+    final match = all.where((n) => nameKey(n) == nameKey(widget.current));
+    if (widget.current.trim().isEmpty) {
+      _choice = '';
     } else if (match.isNotEmpty) {
       _choice = match.first;
     } else {
       _choice = _other;
-      _custom.text = name;
+      _custom.text = widget.current;
     }
-    _first = TextEditingController(text: '${widget.initial.firstMatch}');
-    _last = TextEditingController(text: '${widget.initial.lastMatch}');
   }
 
   @override
   void dispose() {
     _custom.dispose();
-    _first.dispose();
-    _last.dispose();
     super.dispose();
-  }
-
-  void _save() {
-    final name = (_choice == _other ? _custom.text : _choice ?? '').trim();
-    final first = int.tryParse(_first.text.trim());
-    final last = int.tryParse(_last.text.trim());
-    String? error;
-    if (name.isEmpty) {
-      error = 'Choose or type a scouter.';
-    } else if (first == null || last == null) {
-      error = 'Enter the first and last match numbers.';
-    } else if (first < 1 || last < first) {
-      error = 'The first match must be at least 1 and no later than the last.';
-    } else if (widget.qualCount > 0 && last > widget.qualCount) {
-      error = 'There are only ${widget.qualCount} qualification matches.';
-    }
-    if (error != null) {
-      setState(() => _error = error);
-      return;
-    }
-    Navigator.pop(
-        context, _BlockResult.save(widget.initial.copyWith(scouterName: name, firstMatch: first, lastMatch: last)));
   }
 
   @override
   Widget build(BuildContext context) {
-    final digits = [FilteringTextInputFormatter.digitsOnly];
     return AlertDialog(
-      title: Text('${widget.isNew ? 'Add' : 'Edit'} ${stationLabel(widget.initial.station)} block'),
-      content: SingleChildScrollView(
+      title: Text(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          InputDecorator(
+            decoration: const InputDecoration(labelText: 'Scouter'),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                isExpanded: true,
+                value: _choice,
+                items: [
+                  const DropdownMenuItem(value: '', child: Text('Nobody')),
+                  for (final n in widget.roster) DropdownMenuItem(value: n, child: Text(n)),
+                  for (final n in widget.others)
+                    DropdownMenuItem(value: n, child: Text('$n (not selected)')),
+                  const DropdownMenuItem(value: _other, child: Text('Someone else...')),
+                ],
+                onChanged: (v) => setState(() => _choice = v ?? ''),
+              ),
+            ),
+          ),
+          if (_choice == _other)
+            TextField(
+              controller: _custom,
+              autofocus: true,
+              decoration: const InputDecoration(labelText: 'Scouter name'),
+              textCapitalization: TextCapitalization.words,
+            ),
+        ],
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _choice == _other ? _custom.text.trim() : _choice),
+          child: const Text('OK'),
+        ),
+      ],
+    );
+  }
+}
+
+/// OK/Cancel: a name that isn't in the registry.
+class _NameDialog extends StatefulWidget {
+  const _NameDialog();
+
+  @override
+  State<_NameDialog> createState() => _NameDialogState();
+}
+
+class _NameDialogState extends State<_NameDialog> {
+  final _name = TextEditingController();
+
+  @override
+  void dispose() {
+    _name.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: const Text('Add a name'),
+        content: TextField(
+          controller: _name,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Scouter name',
+            helperText: 'For someone who hasn\'t used the app at this event yet',
+          ),
+          textCapitalization: TextCapitalization.words,
+          onSubmitted: (v) => Navigator.pop(context, v),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, _name.text), child: const Text('Add')),
+        ],
+      );
+}
+
+/// OK/Cancel checklist: 2–6 people who scout together.
+class _GroupDialog extends StatefulWidget {
+  final String title;
+  final List<String> candidates;
+  final List<String> initial;
+
+  const _GroupDialog({required this.title, required this.candidates, required this.initial});
+
+  @override
+  State<_GroupDialog> createState() => _GroupDialogState();
+}
+
+class _GroupDialogState extends State<_GroupDialog> {
+  late final List<String> _chosen = [...widget.initial];
+
+  @override
+  Widget build(BuildContext context) {
+    final n = _chosen.length;
+    return AlertDialog(
+      title: Text(widget.title),
+      content: SizedBox(
+        width: 360,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            InputDecorator(
-              decoration: const InputDecoration(labelText: 'Scouter'),
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<String>(
-                  isExpanded: true,
-                  value: _choice,
-                  hint: const Text('Choose a scouter'),
-                  items: [
-                    for (final n in _options) DropdownMenuItem(value: n, child: Text(n)),
-                    const DropdownMenuItem(value: _other, child: Text('Someone else...')),
-                  ],
-                  onChanged: (v) => setState(() => _choice = v),
-                ),
-              ),
-            ),
-            if (_choice == _other)
-              TextField(
-                controller: _custom,
-                decoration: const InputDecoration(labelText: 'Scouter name'),
-                textCapitalization: TextCapitalization.words,
-              ),
+            Text('$n chosen. Pick 2 to 6 people.', style: Theme.of(context).textTheme.bodyMedium),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _first,
-                    decoration: const InputDecoration(labelText: 'First match'),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: digits,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _last,
-                    decoration: const InputDecoration(labelText: 'Last match'),
-                    keyboardType: TextInputType.number,
-                    inputFormatters: digits,
-                  ),
-                ),
-              ],
-            ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  for (final name in widget.candidates)
+                    CheckboxListTile(
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      value: _chosen.contains(name),
+                      title: Text(name),
+                      onChanged: !_chosen.contains(name) && n >= 6
+                          ? null
+                          : (on) => setState(() => on == true ? _chosen.add(name) : _chosen.remove(name)),
+                    ),
+                ],
               ),
+            ),
           ],
         ),
       ),
       actions: [
-        if (!widget.isNew)
-          TextButton(
-            onPressed: () => Navigator.pop(context, const _BlockResult.remove()),
-            child: Text('Delete', style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          ),
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-        FilledButton(onPressed: _save, child: const Text('OK')),
+        FilledButton(
+          onPressed: n < 2 ? null : () => Navigator.pop(context, _chosen),
+          child: const Text('OK'),
+        ),
       ],
     );
   }

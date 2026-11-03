@@ -55,6 +55,9 @@ class StorageService {
   static const String _clusterCustomConfigKey = 'cluster_config_custom';
   static const String _clusterResultCacheKey = 'cluster_result_cache';
   static const String _scheduleCacheKey = 'scout_schedule_cache';
+  static const String _scheduleSetupKey = 'schedule_builder_setup';
+  static const String _scheduleShiftsKey = 'schedule_builder_shifts_per_person';
+  static const String _scheduleMaxMatchesKey = 'schedule_builder_max_matches';
   static const String _calendarTokensKey = 'scouter_calendar_tokens';
 
   // Settings
@@ -470,6 +473,32 @@ class StorageService {
     await _cachePerEvent(
         _matchResultsCacheKey, eventKey, matches.map((m) => m.toJson()).toList());
   }
+
+  // Schedule Builder setup on this device (per event + secret key): who's
+  // scouting, the groups, and the block length.
+  Future<Map<String, dynamic>?> loadScheduleSetup(String eventKey, String secretKey) async {
+    final data = await _loadPerEvent(_scheduleSetupKey, '$eventKey|$secretKey');
+    return data.isEmpty ? null : Map<String, dynamic>.from(data.first);
+  }
+
+  Future<void> saveScheduleSetup(String eventKey, String secretKey, Map<String, dynamic> setup) =>
+      _cachePerEvent(_scheduleSetupKey, '$eventKey|$secretKey', [setup]);
+
+  // Schedule Builder preferences on this device (every event): shifts per
+  // person and the most matches anyone should scout.
+  Future<({int? shiftsPerPerson, int? maxMatches})> loadSchedulePrefs() async {
+    final prefs = await _getPrefs();
+    return (
+      shiftsPerPerson: prefs.getInt(_scheduleShiftsKey),
+      maxMatches: prefs.getInt(_scheduleMaxMatchesKey),
+    );
+  }
+
+  Future<void> saveScheduleShiftsPerPerson(int shifts) async =>
+      (await _getPrefs()).setInt(_scheduleShiftsKey, shifts);
+
+  Future<void> saveScheduleMaxMatches(int max) async =>
+      (await _getPrefs()).setInt(_scheduleMaxMatchesKey, max);
 
   // Match-scouting schedule (per event + secret key): published schedules and
   // registered scouters, so the schedule is readable offline.
