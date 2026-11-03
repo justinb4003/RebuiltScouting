@@ -1,14 +1,11 @@
-import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/rankings.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/rankings_provider.dart';
 import '../widgets/nav_drawer.dart';
-
-// Chart data color (validated reference palette), light / dark steps.
-const _focusLight = Color(0xFF2A78D6);
-const _focusDark = Color(0xFF3987E5);
+import '../widgets/team_details.dart';
 
 const _rowHeight = 44.0;
 const _headerHeight = 56.0;
@@ -149,7 +146,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 10),
+      drawer: const NavDrawer(selectedIndex: 8),
       body: Column(
         children: [
           if (rankings.loading) const LinearProgressIndicator(),
@@ -167,8 +164,9 @@ class _RankingsScreenState extends State<RankingsScreen> {
 }
 
 /// Rank + Team stay pinned on the left; everything else scrolls sideways.
-/// Header and rows share one vertical scroll so the two panes stay aligned.
-class _RankingsTable extends StatelessWidget {
+/// The header row stays put while the rows scroll; its sideways scroll is
+/// kept in step with the rows'.
+class _RankingsTable extends StatefulWidget {
   final RankingsData data;
   final List<RankingRow> rows;
   final List<RankingColumn> columns;
@@ -186,6 +184,45 @@ class _RankingsTable extends StatelessWidget {
     required this.names,
     required this.onSort,
   });
+
+  @override
+  State<_RankingsTable> createState() => _RankingsTableState();
+}
+
+class _RankingsTableState extends State<_RankingsTable> {
+  final _headX = ScrollController();
+  final _bodyX = ScrollController();
+  final _bodyY = ScrollController();
+  bool _syncing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _headX.addListener(() => _follow(_headX, _bodyX));
+    _bodyX.addListener(() => _follow(_bodyX, _headX));
+  }
+
+  void _follow(ScrollController from, ScrollController to) {
+    if (_syncing || !to.hasClients || to.offset == from.offset) return;
+    _syncing = true;
+    to.jumpTo(from.offset.clamp(0.0, to.position.maxScrollExtent));
+    _syncing = false;
+  }
+
+  @override
+  void dispose() {
+    _headX.dispose();
+    _bodyX.dispose();
+    _bodyY.dispose();
+    super.dispose();
+  }
+
+  List<RankingRow> get rows => widget.rows;
+  List<RankingColumn> get columns => widget.columns;
+  RankingColumn get active => widget.active;
+  bool get ascending => widget.ascending;
+  Map<int, String> get names => widget.names;
+  ValueChanged<RankingColumn> get onSort => widget.onSort;
 
   static double _width(RankingColumn c) => switch (c.kind) {
     RankingColumnKind.name => 190,
@@ -249,21 +286,25 @@ class _RankingsTable extends StatelessWidget {
     String text, {
     Alignment align = Alignment.centerRight,
     bool bold = false,
+    Widget? trailing,
   }) {
+    final label = Text(
+      text,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontWeight: bold ? FontWeight.w600 : null,
+        fontFeatures: const [FontFeature.tabularFigures()],
+      ),
+    );
     return Container(
       width: width,
       height: _rowHeight,
       alignment: align,
       padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Text(
-        text,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontWeight: bold ? FontWeight.w600 : null,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
-      ),
+      child: trailing == null
+          ? label
+          : Row(children: [Flexible(child: label), trailing]),
     );
   }
 
@@ -297,11 +338,7 @@ class _RankingsTable extends StatelessWidget {
         double w(RankingColumn c) =>
             _width(c) + (c.kind == RankingColumnKind.name ? extra : 0);
 
-        void open(RankingRow r) => Navigator.pushNamed(
-          context,
-          '/team-details',
-          arguments: r.teamNumber,
-        );
+        void open(RankingRow r) => showTeamDetailsDialog(context, r.teamNumber);
 
         Widget rowBg(RankingRow r, int i, Widget child) => Material(
           color: i.isOdd
@@ -310,70 +347,98 @@ class _RankingsTable extends StatelessWidget {
           child: InkWell(onTap: () => open(r), child: child),
         );
 
-        final pinned = Column(
-          children: [
-            Row(
-              children: [
-                _header(context, columns[0], _rankWidth),
-                _header(context, columns[1], _teamWidth),
-              ],
-            ),
-            for (var i = 0; i < rows.length; i++)
-              rowBg(
-                rows[i],
-                i,
-                Row(
+        Widget pinnedRow(int i) => rowBg(
+          rows[i],
+          i,
+          Row(
+            children: [
+              _cell(context, rows[i], _rankWidth, '${rows[i].rank}'),
+              _cell(context, rows[i], _teamWidth, '${rows[i].teamNumber}',
+                  bold: true),
+            ],
+          ),
+        );
+
+        Widget scrollingRow(int i) => rowBg(
+          rows[i],
+          i,
+          Row(
+            children: [
+              for (final c in scrolling)
+                _cell(
+                  context,
+                  rows[i],
+                  w(c),
+                  _text(c, rows[i]),
+                  align: c.isText ? Alignment.centerLeft : Alignment.centerRight,
+                  trailing: c.kind == RankingColumnKind.name
+                      ? TeamInfoButton(rows[i].teamNumber)
+                      : null,
+                ),
+            ],
+          ),
+        );
+
+        final divider = BoxDecoration(
+          border: Border(right: BorderSide(color: theme.colorScheme.outlineVariant)),
+        );
+
+        final header = Container(
+          decoration: BoxDecoration(
+            border: Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                decoration: divider,
+                child: Row(
                   children: [
-                    _cell(context, rows[i], _rankWidth, '${rows[i].rank}'),
-                    _cell(
-                      context,
-                      rows[i],
-                      _teamWidth,
-                      '${rows[i].teamNumber}',
-                      bold: true,
-                    ),
+                    _header(context, columns[0], _rankWidth),
+                    _header(context, columns[1], _teamWidth),
                   ],
                 ),
               ),
-          ],
-        );
-
-        final scrollPane = SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  for (final c in scrolling)
-                    _header(
-                      context,
-                      c,
-                      w(c),
-                      align: c.isText
-                          ? Alignment.centerLeft
-                          : Alignment.centerRight,
-                    ),
-                ],
-              ),
-              for (var i = 0; i < rows.length; i++)
-                rowBg(
-                  rows[i],
-                  i,
-                  Row(
+              Expanded(
+                child: SingleChildScrollView(
+                  controller: _headX,
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
                     children: [
                       for (final c in scrolling)
-                        _cell(
+                        _header(
                           context,
-                          rows[i],
+                          c,
                           w(c),
-                          _text(c, rows[i]),
-                          align: c.isText
-                              ? Alignment.centerLeft
-                              : Alignment.centerRight,
+                          align: c.isText ? Alignment.centerLeft : Alignment.centerRight,
                         ),
                     ],
                   ),
                 ),
+              ),
+            ],
+          ),
+        );
+
+        final body = SingleChildScrollView(
+          controller: _bodyY,
+          padding: const EdgeInsets.only(bottom: 32),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                decoration: divider,
+                child: Column(children: [for (var i = 0; i < rows.length; i++) pinnedRow(i)]),
+              ),
+              Expanded(
+                child: Scrollbar(
+                  controller: _bodyX,
+                  child: SingleChildScrollView(
+                    controller: _bodyX,
+                    scrollDirection: Axis.horizontal,
+                    child: Column(children: [for (var i = 0; i < rows.length; i++) scrollingRow(i)]),
+                  ),
+                ),
+              ),
             ],
           ),
         );
@@ -382,174 +447,17 @@ class _RankingsTable extends StatelessWidget {
           alignment: Alignment.topCenter,
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 1100),
-            child: ListView(
-              padding: const EdgeInsets.only(bottom: 32),
-              children: [
-                if (data.sortOrderInfo.isNotEmpty && rows.length > 1)
-                  _ScoreChart(data: data, names: names),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        border: Border(
-                          right: BorderSide(
-                            color: theme.colorScheme.outlineVariant,
-                          ),
-                        ),
-                      ),
-                      child: pinned,
-                    ),
-                    Expanded(child: scrollPane),
-                  ],
-                ),
-              ],
+            // Mouse drags scroll too (web defaults to touch only).
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context)
+                  .copyWith(dragDevices: {...PointerDeviceKind.values}),
+              child: Column(
+                children: [header, Expanded(child: body)],
+              ),
             ),
           ),
         );
       },
     );
   }
-}
-
-/// Primary ranking score (first sort-order column) by official rank.
-class _ScoreChart extends StatelessWidget {
-  final RankingsData data;
-  final Map<int, String> names;
-
-  const _ScoreChart({required this.data, required this.names});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final dark = theme.brightness == Brightness.dark;
-    final info = data.sortOrderInfo.first;
-    final byRank = [
-      for (final r in data.rows)
-        if (r.sortOrders.isNotEmpty && r.sortOrders.first != null) r,
-    ]..sort((a, b) => a.rank.compareTo(b.rank));
-    if (byRank.length < 2) return const SizedBox.shrink();
-    final maxY = byRank
-        .map((r) => r.sortOrders.first!)
-        .reduce((a, b) => a > b ? a : b);
-    // Round the axis up to a tidy step so ticks read 0, 1, 2 rather than 1.2.
-    final step = _niceStep(maxY <= 0 ? 1.0 : maxY / 4);
-    final top = step * (maxY / step).ceil().clamp(1, 1000);
-    final labelStyle = theme.textTheme.labelSmall?.copyWith(
-      color: scheme.onSurfaceVariant,
-    );
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('${info.name} by rank', style: theme.textTheme.titleSmall),
-          const SizedBox(height: 8),
-          SizedBox(
-            height: 150,
-            child: BarChart(
-              BarChartData(
-                maxY: top,
-                alignment: BarChartAlignment.spaceBetween,
-                gridData: FlGridData(
-                  drawVerticalLine: false,
-                  horizontalInterval: step,
-                  getDrawingHorizontalLine: (_) => FlLine(
-                    color: scheme.outlineVariant.withValues(alpha: 0.5),
-                    strokeWidth: 0.5,
-                  ),
-                ),
-                borderData: FlBorderData(show: false),
-                titlesData: FlTitlesData(
-                  topTitles: const AxisTitles(),
-                  rightTitles: const AxisTitles(),
-                  leftTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 36,
-                      interval: step,
-                      getTitlesWidget: (v, meta) => v == meta.max
-                          ? const SizedBox.shrink()
-                          : Text(
-                              v.toStringAsFixed(
-                                info.precision > 0 && top < 10 ? 1 : 0,
-                              ),
-                              style: labelStyle,
-                            ),
-                    ),
-                  ),
-                  bottomTitles: AxisTitles(
-                    sideTitles: SideTitles(
-                      showTitles: true,
-                      reservedSize: 20,
-                      getTitlesWidget: (v, _) {
-                        final rank = byRank[v.toInt()].rank;
-                        // Label roughly every fifth bar.
-                        final every = byRank.length > 30 ? 10 : 5;
-                        return rank == 1 || rank % every == 0
-                            ? Text('$rank', style: labelStyle)
-                            : const SizedBox.shrink();
-                      },
-                    ),
-                  ),
-                ),
-                barTouchData: BarTouchData(
-                  touchTooltipData: BarTouchTooltipData(
-                    fitInsideHorizontally: true,
-                    fitInsideVertically: true,
-                    getTooltipColor: (_) => scheme.inverseSurface,
-                    getTooltipItem: (group, _, rod, _) {
-                      final r = byRank[group.x];
-                      final nick = names[r.teamNumber];
-                      return BarTooltipItem(
-                        'Rank ${r.rank}: ${r.teamNumber}'
-                        '${nick == null || nick.isEmpty ? '' : ' · $nick'}\n'
-                        '${info.name}: ${info.format(rod.toY)}',
-                        theme.textTheme.bodySmall!.copyWith(
-                          color: scheme.onInverseSurface,
-                        ),
-                      );
-                    },
-                  ),
-                ),
-                barGroups: [
-                  for (var i = 0; i < byRank.length; i++)
-                    BarChartGroupData(
-                      x: i,
-                      barRods: [
-                        BarChartRodData(
-                          toY: byRank[i].sortOrders.first!,
-                          color: dark ? _focusDark : _focusLight,
-                          width: byRank.length > 40 ? 4 : 6,
-                          borderRadius: const BorderRadius.vertical(
-                            top: Radius.circular(2),
-                          ),
-                        ),
-                      ],
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Smallest 1/2/5 x 10^n step at or above [raw].
-double _niceStep(double raw) {
-  var mag = 1.0;
-  while (mag > raw) {
-    mag /= 10;
-  }
-  while (mag * 10 <= raw) {
-    mag *= 10;
-  }
-  for (final m in [1, 2, 5, 10]) {
-    if (mag * m >= raw) return mag * m;
-  }
-  return mag * 10;
 }

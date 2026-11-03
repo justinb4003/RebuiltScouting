@@ -44,6 +44,10 @@ class BoardRow {
   /// 0–100: share of everyone voting who put the team exactly at
   /// [agreedRank]. Null with fewer than two people voting or no spot.
   final double? agreement;
+
+  /// Votes behind [agreement] and how many people are voting.
+  final int? agreeVotes;
+  final int voterCount;
   final bool taken;
 
   const BoardRow({
@@ -52,6 +56,8 @@ class BoardRow {
     required this.dnpBy,
     required this.agreedRank,
     required this.agreement,
+    this.agreeVotes,
+    this.voterCount = 0,
     required this.taken,
   });
 }
@@ -87,9 +93,16 @@ class PickBoard {
   /// most-voted team. A spot nobody put a remaining team at is skipped.
   /// Teams on lists that never win a spot follow (no spot, no agreement).
   /// Teams nobody ranked (DNP only) aren't shown.
+  /// A team only wins spot #k if at least [minVotes] people put it exactly
+  /// there; otherwise the spot is skipped and the team stays open for later
+  /// spots. With [minVotes] > 1 teams that never win a spot are hidden
+  /// (no consensus, not on the board).
+  /// People in [excluded] (voter keys) are left out entirely.
   /// [teamCount] is the number of teams at the event.
-  List<BoardRow> rows(int teamCount) {
-    final voters = this.voters;
+  List<BoardRow> rows(int teamCount,
+      {int minVotes = 1, Set<String> excluded = const {}}) {
+    final voters =
+        this.voters.where((b) => !excluded.contains(b.key)).toList();
     final longest =
         voters.fold<int>(0, (m, b) => math.max(m, b.list.ranked.length));
     final n = math.max(teamCount, longest);
@@ -129,6 +142,8 @@ class PickBoard {
           agreement: spot == null || voters.length < 2
               ? null
               : 100 * votesAt(tn, spot) / voters.length,
+          agreeVotes: spot == null || voters.length < 2 ? null : votesAt(tn, spot),
+          voterCount: voters.length,
           taken: taken.contains(tn),
         );
 
@@ -136,13 +151,17 @@ class PickBoard {
     final rows = <BoardRow>[];
     for (var k = 1; k <= longest && open.isNotEmpty; k++) {
       final most = open.fold<int>(0, (m, tn) => math.max(m, votesAt(tn, k)));
-      if (most == 0) continue; // every #k vote went to a team placed above
+      // Every #k vote went to a team placed above, or too few agree.
+      if (most == 0 || most < minVotes) continue;
       final winners = open.where((tn) => votesAt(tn, k) == most).toList()
         ..sort(byListsThenMean);
       open.removeAll(winners);
       rows.addAll([for (final tn in winners) row(tn, spot: k)]);
     }
-    rows.addAll([for (final tn in open.toList()..sort(byListsThenMean)) row(tn)]);
+    if (minVotes <= 1) {
+      rows.addAll(
+          [for (final tn in open.toList()..sort(byListsThenMean)) row(tn)]);
+    }
     return rows;
   }
 

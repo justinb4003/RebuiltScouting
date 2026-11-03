@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/pick_list.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/pick_list_provider.dart';
+import 'team_details.dart';
 
 String teamLabel(BuildContext context, int teamNumber) {
   final teams = context.read<AppStateProvider>().teams;
@@ -84,7 +85,15 @@ class _PickListTeamSheetState extends State<_PickListTeamSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(teamLabel(context, tn), style: theme.textTheme.titleLarge),
+          Row(
+            children: [
+              Flexible(
+                child: Text(teamLabel(context, tn),
+                    style: theme.textTheme.titleLarge),
+              ),
+              TeamInfoButton(tn),
+            ],
+          ),
           const SizedBox(height: 16),
           SegmentedButton<PickStatus>(
             showSelectedIcon: false,

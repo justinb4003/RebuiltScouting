@@ -6,6 +6,7 @@ import '../models/tba_team.dart';
 import '../models/pit_result.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../services/upload_queue.dart';
 
 class AppStateProvider extends ChangeNotifier {
   final ApiService _api = ApiService.instance;
@@ -38,6 +39,8 @@ class AppStateProvider extends ChangeNotifier {
       _pitResults = await _storage.loadCachedPitResults(_settings.selectedEventKey!);
     }
     await refreshHeldDataCount();
+    // Keep the drawer's held count current as background uploads land.
+    UploadQueue.instance.addListener(refreshHeldDataCount);
     notifyListeners();
 
     // Auto-load events if cache is empty (non-blocking)
@@ -86,10 +89,17 @@ class AppStateProvider extends ChangeNotifier {
     final match = _events.where((e) => e.key == key);
     _settings.selectedEventName = match.isNotEmpty ? match.first.name : null;
 
-    // Clear old event data immediately so screens don't show stale data
-    _teams = [];
-    _matches = [];
-    _pitResults = [];
+    // Swap in the new event's cache (empty if never loaded) so screens don't
+    // show the old event, and so it stays usable if the fetch below fails.
+    if (key.isEmpty) {
+      _teams = [];
+      _matches = [];
+      _pitResults = [];
+    } else {
+      _teams = await _storage.loadCachedTeams(key);
+      _matches = await _storage.loadCachedMatches(key);
+      _pitResults = await _storage.loadCachedPitResults(key);
+    }
 
     await persistSettings();
     notifyListeners();
@@ -100,17 +110,21 @@ class AppStateProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadEvents(int year) async {
-    _loadingCount++;
-    _error = null;
-    notifyListeners();
+  /// [quiet] refreshes in the background: no spinner, and a failure keeps
+  /// the cached list without showing an error.
+  Future<void> loadEvents(int year, {bool quiet = false}) async {
+    if (!quiet) {
+      _loadingCount++;
+      _error = null;
+      notifyListeners();
+    }
     try {
       _events = await _api.getEvents(year);
       await _storage.cacheEvents(_events);
     } catch (e) {
-      _error = 'Failed to load events: $e';
+      if (!quiet) _error = 'Failed to load events: $e';
     }
-    _loadingCount--;
+    if (!quiet) _loadingCount--;
     notifyListeners();
   }
 
@@ -182,6 +196,7 @@ class AppStateProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       // Use cached data on failure
+      debugPrint('refreshPitResultForTeam($teamNumber) failed: $e');
     }
     return getPitResultForTeam(teamNumber);
   }

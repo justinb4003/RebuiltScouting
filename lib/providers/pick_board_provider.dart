@@ -19,8 +19,10 @@ class PickBoardProvider extends ChangeNotifier {
   /// Safety-net poll while pushes are flowing, in case one is missed.
   static const pushPollInterval = Duration(seconds: 60);
 
-  /// Poll while the socket is down or live updates are off.
-  static const fallbackPollInterval = Duration(seconds: 10);
+  /// Poll the API while there's no socket: it dropped, live updates are off,
+  /// or the Web PubSub tier is full (Free allows 20 connections). Only the
+  /// people without a socket poll, so a few seconds is cheap.
+  static const fallbackPollInterval = Duration(seconds: 2);
 
   final ApiService _api = ApiService.instance;
   final StorageService _storage = StorageService.instance;

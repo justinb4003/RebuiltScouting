@@ -6,12 +6,31 @@ import '../models/tba_team.dart';
 import '../models/tba_match.dart';
 import '../models/scout_result.dart';
 import '../models/pit_result.dart';
+import '../models/robot_note.dart';
 import '../models/pick_list.dart';
 import '../models/pick_board.dart';
+import '../models/cluster_config.dart';
 import '../models/cluster_result.dart';
+import '../models/game_score.dart';
+import '../models/team_location.dart';
 import '../models/rankings.dart';
 import '../models/match_result.dart';
+import '../models/opr.dart';
 import '../models/scouted_match.dart';
+
+/// The API answered with an error status (the request did get through).
+class ApiStatusException implements Exception {
+  final int statusCode;
+  final String body;
+  ApiStatusException(this.statusCode, this.body);
+
+  /// Gateway/overload answers that say nothing about the record itself;
+  /// treat them like being offline.
+  bool get transient => const {408, 429, 502, 503, 504}.contains(statusCode);
+
+  @override
+  String toString() => 'HTTP $statusCode';
+}
 
 class ApiService {
   static final instance = ApiService();
@@ -58,62 +77,42 @@ class ApiService {
     throw Exception('Failed to load matches: ${response.statusCode}');
   }
 
-  Future<bool> postResults(ScoutResult result) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/PostResults'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(result.toJson()),
-    ).timeout(_timeout);
-    return response.statusCode == 200 || response.statusCode == 201;
-  }
+  // Scouting posts are retried from the held queue, so fail fast on bad
+  // Wi-Fi rather than hold the scouter up; photos get longer.
+  static const _submitTimeout = Duration(seconds: 15);
+  static const _photoSubmitTimeout = Duration(seconds: 30);
 
-  Future<bool> postPitResults(PitResult result) async {
+  /// Completes when the API accepted [body]. Throws [ApiStatusException] when
+  /// it answered with an error, or the http/timeout error when it couldn't
+  /// be reached.
+  Future<void> _postRecord(String name, String endpoint,
+      Map<String, dynamic> body, Duration timeout) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/PostPitResults'),
+      Uri.parse('$baseUrl/$endpoint'),
       headers: {'Content-Type': 'application/json'},
-      body: jsonEncode(result.toJson()),
-    ).timeout(_timeout);
+      body: jsonEncode(body),
+    ).timeout(timeout);
     if (response.statusCode != 200 && response.statusCode != 201) {
-      debugPrint('postPitResults failed: ${response.statusCode} ${response.body}');
+      debugPrint('$name failed: ${response.statusCode} ${response.body}');
+      throw ApiStatusException(response.statusCode, response.body);
     }
-    return response.statusCode == 200 || response.statusCode == 201;
   }
 
-  Future<List<Map<String, dynamic>>> getResults(String eventKey) async {
-    final response = await http
-        .get(Uri.parse('$baseUrl/GetResults?event_key=$eventKey'))
-        .timeout(_timeout);
-    if (response.statusCode == 200) {
-      return List<Map<String, dynamic>>.from(jsonDecode(response.body));
-    }
-    throw Exception('Failed to load results: ${response.statusCode}');
-  }
+  // PostResults and PostPitResults upsert on the record's id, so posting
+  // the same held record again is safe.
+  Future<void> postResults(ScoutResult result) =>
+      _postRecord('postResults', 'PostResults', result.toJson(), _submitTimeout);
 
-  Future<bool> postRobotNote({
-    required String scouterName,
-    required String secretTeamKey,
-    required String eventKey,
-    required int teamNumber,
-    required String notes,
-  }) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/PostPitResults'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'scouter_name': scouterName,
-        'secret_team_key': secretTeamKey,
-        'event_key': eventKey,
-        'team_number': teamNumber,
-        'notes': notes,
-        'images': <String>[],
-        'timestamp': DateTime.now().toIso8601String(),
-      }),
-    ).timeout(_timeout);
-    if (response.statusCode != 200 && response.statusCode != 201) {
-      debugPrint('postRobotNote failed: ${response.statusCode} ${response.body}');
-    }
-    return response.statusCode == 200 || response.statusCode == 201;
-  }
+  Future<void> postPitResults(PitResult result) => _postRecord(
+      'postPitResults',
+      'PostPitResults',
+      result.toJson(),
+      result.photoBase64 == null ? _submitTimeout : _photoSubmitTimeout);
+
+  /// Robot notes are notes-only pit records. PostPitResults upserts by id,
+  /// so sending the note's own id (and original time) makes retries safe.
+  Future<void> postRobotNote(RobotNote note) => _postRecord('postRobotNote',
+      'PostPitResults', {...note.toJson(), 'images': <String>[]}, _submitTimeout);
 
   /// Returns null when no pick list exists yet for this key + event.
   Future<PickList?> getPickList(String secretKey, String eventKey) async {
@@ -244,20 +243,19 @@ class ApiService {
   Future<ClusterResult> getClusters({
     required String secretKey,
     required String eventKey,
-    required int k,
-    required bool scale,
-    List<String>? features,
-    List<int> exclude = const [],
+    required ClusterConfig config,
     bool refresh = false,
   }) {
+    final weights = [
+      for (final f in config.features)
+        if (config.weightOf(f) != 1.0) '$f:${config.weightOf(f)}',
+    ];
     final uri = Uri.parse('$baseUrl/GetClusters').replace(queryParameters: {
       'secret_team_key': secretKey,
       'event_key': eventKey,
-      'k': '$k',
-      'scale': scale ? '1' : '0',
-      if (features != null && features.isNotEmpty)
-        'features': features.join(','),
-      if (exclude.isNotEmpty) 'exclude': exclude.join(','),
+      'k': '${config.k}',
+      if (config.features.isNotEmpty) 'features': config.features.join(','),
+      if (weights.isNotEmpty) 'weights': weights.join(','),
     });
     // A refresh means the data changed, so every cached combination is stale.
     if (refresh) _clusterCache.clear();
@@ -280,6 +278,109 @@ class ApiService {
       throw Exception('Failed to load clusters: ${response.statusCode}');
     }
     return ClusterResult.fromJson(jsonDecode(response.body));
+  }
+
+  /// The team's published cluster settings for [year], or null if none.
+  Future<ClusterConfig?> getClusterConfig({
+    required String secretKey,
+    required String year,
+  }) async {
+    final uri = Uri.parse('$baseUrl/GetClusterConfig')
+        .replace(queryParameters: {'secret_key': secretKey, 'year': year});
+    final response = await http.get(uri).timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint(
+          'getClusterConfig failed: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load team default: ${response.statusCode}');
+    }
+    final json = jsonDecode(response.body);
+    return json == null ? null : ClusterConfig.fromJson(json);
+  }
+
+  /// Replace the team's published cluster settings for [year].
+  Future<ClusterConfig> setClusterConfig({
+    required String secretKey,
+    required String year,
+    required ClusterConfig config,
+    required String updatedBy,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/SetClusterConfig'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            ...config.toJson(),
+            'secret_key': secretKey,
+            'year': year,
+            'updated_by': updatedBy,
+          }),
+        )
+        .timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint(
+          'setClusterConfig failed: ${response.statusCode} ${response.body}');
+      throw Exception('Publishing failed: ${response.statusCode}');
+    }
+    return ClusterConfig.fromJson(jsonDecode(response.body));
+  }
+
+  /// Where the event is and where its US/Canadian teams are from.
+  Future<TeamLocations> getTeamLocations(String eventKey) async {
+    final uri = Uri.parse('$baseUrl/GetTeamLocations')
+        .replace(queryParameters: {'event_key': eventKey});
+    final response = await http.get(uri).timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint('getTeamLocations failed: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load team hometowns: ${response.statusCode}');
+    }
+    return TeamLocations.fromJson(jsonDecode(response.body));
+  }
+
+  /// A game's leaderboard for the team, highest score first.
+  Future<List<GameScore>> getGameScores({
+    required String secretKey,
+    required String game,
+  }) async {
+    final uri = Uri.parse('$baseUrl/GetGameScores')
+        .replace(queryParameters: {'secret_key': secretKey, 'game': game});
+    final response = await http.get(uri).timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint('getGameScores failed: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load leaderboard: ${response.statusCode}');
+    }
+    return (jsonDecode(response.body) as List)
+        .map((j) => GameScore.fromJson(j))
+        .toList();
+  }
+
+  /// Publish a finished game's score. [id] makes a retry an upsert.
+  Future<GameScore> postGameScore({
+    required String id,
+    required String secretKey,
+    required String game,
+    required String player,
+    required int score,
+    required String eventKey,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/PostGameScore'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'id': id,
+            'secret_key': secretKey,
+            'game': game,
+            'player': player,
+            'score': score,
+            'event_key': eventKey,
+          }),
+        )
+        .timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint('postGameScore failed: ${response.statusCode} ${response.body}');
+      throw Exception('Publishing failed: ${response.statusCode}');
+    }
+    return GameScore.fromJson(jsonDecode(response.body));
   }
 
   Future<List<PitResult>> getPitResults(String eventKey) async {
@@ -340,4 +441,18 @@ class ApiService {
     return [for (final m in data) MatchResult.fromTba(Map<String, dynamic>.from(m))]
       ..sort((a, b) => a.sortKey.compareTo(b.sortKey));
   }
+
+  /// OPR per team for every numeric score-breakdown field (qual matches
+  /// only), keyed by team number: field -> contribution.
+  Future<OprData> getOprData(String eventKey) async {
+    final response = await http
+        .get(Uri.parse('$baseUrl/GetOPRData?event_key=$eventKey'))
+        .timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint('getOprData failed: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load OPR: ${response.statusCode}');
+    }
+    return oprFromJson(jsonDecode(response.body) as List);
+  }
 }
+

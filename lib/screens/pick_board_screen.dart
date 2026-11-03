@@ -1,11 +1,16 @@
 import 'dart:math' as math;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/pick_board.dart';
 import '../models/pick_list.dart';
+import '../models/rankings.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/pick_board_provider.dart';
 import '../providers/pick_list_provider.dart' show PickListSync;
+import '../providers/rankings_provider.dart';
+import '../services/storage_service.dart';
+import '../widgets/flip_list.dart';
 import '../widgets/nav_drawer.dart';
 import '../widgets/pick_list_team_sheet.dart' show teamLabel;
 import '../widgets/team_details.dart';
@@ -40,6 +45,9 @@ class _PickBoardScreenState extends State<PickBoardScreen> {
         eventKey: settings.selectedEventKey ?? '',
         voter: settings.scouterName,
       );
+      // Event rank on My List's unranked teams.
+      final eventKey = settings.selectedEventKey;
+      if (eventKey != null) context.read<RankingsProvider>().load(eventKey);
     });
   }
 
@@ -88,16 +96,20 @@ class _PickBoardScreenState extends State<PickBoardScreen> {
             : null;
 
     return DefaultTabController(
-      length: 2,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Pick Board'),
+          title: const Text('Pick List'),
           actions: [if (message == null) _syncIndicator(p)],
           bottom: message != null
               ? null
-              : const TabBar(tabs: [Tab(text: 'Board'), Tab(text: 'My List')]),
+              : const TabBar(tabs: [
+                  Tab(text: 'Board'),
+                  Tab(text: 'My List'),
+                  Tab(text: 'Other Lists'),
+                ]),
         ),
-        drawer: const NavDrawer(selectedIndex: 7),
+        drawer: const NavDrawer(selectedIndex: 11),
         body: message != null
             ? Center(
                 child: Padding(
@@ -109,7 +121,11 @@ class _PickBoardScreenState extends State<PickBoardScreen> {
                 children: [
                   if (!p.loaded) const LinearProgressIndicator(),
                   const Expanded(
-                    child: TabBarView(children: [_BoardView(), _MyListView()]),
+                    child: TabBarView(children: [
+                      _BoardView(),
+                      _MyListView(),
+                      _OtherListsView(),
+                    ]),
                   ),
                 ],
               ),
@@ -151,22 +167,106 @@ class _BoardView extends StatefulWidget {
 }
 
 class _BoardViewState extends State<_BoardView> {
-  // Session-sticky like the cluster controls.
-  static bool _hideTaken = false;
+  // Persisted per event so they survive a reload.
+  int _minVotes = 1;
+  Set<String> _excluded = {};
+  late final String _eventKey;
+
+  @override
+  void initState() {
+    super.initState();
+    _eventKey =
+        context.read<AppStateProvider>().settings.selectedEventKey ?? '';
+    StorageService.instance.loadBoardFilters(_eventKey).then((f) {
+      if (!mounted) return;
+      setState(() {
+        _minVotes = f.minVotes.clamp(1, 10);
+        _excluded = f.excluded;
+      });
+    });
+  }
+
+  void _saveFilters() =>
+      StorageService.instance.saveBoardFilters(_eventKey, _minVotes, _excluded);
+
+  /// Who counts on the board. Edits a draft; OK applies it, Cancel drops it.
+  Future<void> _pickPeople(List<Ballot> all) async {
+    var draft = {..._excluded};
+    final result = await showDialog<Set<String>>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialog) {
+          final included = all.where((b) => !draft.contains(b.key)).length;
+          return AlertDialog(
+            title: const Text('Participants'),
+            contentPadding: const EdgeInsets.only(top: 12),
+            content: SizedBox(
+              width: 320,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CheckboxListTile(
+                    tristate: true,
+                    title: Text('Everyone ($included/${all.length})'),
+                    value: included == all.length
+                        ? true
+                        : included == 0
+                            ? false
+                            : null,
+                    onChanged: (_) => setDialog(() => draft = included == all.length
+                        ? {for (final b in all) b.key}
+                        : {}),
+                  ),
+                  const Divider(height: 1),
+                  Flexible(
+                    child: ListView(
+                      shrinkWrap: true,
+                      children: [
+                        for (final b in all)
+                          CheckboxListTile(
+                            title: Text(b.voter),
+                            value: !draft.contains(b.key),
+                            onChanged: (v) => setDialog(() => v == true
+                                ? draft.remove(b.key)
+                                : draft.add(b.key)),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text('Cancel')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(ctx, draft),
+                  child: const Text('OK')),
+            ],
+          );
+        },
+      ),
+    );
+    if (result == null || !mounted) return;
+    setState(() => _excluded = result);
+    _saveFilters();
+  }
 
   @override
   Widget build(BuildContext context) {
     final p = context.watch<PickBoardProvider>();
     final board = p.board;
-    final voters = board.voters;
-    final allRows = board.rows(_eventTeamCount(context));
-    final rows =
-        _hideTaken ? allRows.where((r) => !r.taken).toList() : allRows;
+    final allVoters = board.voters;
+    final voters =
+        allVoters.where((b) => !_excluded.contains(b.key)).toList();
+    final rows = board.rows(_eventTeamCount(context),
+        minVotes: _minVotes, excluded: _excluded);
     final theme = Theme.of(context);
     final muted = theme.textTheme.bodySmall
         ?.copyWith(color: theme.colorScheme.onSurfaceVariant);
 
-    if (voters.isEmpty) {
+    if (allVoters.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -187,48 +287,76 @@ class _BoardViewState extends State<_BoardView> {
       // Keep the agreement bar near the team names on big screens.
       final sidePad = math.max(0.0,
           (constraints.maxWidth - 700 - shownVoters.length * _voterColumnWidth) / 2);
-      return ListView(
+      // Not a lazy ListView: rows glide to new spots (FlipScope), which
+      // needs them all laid out. A board is at most one row per team.
+      // Shade by spot, not by row, so tied teams (two #2s) share a band.
+      // Teams without a spot each get their own.
+      final shaded = <bool>[];
+      for (final (i, row) in rows.indexed) {
+        final sameSpot = i > 0 &&
+            row.agreedRank != null &&
+            row.agreedRank == rows[i - 1].agreedRank;
+        shaded.add(i == 0 ? false : (sameSpot ? shaded[i - 1] : !shaded[i - 1]));
+      }
+      return SingleChildScrollView(
         padding: EdgeInsets.fromLTRB(sidePad, 0, sidePad, 32),
+        child: FlipScope(
+          child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-            child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
+            child: Row(
               children: [
-                Text(
-                  '${voters.length} ${voters.length == 1 ? 'person' : 'people'}: '
-                  '${voters.map((b) => b.voter).join(', ')}',
-                  style: theme.textTheme.bodyMedium,
+                Text('Min votes', style: theme.textTheme.bodyMedium),
+                const SizedBox(width: 6),
+                DropdownButton<int>(
+                  value: _minVotes,
+                  isDense: true,
+                  items: [
+                    for (var i = 1; i <= 10; i++)
+                      DropdownMenuItem(value: i, child: Text('$i')),
+                  ],
+                  onChanged: (v) {
+                    if (v == null) return;
+                    setState(() => _minVotes = v);
+                    _saveFilters();
+                  },
                 ),
-                FilterChip(
-                  label: Text('Hide taken (${board.taken.length})'),
-                  selected: _hideTaken,
-                  onSelected: (v) => setState(() => _hideTaken = v),
+                const Spacer(),
+                ActionChip(
+                  avatar: const Icon(Icons.people_outline, size: 18),
+                  label: Text(
+                      'Participants: ${voters.length}/${allVoters.length}'),
+                  onPressed: () => _pickPeople(allVoters),
                 ),
               ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 6, 16, 4),
-            child: Text(
-              'Row #1 is the team the most people put at #1 on their list, '
-              '#2 the team the most put at #2, and so on; ties show every '
-              'tied team. Agreement is the '
-              'share of people who have it at that spot. Full bar: everyone '
-              'agrees, move on to the next team.',
-              style: muted,
-            ),
-          ),
-          _BoardHeader(voters: shownVoters, myKey: p.myKey),
+          const SizedBox(height: 8),
+          if (voters.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Text(
+                'Everyone is excluded. Pick participants with the Participants button.',
+                textAlign: TextAlign.center,
+                style: muted,
+              ),
+            )
+          else
+            _BoardHeader(voters: shownVoters, myKey: p.myKey),
           for (final (i, row) in rows.indexed)
-            _BoardRowTile(
-              row: row,
-              shownVoters: shownVoters,
-              shaded: i.isOdd,
+            FlipItem(
+              key: ValueKey(row.teamNumber),
+              child: _BoardRowTile(
+                row: row,
+                shownVoters: shownVoters,
+                shaded: shaded[i],
+              ),
             ),
         ],
+          ),
+        ),
       );
     });
   }
@@ -248,7 +376,7 @@ class _BoardHeader extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
       child: Row(
         children: [
-          SizedBox(width: 32, child: Text('#', style: style)),
+          SizedBox(width: 36, child: Text('#', style: style)),
           Expanded(child: Text('Team', style: style)),
           SizedBox(
               width: _agreementWidth,
@@ -316,24 +444,37 @@ class _BoardRowTile extends StatelessWidget {
         child: Row(
           children: [
             SizedBox(
-              width: 32,
-              child: Text(row.agreedRank == null ? '' : '${row.agreedRank}',
-                  style: theme.textTheme.bodyMedium),
+              width: 36,
+              child: row.agreedRank == null
+                  ? null
+                  : Align(
+                      alignment: Alignment.centerLeft,
+                      child: _SpotDisc(row.agreedRank!),
+                    ),
             ),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text.rich(
-                    TextSpan(children: [
-                      TextSpan(
-                          text: '$tn',
-                          style: const TextStyle(fontWeight: FontWeight.bold)),
-                      if (nickname.isNotEmpty) TextSpan(text: '  $nickname'),
-                    ]),
-                    style: strike,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                  Row(
+                    children: [
+                      Flexible(
+                        child: Text.rich(
+                          TextSpan(children: [
+                            TextSpan(
+                                text: '$tn',
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold)),
+                            if (nickname.isNotEmpty)
+                              TextSpan(text: '  $nickname'),
+                          ]),
+                          style: strike,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      TeamInfoButton(tn),
+                    ],
                   ),
                   if (badges.isNotEmpty)
                     Padding(
@@ -344,7 +485,7 @@ class _BoardRowTile extends StatelessWidget {
               ),
             ),
             SizedBox(
-                width: _agreementWidth, child: _AgreementBar(row.agreement)),
+                width: _agreementWidth, child: _AgreementBar(row)),
             for (final b in shownVoters)
               SizedBox(
                 width: _voterColumnWidth,
@@ -386,18 +527,44 @@ class _Badge extends StatelessWidget {
   }
 }
 
-/// 0–100 agreement as a bar on a full-width track, value beside it.
-class _AgreementBar extends StatelessWidget {
-  final double? value;
+/// The board spot on a colored disc; four colors cycle by spot so tied rows
+/// (two #2s) read as one group and neighboring spots always differ.
+class _SpotDisc extends StatelessWidget {
+  final int spot;
 
-  const _AgreementBar(this.value);
+  const _SpotDisc(this.spot);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    // Translucent so it works on light and dark surfaces.
+    const hues = [Colors.blue, Colors.amber, Colors.green, Colors.purple];
+    final bg = hues[(spot - 1) % hues.length].withValues(alpha: 0.3);
+    final fg = scheme.onSurface;
+    return Container(
+      width: 28,
+      height: 28,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+      child: Text('$spot',
+          style: theme.textTheme.bodyMedium?.copyWith(color: fg, fontWeight: FontWeight.w600)),
+    );
+  }
+}
+
+/// Agreement as a bar on a full-width track, votes / people beside it.
+class _AgreementBar extends StatelessWidget {
+  final BoardRow row;
+
+  const _AgreementBar(this.row);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final dark = theme.brightness == Brightness.dark;
-    final v = value;
+    final v = row.agreement;
     return Row(
       children: [
         Expanded(
@@ -424,7 +591,7 @@ class _AgreementBar extends StatelessWidget {
         SizedBox(
           width: 40,
           child: Text(
-            v == null ? '—' : '${v.round()}%',
+            v == null ? '—' : '${row.agreeVotes}/${row.voterCount}',
             textAlign: TextAlign.end,
             style: theme.textTheme.bodySmall,
           ),
@@ -451,8 +618,7 @@ sealed class _Row {
 
 class _Header extends _Row {
   final PickStatus section;
-  final int count;
-  _Header(this.section, this.count);
+  _Header(this.section);
   @override
   Key get key => ValueKey('header-${section.name}');
 }
@@ -508,7 +674,7 @@ class _MyListViewState extends State<_MyListView> {
     }
     return [
       for (final s in _mySections) ...[
-        _Header(s, bySection[s]!.length),
+        _Header(s),
         if (bySection[s]!.isEmpty) _Placeholder(s),
         ...bySection[s]!,
       ],
@@ -545,11 +711,20 @@ class _MyListViewState extends State<_MyListView> {
   }
 
   Widget _teamTile(_TeamRow row, Set<int> taken, Map<int, int> boardPos,
+      Map<int, RankingRow> eventRanks,
       {int? dragIndex}) {
     final scheme = Theme.of(context).colorScheme;
     final isTaken = taken.contains(row.teamNumber);
     final notes = row.entry?.notes ?? '';
     final pos = boardPos[row.teamNumber];
+    // Unranked teams need more to go on: event rank and record.
+    final eventRank = row.section == PickStatus.unranked
+        ? eventRanks[row.teamNumber]
+        : null;
+    final facts = [
+      if (eventRank != null) 'Rank #${eventRank.rank} · ${eventRank.record}',
+      if (pos != null) 'Board #$pos',
+    ].join(' · ');
     final tile = ListTile(
       dense: true,
       leading: switch (row.section) {
@@ -564,39 +739,33 @@ class _MyListViewState extends State<_MyListView> {
         PickStatus.dnp => Icon(Icons.block, color: scheme.error),
         _ => const SizedBox(width: 32),
       },
-      title: Text(
-        teamLabel(context, row.teamNumber),
-        style: isTaken
-            ? const TextStyle(decoration: TextDecoration.lineThrough)
-            : null,
+      title: Row(
+        children: [
+          Flexible(
+            child: Text(
+              teamLabel(context, row.teamNumber),
+              style: isTaken
+                  ? const TextStyle(decoration: TextDecoration.lineThrough)
+                  : null,
+            ),
+          ),
+          TeamInfoButton(row.teamNumber),
+        ],
       ),
       subtitle: notes.isNotEmpty
           ? Text(notes, maxLines: 1, overflow: TextOverflow.ellipsis)
-          : pos != null
-              ? Text('Board #$pos')
+          : facts.isNotEmpty
+              ? Text(facts)
               : null,
       onTap: () => showPickBoardTeamSheet(context, row.teamNumber),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          if (row.section == PickStatus.ranked)
-            IconButton(
+      trailing: row.section == PickStatus.ranked
+          ? IconButton(
               tooltip: isTaken ? 'Mark available' : 'Mark taken',
               icon: Icon(
                   isTaken ? Icons.check_box : Icons.check_box_outline_blank),
               onPressed: () => _setTaken(context, row.teamNumber, !isTaken),
-            ),
-          if (dragIndex != null)
-            ReorderableDragStartListener(
-              index: dragIndex,
-              child: const SizedBox(
-                width: 48,
-                height: 48,
-                child: Icon(Icons.drag_handle),
-              ),
-            ),
-        ],
-      ),
+            )
+          : null,
     );
     final shown = isTaken ? Opacity(opacity: 0.5, child: tile) : tile;
     // The whole row drags: right away with a mouse, after a long press on
@@ -617,11 +786,11 @@ class _MyListViewState extends State<_MyListView> {
     );
   }
 
-  Widget _buildRow(
-      _Row row, int index, Set<int> taken, Map<int, int> boardPos) {
+  Widget _buildRow(_Row row, int index, Set<int> taken,
+      Map<int, int> boardPos, Map<int, RankingRow> eventRanks) {
     final theme = Theme.of(context);
     return switch (row) {
-      _Header(:final section, :final count) => Padding(
+      _Header(:final section) => Padding(
           key: row.key,
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
           child: Row(
@@ -629,8 +798,6 @@ class _MyListViewState extends State<_MyListView> {
               Text(_sectionTitles[section]!,
                   style: theme.textTheme.titleSmall
                       ?.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(width: 8),
-              Text('$count', style: theme.textTheme.bodySmall),
               const SizedBox(width: 8),
               const Expanded(child: Divider()),
             ],
@@ -646,7 +813,8 @@ class _MyListViewState extends State<_MyListView> {
               style: theme.textTheme.bodySmall
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
         ),
-      _TeamRow() => _teamTile(row, taken, boardPos, dragIndex: index),
+      _TeamRow() =>
+          _teamTile(row, taken, boardPos, eventRanks, dragIndex: index),
     };
   }
 
@@ -660,6 +828,11 @@ class _MyListViewState extends State<_MyListView> {
       for (final r in p.board.rows(appState.teams.length))
         if (r.agreedRank != null) r.teamNumber: r.agreedRank!,
     };
+    final eventRanks = {
+      for (final r in context.watch<RankingsProvider>().data?.rows ??
+          const <RankingRow>[])
+        r.teamNumber: r,
+    };
     final taken = p.board.taken;
     final query = _search.text.trim().toLowerCase();
 
@@ -671,7 +844,7 @@ class _MyListViewState extends State<_MyListView> {
               teamLabel(context, r.teamNumber).toLowerCase().contains(query))
           .toList();
       list = ListView(children: [
-        for (final r in matches) _teamTile(r, taken, boardPos),
+        for (final r in matches) _teamTile(r, taken, boardPos, eventRanks),
       ]);
     } else {
       list = ReorderableListView.builder(
@@ -681,7 +854,8 @@ class _MyListViewState extends State<_MyListView> {
         onReorderStart: (_) => p.holdUpdates(true),
         onReorderEnd: (_) => p.holdUpdates(false),
         onReorderItem: (o, n) => _onReorder(rows, o, n),
-        itemBuilder: (context, i) => _buildRow(rows[i], i, taken, boardPos),
+        itemBuilder: (context, i) =>
+            _buildRow(rows[i], i, taken, boardPos, eventRanks),
       );
     }
 
@@ -722,7 +896,239 @@ class _MyListViewState extends State<_MyListView> {
 }
 
 // ---------------------------------------------------------------------------
-// Team sheet: everyone's take on one team, plus your own controls.
+// Other Lists tab: everyone else's ballot, side by side.
+
+class _OtherListsView extends StatefulWidget {
+  const _OtherListsView();
+
+  @override
+  State<_OtherListsView> createState() => _OtherListsViewState();
+}
+
+class _OtherListsViewState extends State<_OtherListsView>
+    with AutomaticKeepAliveClientMixin {
+  final _hScroll = ScrollController();
+  // One vertical controller per ballot; kept here so offsets survive tab
+  // switches (the state itself is kept alive below).
+  final _vScrolls = <String, ScrollController>{};
+  double _colWidth = 360;
+  int _page = 0;
+
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  void initState() {
+    super.initState();
+    _hScroll.addListener(() {
+      final i = (_hScroll.offset / _colWidth).round();
+      if (i != _page) setState(() => _page = i);
+    });
+  }
+
+  @override
+  void dispose() {
+    _hScroll.dispose();
+    for (final c in _vScrolls.values) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final p = context.watch<PickBoardProvider>();
+    final others = p.board.voters.where((b) => b.key != p.myKey).toList();
+    final taken = p.board.taken;
+    final theme = Theme.of(context);
+
+    if (others.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(24),
+          child: Text('Nobody else has a list yet.', textAlign: TextAlign.center),
+        ),
+      );
+    }
+    final page = _page.clamp(0, others.length - 1);
+
+    return LayoutBuilder(builder: (context, constraints) {
+      final width = constraints.maxWidth;
+      // ~360px columns; on a phone one column plus a peek at the next.
+      _colWidth = math.min(360.0, width * 0.9);
+      return Column(
+        children: [
+          SizedBox(
+            height: 52,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              children: [
+                for (final (i, b) in others.indexed)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ChoiceChip(
+                      label: Text(b.voter),
+                      selected: i == page,
+                      onSelected: (_) => _hScroll.animateTo(
+                          math.min(i * _colWidth,
+                              _hScroll.position.maxScrollExtent),
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.easeOut),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            // Let a mouse drag the columns sideways too, not just touch.
+            child: ScrollConfiguration(
+              behavior: ScrollConfiguration.of(context).copyWith(
+                dragDevices: {...PointerDeviceKind.values},
+              ),
+              child: SingleChildScrollView(
+                controller: _hScroll,
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (final b in others)
+                      SizedBox(
+                        width: _colWidth,
+                        child: _BallotColumn(
+                          ballot: b,
+                          taken: taken,
+                          controller:
+                              _vScrolls.putIfAbsent(b.key, ScrollController.new),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: Text(
+              '${others.length} other ${others.length == 1 ? 'list' : 'lists'} · '
+              'swipe or tap a name',
+              style: theme.textTheme.bodySmall
+                  ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ),
+        ],
+      );
+    });
+  }
+}
+
+/// One person's ballot, read-only: their pick order, then their DNPs.
+class _BallotColumn extends StatelessWidget {
+  final Ballot ballot;
+  final Set<int> taken;
+  final ScrollController controller;
+
+  const _BallotColumn(
+      {required this.ballot, required this.taken, required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final list = ballot.list;
+    final ranked = list.ranked;
+    final dnp = list.teams.where((t) => t.dnp).toList()
+      ..sort((a, b) => a.teamNumber.compareTo(b.teamNumber));
+    final updated = list.updatedAt == null
+        ? ''
+        : 'Updated ${TimeOfDay.fromDateTime(list.updatedAt!.toLocal()).format(context)}';
+
+    Widget tile(PickListEntry e, Widget leading) {
+      final isTaken = taken.contains(e.teamNumber);
+      final t = ListTile(
+        dense: true,
+        leading: leading,
+        title: Row(
+          children: [
+            Flexible(
+              child: Text(
+                teamLabel(context, e.teamNumber),
+                style: isTaken
+                    ? const TextStyle(decoration: TextDecoration.lineThrough)
+                    : null,
+              ),
+            ),
+            TeamInfoButton(e.teamNumber),
+          ],
+        ),
+        subtitle: e.notes.isEmpty
+            ? null
+            : Text(e.notes, maxLines: 2, overflow: TextOverflow.ellipsis),
+        onTap: () => showPickBoardTeamSheet(context, e.teamNumber),
+      );
+      return FlipItem(
+        key: ValueKey(e.teamNumber),
+        child: isTaken ? Opacity(opacity: 0.5, child: t) : t,
+      );
+    }
+
+    return Card(
+      margin: const EdgeInsets.fromLTRB(12, 0, 4, 4),
+      clipBehavior: Clip.antiAlias,
+      // Header sits outside the ListView so it stays put while the list scrolls.
+      child: Column(
+        children: [
+          ListTile(
+            title: Text(ballot.voter,
+                style: theme.textTheme.titleMedium
+                    ?.copyWith(fontWeight: FontWeight.bold)),
+            subtitle: updated.isEmpty ? null : Text(updated),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: SingleChildScrollView(
+              controller: controller,
+              padding: const EdgeInsets.only(bottom: 16),
+              child: FlipScope(
+                child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+          for (final e in ranked)
+            tile(
+              e,
+              CircleAvatar(
+                radius: 14,
+                backgroundColor: scheme.primaryContainer,
+                child: Text('${e.ranking}',
+                    style: TextStyle(
+                        fontSize: 12,
+                        color: scheme.onPrimaryContainer,
+                        fontWeight: FontWeight.bold)),
+              ),
+            ),
+          if (dnp.isNotEmpty) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+              child: Text('Do Not Pick',
+                  style: theme.textTheme.titleSmall
+                      ?.copyWith(fontWeight: FontWeight.bold)),
+            ),
+            for (final e in dnp) tile(e, Icon(Icons.block, color: scheme.error)),
+          ],
+              ],
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Team sheet: edit your own notes on a team (shown under it on the lists).
 
 Future<void> showPickBoardTeamSheet(BuildContext context, int teamNumber) {
   return showModalBottomSheet(
@@ -749,12 +1155,7 @@ class _TeamSheetState extends State<_TeamSheet> {
   @override
   void initState() {
     super.initState();
-    _savedNotes = context
-            .read<PickBoardProvider>()
-            .myList
-            .entryFor(widget.teamNumber)
-            ?.notes ??
-        '';
+    _savedNotes = context.read<PickBoardProvider>().myList.entryFor(widget.teamNumber)?.notes ?? '';
     _notes = TextEditingController(text: _savedNotes);
   }
 
@@ -764,181 +1165,37 @@ class _TeamSheetState extends State<_TeamSheet> {
     super.dispose();
   }
 
+  void _save() {
+    _savedNotes = _notes.text.trim();
+    _vote(context, PickListUpdate(widget.teamNumber, notes: _savedNotes));
+    Navigator.of(context).pop();
+  }
+
   @override
   Widget build(BuildContext context) {
-    final p = context.watch<PickBoardProvider>();
-    final tn = widget.teamNumber;
     final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final mine = p.myList;
-    final entry = mine.entryFor(tn);
-    final status = entry?.isRanked == true
-        ? PickStatus.ranked
-        : entry?.dnp == true
-            ? PickStatus.dnp
-            : PickStatus.unranked;
-    final rankedCount = mine.ranked.length;
-    final rank = entry?.isRanked == true ? entry!.ranking! : null;
-    final rows = p.board.rows(_eventTeamCount(context));
-    final row = rows.where((r) => r.teamNumber == tn).firstOrNull;
-    final taken = p.board.taken.contains(tn);
-    void vote(PickListUpdate u) => _vote(context, u);
-
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-          20, 0, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
+      padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(context).viewInsets.bottom),
       child: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(teamLabel(context, tn),
-                      style: theme.textTheme.titleLarge),
-                ),
-                TextButton.icon(
-                  icon: const Icon(Icons.badge_outlined),
-                  label: const Text('Details'),
-                  onPressed: () {
-                    Navigator.pop(context);
-                    openTeamDetails(context, tn);
-                  },
-                ),
-              ],
-            ),
-            Text(
-              row == null
-                  ? 'Not on anyone\'s list yet'
-                  : row.agreedRank == null
-                      ? 'On ${row.ranks.length} ${row.ranks.length == 1 ? 'list' : 'lists'}, no board spot yet'
-                      : 'Board #${row.agreedRank}'
-                          '${row.agreement == null ? '' : ' · ${row.agreement!.round()}% have it at #${row.agreedRank}'}',
-              style: theme.textTheme.bodyMedium
-                  ?.copyWith(color: scheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: 8),
-            for (final b in p.board.voters)
-              Builder(builder: (context) {
-                final e = b.list.entryFor(tn);
-                final text = e?.isRanked == true
-                    ? '#${e!.ranking}'
-                    : e?.dnp == true
-                        ? 'DNP'
-                        : '—';
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 110,
-                        child: Text(b.voter,
-                            overflow: TextOverflow.ellipsis,
-                            style: b.key == p.myKey
-                                ? const TextStyle(fontWeight: FontWeight.bold)
-                                : null),
-                      ),
-                      SizedBox(
-                        width: 44,
-                        child: Text(text,
-                            style: e?.dnp == true
-                                ? TextStyle(color: scheme.error)
-                                : null),
-                      ),
-                      Expanded(
-                        child: Text(e?.notes ?? '',
-                            style: theme.textTheme.bodySmall),
-                      ),
-                    ],
-                  ),
-                );
-              }),
-            const Divider(height: 24),
-            Text('Your pick', style: theme.textTheme.titleSmall),
-            const SizedBox(height: 8),
-            SegmentedButton<PickStatus>(
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(value: PickStatus.ranked, label: Text('Pick')),
-                ButtonSegment(value: PickStatus.unranked, label: Text('Unranked')),
-                ButtonSegment(value: PickStatus.dnp, label: Text('DNP')),
-              ],
-              selected: {status},
-              onSelectionChanged: (s) {
-                final next = s.first;
-                vote(next == PickStatus.ranked
-                    ? PickListUpdate(tn, position: rankedCount + 1)
-                    : PickListUpdate(tn, status: next));
-              },
-            ),
-            if (rank != null) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Text('My #$rank of $rankedCount',
-                      style: theme.textTheme.titleMedium),
-                  const Spacer(),
-                  IconButton(
-                    tooltip: 'Move to top',
-                    icon: const Icon(Icons.vertical_align_top),
-                    onPressed: rank > 1
-                        ? () => vote(PickListUpdate(tn, position: 1))
-                        : null,
-                  ),
-                  IconButton(
-                    tooltip: 'Move up',
-                    icon: const Icon(Icons.arrow_upward),
-                    onPressed: rank > 1
-                        ? () => vote(PickListUpdate(tn, position: rank - 1))
-                        : null,
-                  ),
-                  IconButton(
-                    tooltip: 'Move down',
-                    icon: const Icon(Icons.arrow_downward),
-                    onPressed: rank < rankedCount
-                        ? () => vote(PickListUpdate(tn, position: rank + 1))
-                        : null,
-                  ),
-                  IconButton(
-                    tooltip: 'Move to bottom',
-                    icon: const Icon(Icons.vertical_align_bottom),
-                    onPressed: rank < rankedCount
-                        ? () => vote(PickListUpdate(tn, position: rankedCount))
-                        : null,
-                  ),
-                ],
-              ),
-            ],
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Taken by another alliance'),
-              subtitle: const Text('Shared with everyone'),
-              value: taken,
-              onChanged: (v) => _setTaken(context, tn, v),
-            ),
+            Text(teamLabel(context, widget.teamNumber), style: theme.textTheme.titleLarge),
+            const SizedBox(height: 12),
             TextField(
               controller: _notes,
+              autofocus: true,
               minLines: 2,
               maxLines: 5,
-              decoration: const InputDecoration(
-                labelText: 'My notes',
-                border: OutlineInputBorder(),
-              ),
+              decoration: const InputDecoration(labelText: 'My notes', border: OutlineInputBorder()),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
               child: FilledButton(
-                onPressed: _notes.text.trim() == _savedNotes
-                    ? null
-                    : () {
-                        _savedNotes = _notes.text.trim();
-                        vote(PickListUpdate(tn, notes: _savedNotes));
-                        setState(() {});
-                      },
+                onPressed: _notes.text.trim() == _savedNotes ? null : _save,
                 child: const Text('Save notes'),
               ),
             ),

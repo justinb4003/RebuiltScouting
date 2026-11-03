@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../providers/app_state_provider.dart';
 
 class NavDrawer extends StatelessWidget {
@@ -8,13 +7,12 @@ class NavDrawer extends StatelessWidget {
 
   const NavDrawer({super.key, required this.selectedIndex});
 
-  static const _routes = ['/scout', '/pit', '/held', '/settings', '/scouting-status', '/pit-status', '/robot-note', '/pick-board', '/pick-list', '/clusters', '/rankings', '/team-details', '/match-breakdowns', '/head-to-head'];
+  static const _routes = ['/scout', '/pit', '/robot-note', '/held', '/settings', '/scouting-status', '/pit-status', '/match-breakdowns', '/rankings', '/team-details', '/head-to-head', '/pick-list', '/clusters', '/dimensions', '/name-that-team', '/spot-the-bot', '/hometown'];
 
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppStateProvider>();
     final heldCount = appState.heldDataCount;
-    final settings = appState.settings;
 
     return NavigationDrawer(
       selectedIndex: selectedIndex,
@@ -41,6 +39,11 @@ class NavDrawer extends StatelessWidget {
           selectedIcon: Icon(Icons.build),
           label: Text('Scout Pit'),
         ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.sticky_note_2_outlined),
+          selectedIcon: Icon(Icons.sticky_note_2),
+          label: Text('Robot Note'),
+        ),
         NavigationDrawerDestination(
           icon: Badge(
             isLabelVisible: heldCount > 0,
@@ -59,7 +62,9 @@ class NavDrawer extends StatelessWidget {
           selectedIcon: Icon(Icons.settings),
           label: Text('Settings'),
         ),
+        _CurrentSettings(appState),
         const Divider(indent: 28, endIndent: 28),
+        const _SectionLabel('Management'),
         const NavigationDrawerDestination(
           icon: Icon(Icons.grid_on_outlined),
           selectedIcon: Icon(Icons.grid_on),
@@ -70,26 +75,12 @@ class NavDrawer extends StatelessWidget {
           selectedIcon: Icon(Icons.fact_check),
           label: Text('Pit Status'),
         ),
-        const NavigationDrawerDestination(
-          icon: Icon(Icons.sticky_note_2_outlined),
-          selectedIcon: Icon(Icons.sticky_note_2),
-          label: Text('Robot Note'),
-        ),
         const Divider(indent: 28, endIndent: 28),
+        const _SectionLabel('Analytics'),
         const NavigationDrawerDestination(
-          icon: Icon(Icons.how_to_vote_outlined),
-          selectedIcon: Icon(Icons.how_to_vote),
-          label: Text('Pick Board'),
-        ),
-        const NavigationDrawerDestination(
-          icon: Icon(Icons.format_list_numbered_outlined),
-          selectedIcon: Icon(Icons.format_list_numbered),
-          label: Text('Pick List'),
-        ),
-        const NavigationDrawerDestination(
-          icon: Icon(Icons.bubble_chart_outlined),
-          selectedIcon: Icon(Icons.bubble_chart),
-          label: Text('Clusters'),
+          icon: Icon(Icons.sports_esports_outlined),
+          selectedIcon: Icon(Icons.sports_esports),
+          label: Text('Match Breakdowns'),
         ),
         const NavigationDrawerDestination(
           icon: Icon(Icons.leaderboard_outlined),
@@ -102,46 +93,63 @@ class NavDrawer extends StatelessWidget {
           label: Text('Team Details'),
         ),
         const NavigationDrawerDestination(
-          icon: Icon(Icons.sports_esports_outlined),
-          selectedIcon: Icon(Icons.sports_esports),
-          label: Text('Match Breakdowns'),
-        ),
-        const NavigationDrawerDestination(
           icon: Icon(Icons.compare_arrows_outlined),
           selectedIcon: Icon(Icons.compare_arrows),
           label: Text('Head to Head'),
         ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.how_to_vote_outlined),
+          selectedIcon: Icon(Icons.how_to_vote),
+          label: Text('Pick List'),
+        ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.bubble_chart_outlined),
+          selectedIcon: Icon(Icons.bubble_chart),
+          label: Text('Clusters'),
+        ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.tune_outlined),
+          selectedIcon: Icon(Icons.tune),
+          label: Text('Dimensions'),
+        ),
         const Divider(indent: 28, endIndent: 28),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 28),
-          child: TextButton.icon(
-            onPressed: () {
-              final uri = Uri.parse('https://frcscout.streamlit.app').replace(
-                queryParameters: {
-                  if (settings.selectedEventKey != null)
-                    'event_key': settings.selectedEventKey!,
-                  if (settings.secretTeamKey.isNotEmpty)
-                    'secret_key': settings.secretTeamKey,
-                },
-              );
-              launchUrl(uri, mode: LaunchMode.externalApplication);
-            },
-            icon: const Icon(Icons.analytics_outlined),
-            label: const Text('Analytics'),
-          ),
+        const _SectionLabel('Games'),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.quiz_outlined),
+          selectedIcon: Icon(Icons.quiz),
+          label: Text('Name That Team'),
+        ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.photo_camera_outlined),
+          selectedIcon: Icon(Icons.photo_camera),
+          label: Text('Spot The Bot'),
+        ),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.place_outlined),
+          selectedIcon: Icon(Icons.place),
+          label: Text('Hometown'),
         ),
         const Divider(indent: 28, endIndent: 28),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 28),
           child: TextButton.icon(
             onPressed: () async {
+              final appState = context.read<AppStateProvider>();
+              await appState.refreshHeldDataCount();
+              if (!context.mounted) return;
+              final unsent = appState.heldDataCount;
+              final unsentText = unsent == 0
+                  ? 'There is no unsent scouting data.'
+                  : '$unsent unsent scouting ${unsent == 1 ? 'item' : 'items'} '
+                      'will be lost.';
               final confirmed = await showDialog<bool>(
                 context: context,
                 builder: (ctx) => AlertDialog(
                   title: const Text('Reset App?'),
-                  content: const Text(
-                    'This will clear all local data including settings, '
-                    'cached teams/matches, and any unsent scouting results. '
+                  content: Text(
+                    'This will clear all local data including settings and '
+                    'cached teams/matches. '
+                    '$unsentText '
                     'This cannot be undone.',
                   ),
                   actions: [
@@ -174,6 +182,64 @@ class NavDrawer extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// A heading for a group of drawer destinations.
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(28, 12, 16, 8),
+      child: Semantics(
+        header: true,
+        child: Text(text, style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+      ),
+    );
+  }
+}
+
+/// Who's scouting and which event, under Settings (where you'd fix them).
+class _CurrentSettings extends StatelessWidget {
+  final AppStateProvider appState;
+  const _CurrentSettings(this.appState);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final s = appState.settings;
+    final style = theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant);
+    final missing = style?.copyWith(color: theme.colorScheme.error);
+    final name = s.scouterName.trim();
+    final event = s.selectedEventName;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(56, 0, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(Icons.person_outline, size: 14, color: style?.color),
+            const SizedBox(width: 6),
+            Flexible(child: Text(name.isEmpty ? 'No scouter name' : name, style: name.isEmpty ? missing : style)),
+          ]),
+          const SizedBox(height: 2),
+          Row(children: [
+            Icon(Icons.event_outlined, size: 14, color: style?.color),
+            const SizedBox(width: 6),
+            Flexible(
+              child: Text(
+                event == null ? 'No event selected' : '$event (${s.selectedEventKey})',
+                style: event == null ? missing : style,
+              ),
+            ),
+          ]),
+        ],
+      ),
     );
   }
 }

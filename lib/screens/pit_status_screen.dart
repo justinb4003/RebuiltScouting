@@ -19,6 +19,8 @@ class _PitStatusScreenState extends State<PitStatusScreen> {
   List<PitResult> _pitResults = [];
   bool _loading = false;
   String? _error;
+  // null = all teams; kept across visits within a session.
+  static bool? _showScouted;
 
   @override
   void initState() {
@@ -53,38 +55,16 @@ class _PitStatusScreenState extends State<PitStatusScreen> {
     return _pitResults.where((r) => r.teamNumber == teamNumber).toList();
   }
 
-  void _showScouters(BuildContext context, int teamNumber, List<PitResult> results) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text('Team $teamNumber'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${results.length} result${results.length == 1 ? '' : 's'}:',
-                style: Theme.of(ctx).textTheme.titleSmall),
-            const SizedBox(height: 8),
-            ...results.map((r) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.person, size: 16),
-                      const SizedBox(width: 8),
-                      Text(r.scouterName.isEmpty ? 'Unknown' : r.scouterName),
-                    ],
-                  ),
-                )),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Close'),
-          ),
-        ],
-      ),
-    );
+  /// Who scouted the team, e.g. "tess, caleb ×2".
+  String _scouters(List<PitResult> results) {
+    final counts = <String, int>{};
+    for (final r in results) {
+      final name = r.scouterName.isEmpty ? 'Unknown' : r.scouterName;
+      counts[name] = (counts[name] ?? 0) + 1;
+    }
+    return counts.entries
+        .map((e) => e.value > 1 ? '${e.key} ×${e.value}' : e.key)
+        .join(', ');
   }
 
   Widget _refreshButton() {
@@ -113,6 +93,12 @@ class _PitStatusScreenState extends State<PitStatusScreen> {
 
     final scoutedCount =
         teams.where((t) => _resultsForTeam(t.teamNumber).isNotEmpty).length;
+    final shown = _showScouted == null
+        ? teams
+        : teams
+            .where((t) =>
+                _resultsForTeam(t.teamNumber).isNotEmpty == _showScouted)
+            .toList();
 
     return Scaffold(
       appBar: AppBar(
@@ -130,15 +116,29 @@ class _PitStatusScreenState extends State<PitStatusScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 5),
+      drawer: const NavDrawer(selectedIndex: 6),
       body: Column(
         children: [
-          _refreshButton(),
           if (teams.isNotEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
               child: Text('$scoutedCount / ${teams.length} teams scouted',
                   style: theme.textTheme.titleMedium),
+            ),
+          if (teams.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: SegmentedButton<bool?>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(value: null, label: Text('All')),
+                  ButtonSegment(value: true, label: Text('Scouted')),
+                  ButtonSegment(value: false, label: Text('Unscouted')),
+                ],
+                selected: {_showScouted},
+                onSelectionChanged: (v) =>
+                    setState(() => _showScouted = v.first),
+              ),
             ),
           if (_error != null)
             Padding(
@@ -150,13 +150,19 @@ class _PitStatusScreenState extends State<PitStatusScreen> {
             child: teams.isEmpty
                 ? const Center(child: Text('No teams loaded'))
                 : ListView.builder(
-                    itemCount: teams.length,
+                    itemCount: shown.length,
                     itemBuilder: (context, index) {
-                      final team = teams[index];
+                      final team = shown[index];
                       final results = _resultsForTeam(team.teamNumber);
                       final scouted = results.isNotEmpty;
 
-                      return ListTile(
+                      // Material per row: ListTile.tileColor paints past
+                      // the list's clip.
+                      return Material(
+                        color: index.isOdd
+                            ? theme.colorScheme.surfaceContainerHigh
+                            : Colors.transparent,
+                        child: ListTile(
                         leading: Tooltip(
                           message: scouted
                               ? '${results.length} result${results.length == 1 ? '' : 's'}'
@@ -179,17 +185,31 @@ class _PitStatusScreenState extends State<PitStatusScreen> {
                               : const Icon(Icons.cancel, color: Colors.red,
                                   semanticLabel: 'Not scouted'),
                         ),
-                        title: Text('${team.teamNumber}'),
+                        title: Row(
+                          children: [
+                            Text('${team.teamNumber}'),
+                            TeamInfoButton(team.teamNumber),
+                          ],
+                        ),
                         subtitle: Text(team.nickname),
                         trailing: scouted
-                            ? IconButton(
-                                tooltip: 'Who scouted',
-                                icon: const Icon(Icons.people_outline),
-                                onPressed: () => _showScouters(
-                                    context, team.teamNumber, results),
+                            ? ConstrainedBox(
+                                constraints:
+                                    const BoxConstraints(maxWidth: 180),
+                                child: Text(
+                                  _scouters(results),
+                                  textAlign: TextAlign.end,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                      color:
+                                          theme.colorScheme.onSurfaceVariant),
+                                ),
                               )
                             : null,
-                        onTap: () => openTeamDetails(context, team.teamNumber),
+                        onTap: () =>
+                            showTeamDetailsDialog(context, team.teamNumber),
+                      ),
                       );
                     },
                   ),

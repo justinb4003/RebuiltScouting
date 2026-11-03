@@ -6,6 +6,7 @@ import '../widgets/fixed_segmented_button.dart';
 import '../widgets/highlighted_switch.dart';
 import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
+import '../widgets/submit_snack_bar.dart';
 import '../widgets/team_selector.dart';
 import '../widgets/team_details.dart';
 
@@ -89,7 +90,8 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
-                onPressed: () => openTeamDetails(context, pit.selectedTeamNumber!),
+                onPressed: () =>
+                    showTeamDetailsDialog(context, pit.selectedTeamNumber!),
                 icon: const Icon(Icons.badge_outlined),
                 label: Text(
                     'View ${appState.getAllPitResultsForTeam(pit.selectedTeamNumber!).isEmpty ? 'team details' : 'existing pit data & team details'}'),
@@ -577,13 +579,7 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                       );
                       if (context.mounted) {
                         appState.refreshHeldDataCount();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text(result.message),
-                            backgroundColor:
-                                result.success ? Colors.green : Colors.red,
-                          ),
-                        );
+                        showSubmitResult(context, result);
                         if (result.success) {
                           pit.resetForm();
                           _clearControllers();

@@ -1,5 +1,9 @@
 import 'package:uuid/uuid.dart';
 
+/// Set (only in held storage, never posted) on a record whose photo was
+/// moved to the photo store.
+const heldPhotoKey = 'held_photo_in_store';
+
 class PitResult {
   final String id;
   final String scouterName;
@@ -38,6 +42,9 @@ class PitResult {
   String funQuestion;
   String notes;
   String? photoBase64;
+  // Held records only: the photo is in the photo store under [id], not in
+  // [photoBase64] (StorageService loads it back before upload).
+  bool photoInStore;
   // Photo URLs from the API's `image_names` (fetched results only).
   List<String> imageUrls;
   // False for notes-only records (robot notes), which carry no form fields.
@@ -82,6 +89,7 @@ class PitResult {
     this.funQuestion = '',
     this.notes = '',
     this.photoBase64,
+    this.photoInStore = false,
     List<String>? imageUrls,
     this.hasFullData = true,
     DateTime? timestamp,
@@ -170,7 +178,8 @@ class PitResult {
         hopperEmptyTime: json['hopper_empty_time'] ?? '',
         funQuestion: json['fun_question'] ?? '',
         notes: json['notes'] ?? '',
-        photoBase64: json['images'] is String ? json['images'] : (json['photo_base64'] is String ? json['photo_base64'] : null),
+        photoBase64: _photoFromJson(json),
+        photoInStore: json[heldPhotoKey] == true,
         imageUrls: json['image_names'] is List
             ? [for (final u in json['image_names']) u.toString()]
             : null,
@@ -180,4 +189,16 @@ class PitResult {
             ? DateTime.parse(json['timestamp'])
             : DateTime.now(),
       );
+
+  /// Raw base64 photo from any shape we've stored: toJson's
+  /// `images: ['data:image/jpeg;base64,...']`, or the older `images` /
+  /// `photo_base64` strings.
+  static String? _photoFromJson(Map<String, dynamic> json) {
+    var raw = json['images'];
+    if (raw is List) raw = raw.isEmpty ? null : raw.first;
+    raw ??= json['photo_base64'];
+    if (raw is! String || raw.isEmpty) return null;
+    final comma = raw.indexOf(',');
+    return raw.startsWith('data:') && comma >= 0 ? raw.substring(comma + 1) : raw;
+  }
 }

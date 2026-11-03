@@ -5,6 +5,7 @@ import '../models/pit_result.dart';
 import '../models/submit_result.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
+import '../services/upload_queue.dart';
 
 class PitProvider extends ChangeNotifier {
   final ApiService _api = ApiService.instance;
@@ -173,29 +174,18 @@ class PitProvider extends ChangeNotifier {
       photoBase64: photoBase64,
     );
 
-    await _storage.addHeldPitResult(result);
-
     try {
-      final success = await _api.postPitResults(result);
-      if (success) {
-        await _storage.removeHeldPitResult(result.id);
-        _submitting = false;
-        notifyListeners();
-        return SubmitResult(
-            success: true, message: 'Pit data submitted successfully!');
-      } else {
-        _submitting = false;
-        notifyListeners();
-        return SubmitResult(
-            success: false, message: 'API error. Data saved locally.');
-      }
-    } catch (e, stackTrace) {
-      debugPrint('Pit submit error: $e');
-      debugPrint('$stackTrace');
+      // Photos make pit records big, so this is the save most likely to hit
+      // the browser's storage quota.
+      return await UploadQueue.instance.submit(
+        id: result.id,
+        what: 'pit data',
+        hold: () => _storage.addHeldPitResult(result),
+        post: () => _api.postPitResults(result),
+      );
+    } finally {
       _submitting = false;
       notifyListeners();
-      return SubmitResult(
-          success: false, message: 'Network error. Data saved locally.');
     }
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/match_result.dart';
+import '../models/opr.dart';
 import '../models/scouted_match.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/event_data_provider.dart';
@@ -27,11 +28,24 @@ class MatchCard extends StatefulWidget {
   final int? focusTeam;
   final bool initiallyExpanded;
 
+  /// Each team's OPR and the alliance OPR total next to the real numbers.
+  final bool showPredictions;
+
+  /// Team nicknames next to their numbers.
+  final bool showNames;
+
+  /// A colored dot on these teams' chips (Head to Head marks every compared
+  /// team so you can see who was with or against whom).
+  final Map<int, Color> markers;
+
   const MatchCard({
     super.key,
     required this.match,
     this.focusTeam,
     this.initiallyExpanded = false,
+    this.showPredictions = false,
+    this.showNames = true,
+    this.markers = const {},
   });
 
   @override
@@ -50,7 +64,11 @@ class _MatchCardState extends State<MatchCard> {
       for (final t in context.watch<AppStateProvider>().teams)
         t.teamNumber: t.nickname,
     };
-    final scouted = context.watch<EventDataProvider>().scoutedInMatch(match);
+    final data = context.watch<EventDataProvider>();
+    final scouted = data.scoutedInMatch(match);
+    final opr = widget.showPredictions
+        ? data.opr
+        : const <int, Map<String, double>>{};
     final focus = widget.focusTeam;
     final focusRows = focus == null
         ? const <ScoutedMatch>[]
@@ -68,9 +86,9 @@ class _MatchCardState extends State<MatchCard> {
             children: [
               _header(theme),
               const SizedBox(height: 8),
-              _allianceRow(theme, 'red'),
+              _allianceRow(theme, 'red', opr, names),
               const SizedBox(height: 4),
-              _allianceRow(theme, 'blue'),
+              _allianceRow(theme, 'blue', opr, names),
               if (focus != null && match.isQual && match.played) ...[
                 const SizedBox(height: 8),
                 if (focusRows.isEmpty)
@@ -165,10 +183,27 @@ class _MatchCardState extends State<MatchCard> {
     return '${days[t.weekday - 1]} $h:${t.minute.toString().padLeft(2, '0')} ${t.hour < 12 ? 'AM' : 'PM'}';
   }
 
-  Widget _allianceRow(ThemeData theme, String side) {
+  /// One alliance as a grid row so red and blue (and every card) line up:
+  /// three team cells (OPR, number, name), then RP, the alliance's OPR
+  /// total, trophy and actual score. OPR numbers are smaller and in italics so
+  /// they read as predictions.
+  Widget _allianceRow(
+    ThemeData theme,
+    String side,
+    OprData opr,
+    Map<int, String> names,
+  ) {
     final alliance = side == 'red' ? match.red : match.blue;
     final color = allianceColor(side);
     final winner = match.winner == side;
+    final predicted = _oprSum(alliance, opr);
+    final small = theme.textTheme.labelSmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
+    final guess = small?.copyWith(
+      fontStyle: FontStyle.italic,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
       decoration: BoxDecoration(
@@ -178,46 +213,125 @@ class _MatchCardState extends State<MatchCard> {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Wrap(
-              spacing: 6,
-              runSpacing: 4,
-              children: [
-                for (final t in alliance.teams)
-                  _TeamChip(
-                    team: t,
-                    color: color,
-                    highlighted: t == widget.focusTeam,
-                  ),
-              ],
+          for (var i = 0; i < 3; i++)
+            Expanded(
+              child: i >= alliance.teams.length
+                  ? const SizedBox.shrink()
+                  : Row(
+                      children: [
+                        if (widget.showPredictions)
+                          SizedBox(
+                            width: 28,
+                            child: Text(
+                              _oprText(opr, alliance.teams[i]),
+                              textAlign: TextAlign.right,
+                              style: guess,
+                            ),
+                          ),
+                        if (widget.showPredictions) const SizedBox(width: 4),
+                        // Shrinks rather than overflows on narrow phones.
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: _TeamChip(
+                              team: alliance.teams[i],
+                              color: color,
+                              marker: widget.markers[alliance.teams[i]],
+                              highlighted:
+                                  alliance.teams[i] == widget.focusTeam,
+                            ),
+                          ),
+                        ),
+                        if (widget.showNames)
+                          Expanded(
+                            flex: 2,
+                            child: Padding(
+                              padding: const EdgeInsets.only(left: 6),
+                              child: Text(
+                                names[alliance.teams[i]] ?? '',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: small?.copyWith(
+                                  color: theme.colorScheme.onSurface,
+                                ),
+                              ),
+                            ),
+                          ),
+                        // Without names the chip keeps its full size; a
+                        // Spacer here would halve its room and shrink it.
+                        const SizedBox(width: 6),
+                      ],
+                    ),
+            ),
+          SizedBox(
+            width: 36,
+            child: Text(
+              match.played &&
+                      alliance.breakdown != null &&
+                      match.isQual &&
+                      alliance.rp > 0
+                  ? '${alliance.rp} RP'
+                  : '',
+              textAlign: TextAlign.right,
+              style: small,
             ),
           ),
-          if (match.played) ...[
-            const SizedBox(width: 8),
-            if (alliance.breakdown != null && match.isQual && alliance.rp > 0)
-              Padding(
-                padding: const EdgeInsets.only(right: 8),
+          if (widget.showPredictions)
+            SizedBox(
+              width: 38,
+              child: Tooltip(
+                message: 'OPR prediction',
                 child: Text(
-                  '${alliance.rp} RP',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
+                  predicted == null ? '' : '${predicted.round()}',
+                  textAlign: TextAlign.right,
+                  style: guess?.copyWith(
+                    fontSize: theme.textTheme.bodyMedium?.fontSize,
                   ),
                 ),
               ),
-            if (winner)
-              Icon(Icons.emoji_events, size: 16, color: Colors.amber.shade700),
-            const SizedBox(width: 2),
-            Text(
-              '${alliance.score}',
+            ),
+          SizedBox(
+            width: 20,
+            child: winner
+                ? Icon(
+                    Icons.emoji_events,
+                    size: 16,
+                    color: Colors.amber.shade700,
+                  )
+                : null,
+          ),
+          SizedBox(
+            width: 36,
+            child: Text(
+              match.played ? '${alliance.score}' : '',
+              textAlign: TextAlign.right,
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: winner ? FontWeight.bold : FontWeight.normal,
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
-          ],
+          ),
         ],
       ),
     );
+  }
+
+  static String _oprText(OprData opr, int team) {
+    final v = opr[team]?['totalPoints'];
+    return v == null ? '' : v.toStringAsFixed(0);
+  }
+
+  /// Sum of the alliance's total-points OPR; null if any team has none.
+  static double? _oprSum(MatchAlliance a, OprData opr) {
+    if (a.teams.isEmpty) return null;
+    var total = 0.0;
+    for (final t in a.teams) {
+      final v = opr[t]?['totalPoints'];
+      if (v == null) return null;
+      total += v;
+    }
+    return total;
   }
 
   Widget _allianceDetail(
@@ -262,10 +376,12 @@ class _TeamChip extends StatelessWidget {
   final int team;
   final Color color;
   final bool highlighted;
+  final Color? marker;
   const _TeamChip({
     required this.team,
     required this.color,
     required this.highlighted,
+    this.marker,
   });
 
   @override
@@ -274,7 +390,7 @@ class _TeamChip extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(6),
       // The highlighted team is the one already being shown.
-      onTap: highlighted ? null : () => openTeamDetails(context, team),
+      onTap: highlighted ? null : () => showTeamDetailsDialog(context, team),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
@@ -284,12 +400,29 @@ class _TeamChip extends StatelessWidget {
             color: color.withValues(alpha: highlighted ? 1 : 0.5),
           ),
         ),
-        child: Text(
-          '$team',
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: highlighted ? Colors.white : theme.colorScheme.onSurface,
-            fontWeight: highlighted ? FontWeight.bold : FontWeight.w500,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (marker != null) ...[
+              Container(
+                width: 9,
+                height: 9,
+                decoration: BoxDecoration(
+                  color: marker,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 1.5),
+                ),
+              ),
+              const SizedBox(width: 4),
+            ],
+            Text(
+              '$team',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: highlighted ? Colors.white : theme.colorScheme.onSurface,
+                fontWeight: highlighted ? FontWeight.bold : FontWeight.w500,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -328,7 +461,7 @@ class _TeamDetailRow extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           InkWell(
-            onTap: focused ? null : () => openTeamDetails(context, team),
+            onTap: focused ? null : () => showTeamDetailsDialog(context, team),
             child: Row(
               children: [
                 Text(

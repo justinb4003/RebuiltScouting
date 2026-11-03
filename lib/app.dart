@@ -9,13 +9,16 @@ import 'screens/settings_screen.dart';
 import 'screens/scouting_status_screen.dart';
 import 'screens/pit_status_screen.dart';
 import 'screens/robot_note_screen.dart';
-import 'screens/pick_list_screen.dart';
 import 'screens/pick_board_screen.dart';
 import 'screens/clusters_screen.dart';
+import 'screens/dimensions_screen.dart';
 import 'screens/rankings_screen.dart';
 import 'screens/team_details_screen.dart';
 import 'screens/match_breakdowns_screen.dart';
 import 'screens/head_to_head_screen.dart';
+import 'screens/name_that_team_screen.dart';
+import 'screens/spot_the_bot_screen.dart';
+import 'screens/hometown_screen.dart';
 
 class App extends StatelessWidget {
   const App({super.key});
@@ -47,13 +50,16 @@ class App extends StatelessWidget {
         '/scouting-status': (context) => const ScoutingStatusScreen(),
         '/pit-status': (context) => const PitStatusScreen(),
         '/robot-note': (context) => const RobotNoteScreen(),
-        '/pick-board': (context) => const PickBoardScreen(),
-        '/pick-list': (context) => const PickListScreen(),
+        '/pick-list': (context) => const PickBoardScreen(),
         '/clusters': (context) => const ClustersScreen(),
+        '/dimensions': (context) => const DimensionsScreen(),
         '/rankings': (context) => const RankingsScreen(),
         '/team-details': (context) => const TeamDetailsScreen(),
         '/match-breakdowns': (context) => const MatchBreakdownsScreen(),
         '/head-to-head': (context) => const HeadToHeadScreen(),
+        '/name-that-team': (context) => const NameThatTeamScreen(),
+        '/spot-the-bot': (context) => const SpotTheBotScreen(),
+        '/hometown': (context) => const HometownScreen(),
       },
     );
   }
