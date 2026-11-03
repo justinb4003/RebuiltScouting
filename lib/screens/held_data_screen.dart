@@ -159,7 +159,7 @@ class _HeldDataScreenState extends State<HeldDataScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 3),
+      drawer: const NavDrawer(selectedIndex: 4),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

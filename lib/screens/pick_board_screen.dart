@@ -109,7 +109,7 @@ class _PickBoardScreenState extends State<PickBoardScreen> {
                   Tab(text: 'Other Lists'),
                 ]),
         ),
-        drawer: const NavDrawer(selectedIndex: 11),
+        drawer: const NavDrawer(selectedIndex: 13),
         body: message != null
             ? Center(
                 child: Padding(

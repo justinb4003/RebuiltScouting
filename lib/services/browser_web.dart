@@ -1,4 +1,5 @@
 import 'dart:js_interop';
+import 'package:web/web.dart' as web;
 
 extension type _StorageManager._(JSObject _) implements JSObject {
   external JSPromise<JSBoolean> persist();
@@ -26,4 +27,9 @@ Future<bool> requestPersistentStorage() async {
 /// Calls [callback] whenever the browser says the network came back.
 void onBrowserOnline(void Function() callback) {
   _addEventListener('online', ((JSAny _) => callback()).toJS);
+}
+
+/// Open [url] in this tab (used for webcal:// calendar subscriptions).
+void openUrl(String url) {
+  web.window.open(url, '_self');
 }

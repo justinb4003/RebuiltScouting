@@ -63,7 +63,7 @@ class _NameThatTeamScreenState extends State<NameThatTeamScreen> {
     return TeamGuessGame(
       gameId: statewide ? 'name-that-team-state' : 'name-that-team',
       title: 'Name That Team',
-      navIndex: 14,
+      navIndex: 16,
       rules: 'A team number comes up with three team names. Pick the '
           'right one before time runs out.',
       lobbyHeader: GameScopePicker(

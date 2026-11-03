@@ -311,7 +311,7 @@ class _DimensionsScreenState extends State<DimensionsScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 13),
+      drawer: const NavDrawer(selectedIndex: 15),
       body: Column(
         children: [
           if (p.loading) const LinearProgressIndicator(),

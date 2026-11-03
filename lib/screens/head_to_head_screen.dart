@@ -169,7 +169,7 @@ class _HeadToHeadScreenState extends State<HeadToHeadScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 10),
+      drawer: const NavDrawer(selectedIndex: 12),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1100),

@@ -5,6 +5,8 @@ class TbaMatch {
   final int setNumber;
   final List<String> redTeams;
   final List<String> blueTeams;
+  // Scheduled (or predicted) start, epoch seconds; null until TBA has one.
+  final int? time;
 
   TbaMatch({
     required this.key,
@@ -13,6 +15,7 @@ class TbaMatch {
     this.setNumber = 1,
     required this.redTeams,
     required this.blueTeams,
+    this.time,
   });
 
   Map<String, dynamic> toJson() => {
@@ -22,6 +25,7 @@ class TbaMatch {
         'setNumber': setNumber,
         'redTeams': redTeams,
         'blueTeams': blueTeams,
+        'time': time,
       };
 
   factory TbaMatch.fromJson(Map<String, dynamic> json) {
@@ -46,7 +50,16 @@ class TbaMatch {
       setNumber: json['setNumber'] ?? json['set_number'] ?? 1,
       redTeams: redTeams,
       blueTeams: blueTeams,
+      time: _toInt(json['predicted_time'] ?? json['time']),
     );
+  }
+
+  // The API's DataFrame JSON gives predicted_time in milliseconds, TBA's own
+  // fields are seconds.
+  static int? _toInt(dynamic v) {
+    if (v is! num) return null;
+    final n = v.toInt();
+    return n > 100000000000 ? n ~/ 1000 : n;
   }
 
   /// Strip "frc" prefix from team keys like "frc862" → "862"

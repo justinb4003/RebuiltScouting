@@ -48,7 +48,7 @@ class _TeamDetailsScreenState extends State<TeamDetailsScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 9),
+      drawer: const NavDrawer(selectedIndex: 11),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 900),

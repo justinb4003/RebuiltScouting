@@ -18,6 +18,7 @@ import '../models/rankings.dart';
 import '../models/match_result.dart';
 import '../models/opr.dart';
 import '../models/scouted_match.dart';
+import '../models/scout_schedule.dart';
 
 /// The API answered with an error status (the request did get through).
 class ApiStatusException implements Exception {
@@ -405,6 +406,97 @@ class ApiService {
       throw Exception('Publishing failed: ${response.statusCode}');
     }
     return GameScore.fromJson(jsonDecode(response.body));
+  }
+
+  // --- Match-scouting schedule ---
+
+  /// Record that [name] is in use for this key + event. Returns the
+  /// scouter's private calendar token.
+  Future<String> registerScouter({
+    required String secretKey,
+    required String eventKey,
+    required String name,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/RegisterScouter'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'secret_key': secretKey,
+            'event_key': eventKey,
+            'scouter_name': name,
+          }),
+        )
+        .timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint(
+          'registerScouter failed: ${response.statusCode} ${response.body}');
+      throw Exception('Registering scouter failed: ${response.statusCode}');
+    }
+    return jsonDecode(response.body)['calendar_token'] as String;
+  }
+
+  Future<List<ScouterInfo>> getScouters(String secretKey, String eventKey) async {
+    final uri = Uri.parse('$baseUrl/GetScouters')
+        .replace(queryParameters: {'secret_key': secretKey, 'event_key': eventKey});
+    final response = await http.get(uri).timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint('getScouters failed: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load scouters: ${response.statusCode}');
+    }
+    return [
+      for (final j in jsonDecode(response.body) as List)
+        ScouterInfo.fromJson(Map<String, dynamic>.from(j)),
+    ];
+  }
+
+  /// Every published schedule for the key + event, newest first.
+  Future<List<ScoutSchedule>> getSchedules(String secretKey, String eventKey) async {
+    final uri = Uri.parse('$baseUrl/GetSchedules')
+        .replace(queryParameters: {'secret_key': secretKey, 'event_key': eventKey});
+    final response = await http.get(uri).timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint('getSchedules failed: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load schedules: ${response.statusCode}');
+    }
+    return [
+      for (final j in jsonDecode(response.body) as List)
+        ScoutSchedule.fromJson(Map<String, dynamic>.from(j)),
+    ];
+  }
+
+  Future<ScoutSchedule> publishSchedule({
+    required String secretKey,
+    required String eventKey,
+    required String publishedBy,
+    required List<Shift> shifts,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/PublishSchedule'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'secret_key': secretKey,
+            'event_key': eventKey,
+            'published_by': publishedBy,
+            'shifts': [for (final s in shifts) s.toJson()],
+          }),
+        )
+        .timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint(
+          'publishSchedule failed: ${response.statusCode} ${response.body}');
+      throw Exception('Publishing failed: ${response.statusCode}');
+    }
+    return ScoutSchedule.fromJson(jsonDecode(response.body));
+  }
+
+  /// The iCalendar feed for a scouter's calendar token. [scheme] is 'https'
+  /// (or the API's own scheme) to copy, 'webcal' to subscribe.
+  static String calendarUrl(String token, {bool webcal = false}) {
+    final uri = Uri.parse('$baseUrl/ScheduleCalendar')
+        .replace(queryParameters: {'token': token});
+    return webcal ? uri.replace(scheme: 'webcal').toString() : uri.toString();
   }
 
   Future<List<PitResult>> getPitResults(String eventKey) async {

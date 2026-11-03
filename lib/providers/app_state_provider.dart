@@ -7,6 +7,7 @@ import '../models/pit_result.dart';
 import '../services/api_service.dart';
 import '../services/storage_service.dart';
 import '../services/upload_queue.dart';
+import '../services/scouter_registry.dart';
 
 class AppStateProvider extends ChangeNotifier {
   final ApiService _api = ApiService.instance;
@@ -42,6 +43,7 @@ class AppStateProvider extends ChangeNotifier {
     // Keep the drawer's held count current as background uploads land.
     UploadQueue.instance.addListener(refreshHeldDataCount);
     notifyListeners();
+    ScouterRegistry.instance.registerIfNeeded(_settings);
 
     // Auto-load events if cache is empty (non-blocking)
     if (_events.isEmpty) {
@@ -60,11 +62,13 @@ class AppStateProvider extends ChangeNotifier {
   /// Persist settings to storage without triggering a rebuild.
   Future<void> persistSettings() async {
     await _storage.saveSettings(_settings);
+    ScouterRegistry.instance.settingsChanged(() => _settings);
   }
 
   /// Persist and notify listeners (triggers rebuild).
   Future<void> saveAndNotify() async {
     await _storage.saveSettings(_settings);
+    ScouterRegistry.instance.settingsChanged(() => _settings);
     notifyListeners();
   }
 

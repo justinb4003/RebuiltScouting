@@ -6,6 +6,7 @@ import 'providers/scouting_provider.dart';
 import 'providers/pit_provider.dart';
 import 'providers/pick_list_provider.dart';
 import 'providers/pick_board_provider.dart';
+import 'providers/schedule_provider.dart';
 import 'providers/rankings_provider.dart';
 import 'providers/event_data_provider.dart';
 import 'providers/cluster_provider.dart';
@@ -45,6 +46,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => PickListProvider()),
         ChangeNotifierProvider(create: (_) => PickBoardProvider()),
         ChangeNotifierProvider(create: (_) => RankingsProvider()),
+        ChangeNotifierProvider(create: (_) => ScheduleProvider()),
         ChangeNotifierProvider(create: (_) => EventDataProvider()),
         ChangeNotifierProvider.value(value: clusters),
       ],
