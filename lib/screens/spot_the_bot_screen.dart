@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
@@ -21,6 +22,11 @@ class SpotTheBotScreen extends StatefulWidget {
 class _SpotTheBotScreenState extends State<SpotTheBotScreen> {
   final _rng = Random();
 
+  // Photos loaded this session, kept in the image cache so they're never
+  // evicted and fetched again mid-game; and photos that wouldn't load.
+  static final Map<String, ImageStreamCompleterHandle> _kept = {};
+  static final Set<String> _failed = {};
+
   @override
   void initState() {
     super.initState();
@@ -43,6 +49,53 @@ class _SpotTheBotScreenState extends State<SpotTheBotScreen> {
     return appState.teams
         .where((t) => photos.containsKey(t.teamNumber))
         .toList();
+  }
+
+  /// Loads every photo before the game starts, a few at a time.
+  Future<void> _preload(
+      BuildContext context, void Function(int done, int total) progress) async {
+    final appState = context.read<AppStateProvider>();
+    final teams = {for (final t in _withPhotos(appState)) t.teamNumber};
+    final urls = <String>{
+      for (final e in _photos(appState).entries)
+        if (teams.contains(e.key)) ...e.value,
+    }.toList();
+    final config = createLocalImageConfiguration(context);
+    var done = 0;
+    progress(0, urls.length);
+    final queue = urls.toList();
+    Future<void> worker() async {
+      while (queue.isNotEmpty) {
+        await _load(queue.removeLast(), config);
+        progress(++done, urls.length);
+      }
+    }
+
+    await Future.wait([for (var i = 0; i < 6; i++) worker()]);
+  }
+
+  Future<void> _load(String url, ImageConfiguration config) async {
+    if (_kept.containsKey(url) || _failed.contains(url)) return;
+    final loaded = Completer<bool>();
+    final stream = _image(url).resolve(config);
+    final listener = ImageStreamListener(
+      (info, _) {
+        info.dispose();
+        if (!loaded.isCompleted) loaded.complete(true);
+      },
+      onError: (_, _) {
+        if (!loaded.isCompleted) loaded.complete(false);
+      },
+    );
+    stream.addListener(listener);
+    final ok = await loaded.future
+        .timeout(const Duration(seconds: 20), onTimeout: () => false);
+    if (ok && stream.completer != null) {
+      _kept[url] = stream.completer!.keepAlive();
+    } else {
+      _failed.add(url);
+    }
+    stream.removeListener(listener);
   }
 
   // The photo host sends no CORS headers, so decode via a plain <img>
@@ -69,25 +122,27 @@ class _SpotTheBotScreenState extends State<SpotTheBotScreen> {
         },
         answers: _withPhotos,
         optionText: (team) => '${team.teamNumber}  ${team.nickname}',
+        preload: _preload,
+        preloadLabel: 'robot photos',
+        // Only photos the preload got; a team whose photos all failed is
+        // skipped.
         prepare: (context, team) async {
-          final urls = _photos(context.read<AppStateProvider>())[team.teamNumber];
+          final urls = _photos(context.read<AppStateProvider>())[team.teamNumber]
+              ?.where(_kept.containsKey)
+              .toList();
           if (urls == null || urls.isEmpty) return null;
-          final url = urls[_rng.nextInt(urls.length)];
-          var failed = false;
-          // Load it before the clock starts.
-          await precacheImage(_image(url), context,
-              onError: (_, _) => failed = true);
-          return failed ? null : url;
+          return urls[_rng.nextInt(urls.length)];
         },
         prompt: (context, round) => ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: Image(
+            // A new widget per photo: without it the old photo stayed up.
+            key: ValueKey(round.extra),
             image: _image(round.extra!),
             semanticLabel: 'Robot photo from pit scouting',
             // Leave room for the three choices without scrolling.
             height: (MediaQuery.sizeOf(context).height - 460).clamp(160, 400),
             fit: BoxFit.contain,
-            gaplessPlayback: true,
           ),
         ),
       );

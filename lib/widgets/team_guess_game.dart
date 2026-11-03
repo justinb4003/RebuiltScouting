@@ -78,6 +78,15 @@ class TeamGuessGame extends StatefulWidget {
   /// photo) and returns what [prompt] needs, or null to skip the team.
   final Future<String?> Function(BuildContext context, TbaTeam team)? prepare;
 
+  /// Loads everything up front when a game starts (e.g. every photo), so
+  /// nothing loads mid-game. Calls [progress] as it goes.
+  final Future<void> Function(
+          BuildContext context, void Function(int done, int total) progress)?
+      preload;
+
+  /// What [preload] is loading, e.g. 'robot photos'.
+  final String preloadLabel;
+
   /// What's shown above the choices.
   final Widget Function(BuildContext context, GuessRound round) prompt;
 
@@ -96,6 +105,8 @@ class TeamGuessGame extends StatefulWidget {
     this.decoyFilter,
     this.optionLeading,
     this.nextButton = false,
+    this.preload,
+    this.preloadLabel = 'game data',
   });
 
   @override
@@ -118,6 +129,11 @@ class _TeamGuessGameState extends State<TeamGuessGame>
   Future<_Question?>? _upcoming;
   // Set once the question is answered (or timed out): the pick, or -1.
   int? _picked;
+
+  // While preload runs: how far along it is.
+  bool _preloading = false;
+  int _loadDone = 0;
+  int _loadTotal = 0;
 
   List<GameScore>? _scores;
   String? _scoresError;
@@ -172,7 +188,7 @@ class _TeamGuessGameState extends State<TeamGuessGame>
         milliseconds: (_startSeconds * 1000 / (1 << speedUps)).round());
   }
 
-  void _start() {
+  Future<void> _start() async {
     setState(() {
       _phase = _Phase.playing;
       _correct = 0;
@@ -181,6 +197,24 @@ class _TeamGuessGameState extends State<TeamGuessGame>
       _question = null;
       _round++;
     });
+    final round = _round;
+    if (widget.preload != null) {
+      setState(() {
+        _preloading = true;
+        _loadDone = 0;
+        _loadTotal = 0;
+      });
+      await widget.preload!(context, (done, total) {
+        if (mounted && round == _round) {
+          setState(() {
+            _loadDone = done;
+            _loadTotal = total;
+          });
+        }
+      });
+      if (!mounted || round != _round || _phase != _Phase.playing) return;
+      setState(() => _preloading = false);
+    }
     _upcoming = _prepareQuestion(null);
     _next();
   }
@@ -510,7 +544,41 @@ class _TeamGuessGameState extends State<TeamGuessGame>
     return 'Wrong. It\'s $right.';
   }
 
+  Widget _preloadView(BuildContext context) {
+    final theme = Theme.of(context);
+    final text = _loadTotal == 0
+        ? 'Loading ${widget.preloadLabel}…'
+        : 'Loading ${widget.preloadLabel}: $_loadDone of $_loadTotal';
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              width: 280,
+              child: LinearProgressIndicator(
+                value: _loadTotal == 0 ? null : _loadDone / _loadTotal,
+                minHeight: 8,
+                borderRadius: BorderRadius.circular(4),
+                semanticsLabel: 'Loading ${widget.preloadLabel}',
+                semanticsValue: '$_loadDone of $_loadTotal',
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(text, style: theme.textTheme.titleMedium),
+            const SizedBox(height: 4),
+            Text('So nothing has to load during the game.',
+                style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant)),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _playing(BuildContext context) {
+    if (_preloading) return _preloadView(context);
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final secs = _timeLimit.inMilliseconds / 1000;
