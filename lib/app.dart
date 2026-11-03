@@ -20,6 +20,13 @@ import 'screens/name_that_team_screen.dart';
 import 'screens/spot_the_bot_screen.dart';
 import 'screens/hometown_screen.dart';
 
+/// Tells screens when another page covers them or they're uncovered, so
+/// live screens (Pick List) can stop syncing while hidden underneath. On web
+/// a URL change (typed URL, Back/Forward) pushes a page on top instead of
+/// replacing it. Only page routes count: a dialog or bottom sheet over a
+/// screen leaves it live.
+final routeObserver = RouteObserver<PageRoute<dynamic>>();
+
 class App extends StatelessWidget {
   const App({super.key});
 
@@ -36,6 +43,7 @@ class App extends StatelessWidget {
     };
 
     return MaterialApp(
+      navigatorObservers: [routeObserver],
       title: 'FRC Scouting',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme(fontFamily: fontFamily, seedColor: seedColor),
