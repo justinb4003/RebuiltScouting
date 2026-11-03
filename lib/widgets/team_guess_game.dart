@@ -17,6 +17,12 @@ const _correctPerSpeedUp = 20;
 // ...this many times: 10 → 5 → 2.5 → 1.25 → 0.625 s, then stays there.
 const _maxSpeedUps = 4;
 
+// Play screen layout: room for the result line and the Next button is kept
+// even before an answer, and below this height the screen scrolls.
+const _resultHeight = 52.0;
+const _nextHeight = 60.0;
+const _minPlayHeight = 600.0;
+
 enum _Phase { intro, playing, over }
 
 class _Question {
@@ -650,98 +656,127 @@ class _TeamGuessGameState extends State<TeamGuessGame>
       );
     }
 
+    final revealed = _picked != null;
+    final right = revealed && _picked! >= 0 && q!.options[_picked!] == q.answer;
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 520),
-        child: ListView(
-          padding: const EdgeInsets.all(24),
-          children: [
-            Row(children: [
-              Semantics(
-                container: true,
-                child: Text('$_correct correct',
-                    style: theme.textTheme.titleLarge),
-              ),
-              const Spacer(),
-              Semantics(
-                container: true,
-                label: '$_strikes of $_maxStrikes strikes',
-                excludeSemantics: true,
-                child: Row(children: [
-                  for (var i = 0; i < _maxStrikes; i++)
-                    Icon(
-                      i < _strikes ? Icons.close : Icons.circle_outlined,
-                      size: 28,
-                      color: i < _strikes ? scheme.error : scheme.outlineVariant,
+        // Fills the screen exactly: the prompt (number, photo or map) gets
+        // whatever height is left, and the result line and Next button have
+        // their space from the start, so nothing moves when an answer is
+        // shown. Scrolls only on very short screens.
+        child: LayoutBuilder(
+          builder: (context, box) => SingleChildScrollView(
+            child: SizedBox(
+              height: max(box.maxHeight, _minPlayHeight),
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(children: [
+                      Semantics(
+                        container: true,
+                        child: Text('$_correct correct',
+                            style: theme.textTheme.titleLarge),
+                      ),
+                      const Spacer(),
+                      Semantics(
+                        container: true,
+                        label: '$_strikes of $_maxStrikes strikes',
+                        excludeSemantics: true,
+                        child: Row(children: [
+                          for (var i = 0; i < _maxStrikes; i++)
+                            Icon(
+                              i < _strikes ? Icons.close : Icons.circle_outlined,
+                              size: 28,
+                              color: i < _strikes
+                                  ? scheme.error
+                                  : scheme.outlineVariant,
+                            ),
+                        ]),
+                      ),
+                    ]),
+                    const SizedBox(height: 16),
+                    Semantics(
+                      label: '${_secondsText(secs)} seconds per team',
+                      excludeSemantics: true,
+                      child: Row(children: [
+                        Expanded(
+                          child: AnimatedBuilder(
+                            animation: _clock,
+                            builder: (context, _) => LinearProgressIndicator(
+                              value: q == null ? 1 : 1 - _clock.value,
+                              minHeight: 8,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text('${_secondsText(secs)} s',
+                            style: theme.textTheme.bodyMedium),
+                      ]),
                     ),
-                ]),
-              ),
-            ]),
-            const SizedBox(height: 16),
-            Semantics(
-              label: '${_secondsText(secs)} seconds per team',
-              excludeSemantics: true,
-              child: Row(children: [
-              Expanded(
-                child: AnimatedBuilder(
-                  animation: _clock,
-                  builder: (context, _) => LinearProgressIndicator(
-                    value: q == null ? 1 : 1 - _clock.value,
-                    minHeight: 8,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
+                    const SizedBox(height: 16),
+                    if (q == null)
+                      const Expanded(
+                        child: Center(
+                          child: CircularProgressIndicator(
+                              semanticsLabel: 'Loading the next question'),
+                        ),
+                      )
+                    else ...[
+                      Expanded(
+                        child: Semantics(
+                          liveRegion: true,
+                          container: true,
+                          child: widget.prompt(context,
+                              GuessRound(q.answer, q.options, q.extra, _picked)),
+                        ),
+                      ),
+                      SizedBox(
+                        height: _resultHeight,
+                        child: Center(
+                          child: revealed
+                              ? Semantics(
+                                  liveRegion: true,
+                                  child: Text(
+                                    _resultText(q),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                        color: right ? null : scheme.error),
+                                  ),
+                                )
+                              : null,
+                        ),
+                      ),
+                      for (var i = 0; i < q.options.length; i++) option(i),
+                      if (widget.nextButton)
+                        SizedBox(
+                          height: _nextHeight,
+                          child: Center(
+                            child: Visibility(
+                              visible: revealed,
+                              maintainSize: true,
+                              maintainAnimation: true,
+                              maintainState: true,
+                              child: FilledButton.icon(
+                                onPressed: revealed ? _advance : null,
+                                icon: const Icon(Icons.arrow_forward),
+                                label: Text(
+                                    _strikes >= _maxStrikes ? 'Finish' : 'Next'),
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(width: 12),
-              Text('${_secondsText(secs)} s',
-                  style: theme.textTheme.bodyMedium),
-            ]),
             ),
-            const SizedBox(height: 24),
-            if (q == null)
-              const Padding(
-                padding: EdgeInsets.all(48),
-                child: Center(
-                  child: CircularProgressIndicator(
-                      semanticsLabel: 'Loading the next question'),
-                ),
-              )
-            else ...[
-              Semantics(
-                liveRegion: true,
-                container: true,
-                child: widget.prompt(
-                    context, GuessRound(q.answer, q.options, q.extra, _picked)),
-              ),
-              if (_picked != null)
-                Semantics(
-                  liveRegion: true,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      _resultText(q),
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.titleMedium?.copyWith(
-                          color: _picked! >= 0 && q.options[_picked!] == q.answer
-                              ? null
-                              : scheme.error),
-                    ),
-                  ),
-                ),
-              const SizedBox(height: 16),
-              for (var i = 0; i < q.options.length; i++) option(i),
-              if (widget.nextButton && _picked != null) ...[
-                const SizedBox(height: 16),
-                Center(
-                  child: FilledButton.icon(
-                    onPressed: _advance,
-                    icon: const Icon(Icons.arrow_forward),
-                    label: Text(_strikes >= _maxStrikes ? 'Finish' : 'Next'),
-                  ),
-                ),
-              ],
-            ],
-          ],
+          ),
         ),
       ),
     );

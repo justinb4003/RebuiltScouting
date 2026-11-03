@@ -133,16 +133,17 @@ class _SpotTheBotScreenState extends State<SpotTheBotScreen> {
           if (urls == null || urls.isEmpty) return null;
           return urls[_rng.nextInt(urls.length)];
         },
-        prompt: (context, round) => ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: Image(
-            // A new widget per photo: without it the old photo stayed up.
-            key: ValueKey(round.extra),
-            image: _image(round.extra!),
-            semanticLabel: 'Robot photo from pit scouting',
-            // Leave room for the three choices without scrolling.
-            height: (MediaQuery.sizeOf(context).height - 460).clamp(160, 400),
-            fit: BoxFit.contain,
+        // Fills the height the game leaves for it, keeping the photo's shape.
+        prompt: (context, round) => Center(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: Image(
+              // A new widget per photo: without it the old photo stayed up.
+              key: ValueKey(round.extra),
+              image: _image(round.extra!),
+              semanticLabel: 'Robot photo from pit scouting',
+              fit: BoxFit.contain,
+            ),
           ),
         ),
       );

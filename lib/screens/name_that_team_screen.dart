@@ -17,13 +17,15 @@ class NameThatTeamScreen extends StatelessWidget {
             .where((t) => t.nickname.trim().isNotEmpty)
             .toList(),
         optionText: (team) => team.nickname,
-        prompt: (context, round) => Text(
-          '${round.answer.teamNumber}',
-          textAlign: TextAlign.center,
-          style: Theme.of(context)
-              .textTheme
-              .displayLarge
-              ?.copyWith(fontWeight: FontWeight.bold),
+        prompt: (context, round) => Center(
+          child: Text(
+            '${round.answer.teamNumber}',
+            textAlign: TextAlign.center,
+            style: Theme.of(context)
+                .textTheme
+                .displayLarge
+                ?.copyWith(fontWeight: FontWeight.bold),
+          ),
         ),
       );
 }
