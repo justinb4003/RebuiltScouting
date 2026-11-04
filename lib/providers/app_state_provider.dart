@@ -165,7 +165,8 @@ class AppStateProvider extends ChangeNotifier {
   Future<void> loadPitResults() async {
     if (_settings.selectedEventKey == null) return;
     try {
-      _pitResults = await _api.getPitResults(_settings.selectedEventKey!);
+      _pitResults = await _api.getPitResults(
+          _settings.selectedEventKey!, _settings.secretTeamKey);
       await _storage.cachePitResults(_settings.selectedEventKey!, _pitResults);
       notifyListeners();
     } catch (e) {
@@ -195,7 +196,8 @@ class AppStateProvider extends ChangeNotifier {
   Future<PitResult?> refreshPitResultForTeam(int teamNumber) async {
     if (_settings.selectedEventKey == null) return getPitResultForTeam(teamNumber);
     try {
-      _pitResults = await _api.getPitResults(_settings.selectedEventKey!);
+      _pitResults = await _api.getPitResults(
+          _settings.selectedEventKey!, _settings.secretTeamKey);
       await _storage.cachePitResults(_settings.selectedEventKey!, _pitResults);
       notifyListeners();
     } catch (e) {
