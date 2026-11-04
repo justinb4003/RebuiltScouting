@@ -38,7 +38,8 @@ class _PitStatusScreenState extends State<PitStatusScreen> {
       _error = null;
     });
     try {
-      final results = await _api.getPitResults(eventKey);
+      final results = await _api.getPitResults(
+          eventKey, context.read<AppStateProvider>().settings.secretTeamKey);
       setState(() {
         _pitResults = results;
         _loading = false;
