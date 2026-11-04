@@ -114,9 +114,9 @@ class PitProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> loadScoutedTeams(String eventKey) async {
+  Future<void> loadScoutedTeams(String eventKey, String secretKey) async {
     try {
-      scoutedTeams = await _api.getPitResults(eventKey);
+      scoutedTeams = await _api.getPitResults(eventKey, secretKey);
       notifyListeners();
     } catch (_) {
       // Silently fail - not critical

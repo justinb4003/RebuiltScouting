@@ -407,13 +407,23 @@ class ApiService {
     return GameScore.fromJson(jsonDecode(response.body));
   }
 
-  Future<List<PitResult>> getPitResults(String eventKey) async {
-    final response = await http
-        .get(Uri.parse('$baseUrl/GetPitResults?event_key=$eventKey'))
-        .timeout(_timeout);
+  /// Pit records for [secretKey]'s team. GetPitResults filters server-side by
+  /// secret_team_key; we filter again in case an older deployment ignores the
+  /// parameter. An empty key returns nothing without calling the API.
+  Future<List<PitResult>> getPitResults(String eventKey, String secretKey) async {
+    final wanted = secretKey.trim().toLowerCase();
+    if (wanted.isEmpty) return [];
+    final uri = Uri.parse('$baseUrl/GetPitResults').replace(
+        queryParameters: {'event_key': eventKey, 'secret_team_key': secretKey});
+    final response = await http.get(uri).timeout(_timeout);
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body);
-      return data.map((e) => PitResult.fromJson(e)).toList();
+      return [
+        for (final e in data)
+          if (e is Map &&
+              (e['secret_team_key'] ?? secretKey).toString().trim().toLowerCase() == wanted)
+            PitResult.fromJson(Map<String, dynamic>.from(e)),
+      ];
     }
     throw Exception('Failed to load pit results: ${response.statusCode}');
   }
