@@ -75,7 +75,7 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 1),
+      drawer: const NavDrawer(selectedIndex: 2),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [

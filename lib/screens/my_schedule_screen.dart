@@ -1,16 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/scout_schedule.dart';
 import '../providers/app_state_provider.dart';
 import '../providers/schedule_provider.dart';
-import '../services/api_service.dart';
-import '../services/browser.dart';
-import '../services/scouter_registry.dart';
 import '../widgets/nav_drawer.dart';
 import '../widgets/schedule_grid.dart';
 
-/// Students' screen: my shifts, add them to a calendar, and everyone's.
+/// Students' screen: my shifts, or everyone's.
 class MyScheduleScreen extends StatefulWidget {
   const MyScheduleScreen({super.key});
 
@@ -21,6 +17,8 @@ class MyScheduleScreen extends StatefulWidget {
 class _MyScheduleScreenState extends State<MyScheduleScreen> {
   // Match times arrive with the match list; refresh it once per session.
   static final Set<String> _matchesRefreshed = {};
+  // Just my shifts, or the whole schedule; kept for the app session.
+  static bool _everyone = false;
   @override
   void initState() {
     super.initState();
@@ -34,22 +32,6 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
     });
   }
 
-  Future<void> _calendar({required bool open}) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final token = await ScouterRegistry.instance.calendarToken(context.read<AppStateProvider>().settings);
-    if (token == null) {
-      messenger.showSnackBar(const SnackBar(
-          content: Text('Could not get your calendar link. Check your connection and try again.')));
-      return;
-    }
-    if (open) {
-      openUrl(ApiService.calendarUrl(token, webcal: true));
-    } else {
-      await Clipboard.setData(ClipboardData(text: ApiService.calendarUrl(token)));
-      messenger.showSnackBar(const SnackBar(content: Text('Calendar link copied')));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final app = context.watch<AppStateProvider>();
@@ -60,14 +42,9 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
     final eventKey = settings.selectedEventKey ?? '';
     final ready = eventKey.isNotEmpty && settings.secretTeamKey.isNotEmpty;
     final current = schedule.newest;
-    final times = _qualTimes(app);
+    final times = _qualTimes(app, current?.timeOffset ?? Duration.zero);
     final muted = theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant);
     final mine = current?.shiftsFor(name) ?? const <Shift>[];
-
-    String? startOf(int match) {
-      final t = times[match];
-      return t == null ? null : formatWhen(t.at);
-    }
 
     Widget body;
     if (!ready) {
@@ -98,61 +75,61 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
                   '${current.publishedAt == null ? '' : ' · ${formatWhen(current.publishedAt!)}'}',
                   style: muted,
                 ),
-                const SizedBox(height: 16),
-                Semantics(header: true, child: Text('My shifts', style: theme.textTheme.titleMedium)),
-                if (name.isEmpty)
-                  const Padding(
-                    padding: EdgeInsets.symmetric(vertical: 8),
-                    child: Text('Enter your scouter name in Settings to see your shifts.'),
-                  )
-                else if (mine.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: Text('No shifts for "$name" in this schedule.'),
-                  )
-                else
-                  for (final s in mine)
-                    ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: Text('${stationLabel(s.station)} · ${s.range}'),
-                      subtitle: startOf(s.firstMatch) == null
-                          ? null
-                          : Text('${times[s.firstMatch]!.actual ? 'Started' : 'Starts about'} ${startOf(s.firstMatch)}'),
+                if (current.isPractice)
+                  Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.tertiaryContainer,
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                if (name.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      FilledButton.icon(
-                        onPressed: () => _calendar(open: true),
-                        icon: const Icon(Icons.event),
-                        label: const Text('Add to my calendar'),
-                      ),
-                      OutlinedButton.icon(
-                        onPressed: () => _calendar(open: false),
-                        icon: const Icon(Icons.copy),
-                        label: const Text('Copy calendar link'),
-                      ),
-                    ],
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(Icons.science_outlined, color: theme.colorScheme.onTertiaryContainer),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Practice run: match times are moved to test shift reminders. '
+                            'They aren\'t the event\'s real times.',
+                            style: TextStyle(color: theme.colorScheme.onTertiaryContainer),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Your calendar reminds you 15 minutes before each shift and updates when a new schedule is published. '
-                    'In Google Calendar, use Add by URL with the copied link.',
-                    style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                if (name.isNotEmpty && mine.isNotEmpty)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Text(
+                      'You have ${mine.length} ${mine.length == 1 ? 'shift' : 'shifts'} as $name'
+                      '${times[mine.first.firstMatch] == null ? '' : '; the first ${times[mine.first.firstMatch]!.actual ? 'started' : 'starts about'} ${formatWhen(times[mine.first.firstMatch]!.at)}'}.',
+                      style: theme.textTheme.bodyLarge,
+                    ),
                   ),
-                ],
-                const SizedBox(height: 24),
-                Semantics(header: true, child: Text('Everyone', style: theme.textTheme.titleMedium)),
-                const SizedBox(height: 8),
-                ScheduleGrid(
-                  blocks: toBlocks(current.shifts),
-                  me: name,
-                  times: times,
-                  breaks: findBreaks(times),
+                const SizedBox(height: 16),
+                SegmentedButton<bool>(
+                  segments: const [
+                    ButtonSegment(value: false, icon: Icon(Icons.person), label: Text('My shifts')),
+                    ButtonSegment(value: true, icon: Icon(Icons.groups), label: Text('Everyone')),
+                  ],
+                  selected: {_everyone},
+                  onSelectionChanged: (v) => setState(() => _everyone = v.first),
                 ),
+                const SizedBox(height: 12),
+                if (!_everyone && name.isEmpty)
+                  const Text('Enter your scouter name in Settings to see your shifts.')
+                else if (!_everyone && mine.isEmpty)
+                  Text('No shifts for "$name" in this schedule. Check that your scouter name in Settings '
+                      'matches the schedule, or choose Everyone.')
+                else
+                  ScheduleGrid(
+                    blocks: toBlocks(current.shifts),
+                    me: name,
+                    onlyMine: !_everyone,
+                    times: times,
+                    breaks: findBreaks(times),
+                  ),
               ],
             ],
           ),
@@ -180,13 +157,13 @@ class _MyScheduleScreenState extends State<MyScheduleScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 3),
+      drawer: const NavDrawer(selectedIndex: 0),
       body: body,
     );
   }
 
-  static Map<int, MatchTime> _qualTimes(AppStateProvider app) => qualTimes([
+  static Map<int, MatchTime> _qualTimes(AppStateProvider app, Duration offset) => qualTimes([
         for (final m in app.matches)
           if (m.compLevel == 'qm') (match: m.matchNumber, time: m.time, actualTime: m.actualTime),
-      ]);
+      ], offset: offset);
 }

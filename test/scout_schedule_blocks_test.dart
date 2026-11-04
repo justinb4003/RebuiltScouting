@@ -188,4 +188,23 @@ void main() {
       }
     }
   });
+
+  test('options: equal shifts give everyone the same matches; mixed crews stay fair', () {
+    final twenty = [for (var i = 1; i <= 20; i++) 'P$i'];
+    // No break cuts: ten shifts of 8, everyone exactly 24.
+    final ranges = blockRanges(80, blockCountFor(20, 3, 80));
+    expect(ranges.every((r) => r.$2 - r.$1 + 1 == 8), isTrue);
+    for (var seed = 0; seed < 10; seed++) {
+      final s = generateSchedule(twenty, [], ranges, Random(seed));
+      expect(matchesPerPerson(s).values.toSet(), {24}, reason: 'seed $seed');
+    }
+    // Mixed crews and shuffled stations: still six per shift, three each.
+    for (var seed = 0; seed < 10; seed++) {
+      final s = generateSchedule(twenty, [], ranges, Random(seed), sameCrews: false, sameStations: false);
+      expect(scheduleProblems(s, 80), isEmpty);
+      expect(blocksPerPerson(s).values.toSet(), {3}, reason: 'seed $seed');
+    }
+    expect(ScheduleOptions.fromJson(const ScheduleOptions(sameCrews: false).toJson()).sameCrews, isFalse);
+    expect(ScheduleOptions.fromJson({}).endAtBreaks, isTrue);
+  });
 }

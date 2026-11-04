@@ -29,7 +29,8 @@ void onBrowserOnline(void Function() callback) {
   _addEventListener('online', ((JSAny _) => callback()).toJS);
 }
 
-/// Open [url] in this tab (used for webcal:// calendar subscriptions).
-void openUrl(String url) {
-  web.window.open(url, '_self');
+/// Open [url] in this tab, or
+/// in a new one.
+void openUrl(String url, {bool newTab = false}) {
+  web.window.open(url, newTab ? '_blank' : '_self');
 }

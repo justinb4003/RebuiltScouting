@@ -93,7 +93,10 @@ class _ScheduleBuilderScreenState extends State<ScheduleBuilderScreen> {
     final picked = _picked(schedule);
     var shifts = <Shift>[];
     for (var roll = 0; roll < 40; roll++) {
-      shifts = generateSchedule(picked, schedule.groups, ranges, _rng, maxMatches: schedule.maxMatches);
+      shifts = generateSchedule(picked, schedule.groups, ranges, _rng,
+          maxMatches: schedule.maxMatches,
+          sameCrews: schedule.options.sameCrews,
+          sameStations: schedule.options.sameStations);
       if (matchesPerPerson(shifts).values.every((n) => n <= schedule.maxMatches)) break;
     }
     schedule.setDraft(shifts);
@@ -149,19 +152,37 @@ class _ScheduleBuilderScreenState extends State<ScheduleBuilderScreen> {
   }
 
   Future<void> _publish(ScheduleProvider schedule, String publisher, int problems) async {
-    final ok = await _confirm(
-      'Publish schedule?',
-      'Publish as $publisher. This replaces the schedule you published before, and '
-          'everyone with your team key will see it as the newest one.'
-          '${problems > 0 ? '\n\nUnresolved problems listed on this page: $problems.' : ''}',
-      'Publish',
-    );
-    if (!ok || !mounted) return;
+    final app = context.read<AppStateProvider>();
+    final message = 'Publish as $publisher. This replaces the schedule you published before, and '
+        'everyone with your team key will see it as the newest one.'
+        '${problems > 0 ? '\n\nUnresolved problems listed on this page: $problems.' : ''}';
+    var offset = Duration.zero;
+    if (app.settings.scheduleTestMode) {
+      // Practice run: the predicted times (as the API's reminders use).
+      final predicted = qualTimes([
+        for (final m in app.matches)
+          if (m.compLevel == 'qm') (match: m.matchNumber, time: m.time, actualTime: null),
+      ]);
+      final result = await showDialog<Duration>(
+        context: context,
+        builder: (_) => _PracticePublishDialog(
+          message: message,
+          times: predicted,
+          shiftStarts: [for (final b in toBlocks(schedule.draft)) b.firstMatch],
+        ),
+      );
+      if (result == null || !mounted) return;
+      offset = result;
+    } else {
+      final ok = await _confirm('Publish schedule?', message, 'Publish');
+      if (!ok || !mounted) return;
+    }
     setState(() => _publishing = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await schedule.publish(publisher);
-      messenger.showSnackBar(const SnackBar(content: Text('Schedule published')));
+      await schedule.publish(publisher, timeOffset: offset);
+      messenger.showSnackBar(SnackBar(
+          content: Text(offset == Duration.zero ? 'Schedule published' : 'Practice schedule published')));
     } catch (e) {
       messenger.showSnackBar(SnackBar(content: Text('Could not publish: $e')));
     }
@@ -208,7 +229,7 @@ class _ScheduleBuilderScreenState extends State<ScheduleBuilderScreen> {
     // "22 scouts × 3 shifts → 11 blocks of 7–8 matches"
     // Shifts end at lunch and the end of each day.
     final breaks = findBreaks(times);
-    final cuts = shiftCuts(breaks);
+    final cuts = schedule.options.endAtBreaks ? shiftCuts(breaks) : const <int>[];
     final ranges = blockRanges(
         qualCount, blockCountFor(picked.length, schedule.shiftsPerPerson, qualCount),
         cuts: cuts);
@@ -355,6 +376,17 @@ class _ScheduleBuilderScreenState extends State<ScheduleBuilderScreen> {
                             ],
                             onChanged: (v) => schedule.setMaxMatches(v ?? schedule.maxMatches),
                           ),
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              final o = await showDialog<ScheduleOptions>(
+                                context: context,
+                                builder: (_) => _AlgorithmDialog(schedule.options),
+                              );
+                              if (o != null) schedule.setOptions(o);
+                            },
+                            icon: const Icon(Icons.tune),
+                            label: const Text('Algorithm…'),
+                          ),
                           FilledButton.icon(
                             onPressed: picked.isEmpty || cantFit != null ? null : () => _generate(schedule, ranges),
                             icon: const Icon(Icons.casino_outlined),
@@ -403,6 +435,10 @@ class _ScheduleBuilderScreenState extends State<ScheduleBuilderScreen> {
                           shifts: perPerson.isEmpty ? null : perPerson.values.first,
                           maxMatches: schedule.maxMatches,
                         ),
+                        const SizedBox(height: 12),
+                      ],
+                      if (draft.isNotEmpty) ...[
+                        _MatchCounts(shifts: draft, maxMatches: schedule.maxMatches),
                         const SizedBox(height: 12),
                       ],
                       if (draft.isEmpty)
@@ -537,6 +573,222 @@ class _Problems extends StatelessWidget {
         if (problems.isNotEmpty && warnings.isNotEmpty) const SizedBox(height: 8),
         if (warnings.isNotEmpty)
           _list(theme, 'Could be better', warnings, amber, Icons.warning_amber, 'Could be better'),
+      ],
+    );
+  }
+}
+
+/// Publish in schedule test mode: optionally as a practice run, with the
+/// match times moved so a chosen shift starts at a chosen time today. Pops
+/// the time offset (zero = a normal publish), or null when cancelled.
+class _PracticePublishDialog extends StatefulWidget {
+  final String message;
+  final Map<int, MatchTime> times;
+  final List<int> shiftStarts;
+  const _PracticePublishDialog({required this.message, required this.times, required this.shiftStarts});
+
+  @override
+  State<_PracticePublishDialog> createState() => _PracticePublishDialogState();
+}
+
+class _PracticePublishDialogState extends State<_PracticePublishDialog> {
+  late bool _practice = widget.times.isNotEmpty;
+  late int _match = widget.shiftStarts.firstWhere(widget.times.containsKey, orElse: () => 1);
+  // Default: 20 minutes from now, on the next 5 minutes, so the first
+  // reminder (15 minutes before) comes within a few minutes.
+  late TimeOfDay _at = () {
+    final t = DateTime.now().add(const Duration(minutes: 20));
+    final m = (t.minute + 4) ~/ 5 * 5;
+    final r = DateTime(t.year, t.month, t.day, t.hour).add(Duration(minutes: m));
+    return TimeOfDay(hour: r.hour, minute: r.minute);
+  }();
+
+  Duration? get _offset {
+    final real = widget.times[_match]?.at;
+    if (real == null) return null;
+    final now = DateTime.now();
+    var target = DateTime(now.year, now.month, now.day, _at.hour, _at.minute);
+    if (target.isBefore(now.subtract(const Duration(hours: 1)))) target = target.add(const Duration(days: 1));
+    // Whole minutes, so times stay tidy.
+    return Duration(minutes: target.difference(real).inMinutes);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final starts = [for (final m in widget.shiftStarts) if (widget.times.containsKey(m)) m];
+    return AlertDialog(
+      title: const Text('Publish schedule?'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.message),
+            const SizedBox(height: 12),
+            CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              value: _practice,
+              onChanged: starts.isEmpty ? null : (v) => setState(() => _practice = v ?? false),
+              title: const Text('Practice run'),
+              subtitle: Text(starts.isEmpty
+                  ? 'Match times aren\'t loaded, so times can\'t be moved.'
+                  : 'Move every match time so the shift below starts at the time below. Everyone sees the '
+                      'moved times, and linked scouts get Slack reminders for them.'),
+            ),
+            if (_practice && starts.isNotEmpty) ...[
+              Wrap(
+                spacing: 12,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  DropdownButton<int>(
+                    value: starts.contains(_match) ? _match : starts.first,
+                    items: [
+                      for (var i = 0; i < starts.length; i++)
+                        DropdownMenuItem(value: starts[i], child: Text('Shift ${i + 1} (Q${starts[i]})')),
+                    ],
+                    onChanged: (v) => setState(() => _match = v ?? _match),
+                  ),
+                  Text('starts at', style: theme.textTheme.bodyLarge),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final t = await showTimePicker(context: context, initialTime: _at);
+                      if (t != null) setState(() => _at = t);
+                    },
+                    icon: const Icon(Icons.schedule),
+                    label: Text(_at.format(context)),
+                  ),
+                ],
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _practice ? (_offset ?? Duration.zero) : Duration.zero),
+          child: Text(_practice ? 'Publish practice run' : 'Publish'),
+        ),
+      ],
+    );
+  }
+}
+
+/// How Generate works: checkboxes, OK/Cancel. Pops the new options.
+class _AlgorithmDialog extends StatefulWidget {
+  final ScheduleOptions initial;
+  const _AlgorithmDialog(this.initial);
+
+  @override
+  State<_AlgorithmDialog> createState() => _AlgorithmDialogState();
+}
+
+class _AlgorithmDialogState extends State<_AlgorithmDialog> {
+  late var _o = widget.initial;
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Algorithm'),
+      contentPadding: const EdgeInsets.fromLTRB(8, 16, 8, 0),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CheckboxListTile(
+              value: _o.endAtBreaks,
+              onChanged: (v) => setState(() => _o = _o.copyWith(endAtBreaks: v)),
+              title: const Text('End shifts at lunch and end of day'),
+              subtitle: const Text('Off: every shift is about the same length, so match counts come out more even, '
+                  'but some shifts run through a break.'),
+            ),
+            CheckboxListTile(
+              value: _o.sameCrews,
+              onChanged: (v) => setState(() => _o = _o.copyWith(sameCrews: v)),
+              title: const Text('Same crews every round'),
+              subtitle: const Text('After the first round, the same people come around together again. '
+                  'Off: each shift picks whoever has scouted least, at random, so crews mix.'),
+            ),
+            CheckboxListTile(
+              value: _o.sameStations,
+              onChanged: (v) => setState(() => _o = _o.copyWith(sameStations: v)),
+              title: const Text('Keep people on the same station'),
+              subtitle: const Text('People go back to the station they had last time when it\'s free. '
+                  'Off: stations are shuffled every shift.'),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        FilledButton(onPressed: () => Navigator.pop(context, _o), child: const Text('OK')),
+      ],
+    );
+  }
+}
+
+/// Every scouter's match and shift count, most matches first, so the
+/// extremes (and anyone over the max) are easy to spot.
+class _MatchCounts extends StatelessWidget {
+  final List<Shift> shifts;
+  final int maxMatches;
+  const _MatchCounts({required this.shifts, required this.maxMatches});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final matches = matchesPerPerson(shifts);
+    final blocks = {for (final e in blocksPerPerson(shifts).entries) nameKey(e.key): e.value};
+    final rows = matches.entries.toList()
+      ..sort((a, b) => b.value != a.value
+          ? b.value.compareTo(a.value)
+          : a.key.toLowerCase().compareTo(b.key.toLowerCase()));
+    final head = theme.textTheme.labelLarge?.copyWith(color: scheme.onSurfaceVariant);
+    Widget cell(String text, {TextStyle? style, bool end = false}) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          child: Text(text, style: style, textAlign: end ? TextAlign.end : TextAlign.start),
+        );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Semantics(
+          header: true,
+          child: Text('Matches per scout (${rows.length})', style: theme.textTheme.titleSmall),
+        ),
+        const SizedBox(height: 4),
+        Table(
+          columnWidths: const {
+            0: FlexColumnWidth(),
+            1: IntrinsicColumnWidth(),
+            2: IntrinsicColumnWidth(),
+          },
+          children: [
+            TableRow(
+              decoration: BoxDecoration(border: Border(bottom: BorderSide(color: scheme.outlineVariant))),
+              children: [
+                Semantics(header: true, child: cell('Scouter', style: head)),
+                Semantics(header: true, child: cell('Matches', style: head, end: true)),
+                Semantics(header: true, child: cell('Shifts', style: head, end: true)),
+              ],
+            ),
+            for (var i = 0; i < rows.length; i++)
+              () {
+                final over = rows[i].value > maxMatches;
+                final style = over ? TextStyle(color: scheme.error, fontWeight: FontWeight.bold) : null;
+                return TableRow(
+                  decoration: BoxDecoration(color: i.isOdd ? scheme.surfaceContainerLow : null),
+                  children: [
+                    cell(rows[i].key, style: style),
+                    cell(over ? '${rows[i].value} (over $maxMatches)' : '${rows[i].value}', style: style, end: true),
+                    cell('${blocks[nameKey(rows[i].key)] ?? 0}', style: style, end: true),
+                  ],
+                );
+              }(),
+          ],
+        ),
       ],
     );
   }

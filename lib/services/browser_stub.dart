@@ -2,5 +2,6 @@ Future<bool> requestPersistentStorage() async => false;
 
 void onBrowserOnline(void Function() callback) {}
 
-/// Open [url] in this tab (used for webcal:// calendar subscriptions).
-void openUrl(String url) {}
+/// Open [url] in this tab, or
+/// in a new one.
+void openUrl(String url, {bool newTab = false}) {}

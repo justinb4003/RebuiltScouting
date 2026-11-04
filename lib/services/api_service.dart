@@ -19,6 +19,7 @@ import '../models/match_result.dart';
 import '../models/opr.dart';
 import '../models/scouted_match.dart';
 import '../models/scout_schedule.dart';
+import '../models/slack_link.dart';
 
 /// The API answered with an error status (the request did get through).
 class ApiStatusException implements Exception {
@@ -410,12 +411,13 @@ class ApiService {
 
   // --- Match-scouting schedule ---
 
-  /// Record that [name] is in use for this key + event. Returns the
-  /// scouter's private calendar token.
-  Future<String> registerScouter({
+  /// Record that [name] is in use for this key + event. Returns whether the
+  /// [linkToken] (if one was sent) is still a valid Slack link.
+  Future<({bool? linkValid})> registerScouter({
     required String secretKey,
     required String eventKey,
     required String name,
+    String? linkToken,
   }) async {
     final response = await http
         .post(
@@ -425,6 +427,7 @@ class ApiService {
             'secret_key': secretKey,
             'event_key': eventKey,
             'scouter_name': name,
+            if (linkToken != null && linkToken.isNotEmpty) 'link_token': linkToken,
           }),
         )
         .timeout(_timeout);
@@ -433,7 +436,66 @@ class ApiService {
           'registerScouter failed: ${response.statusCode} ${response.body}');
       throw Exception('Registering scouter failed: ${response.statusCode}');
     }
-    return jsonDecode(response.body)['calendar_token'] as String;
+    final j = jsonDecode(response.body);
+    return (linkValid: j['link_valid'] as bool?);
+  }
+
+  /// Whether this secret key + team number has Slack set up (the API keeps
+  /// each team's Slack app settings; none of it comes back here).
+  Future<bool> slackLinkAvailable(String secretKey, int teamNumber) async {
+    final uri = Uri.parse('$baseUrl/SlackLinkAvailable')
+        .replace(queryParameters: {'secret_key': secretKey, 'team_number': '$teamNumber'});
+    final response = await http.get(uri).timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint('slackLinkAvailable failed: ${response.statusCode} ${response.body}');
+      throw Exception('Checking Slack failed: ${response.statusCode}');
+    }
+    return jsonDecode(response.body)['available'] == true;
+  }
+
+  /// Begin a Sign in with Slack for a team. Throws [SlackNotConfigured]
+  /// when that team has no Slack set up.
+  Future<SlackLinkStart> slackLinkStart(String secretKey, int teamNumber) async {
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/SlackLinkStart'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'secret_key': secretKey, 'team_number': teamNumber}),
+        )
+        .timeout(_timeout);
+    if (response.statusCode == 503) throw SlackNotConfigured();
+    if (response.statusCode != 200) {
+      debugPrint('slackLinkStart failed: ${response.statusCode} ${response.body}');
+      throw Exception('Could not start Slack sign-in: ${response.statusCode}');
+    }
+    return SlackLinkStart.fromJson(jsonDecode(response.body));
+  }
+
+  /// One poll of a sign-in. A finished one comes back once only.
+  Future<SlackLinkStatus> slackLinkStatus(String sessionId) async {
+    final uri = Uri.parse('$baseUrl/SlackLinkStatus')
+        .replace(queryParameters: {'session_id': sessionId});
+    final response = await http.get(uri).timeout(_timeout);
+    if (response.statusCode == 503) throw SlackNotConfigured();
+    if (response.statusCode != 200 && response.statusCode != 404) {
+      debugPrint('slackLinkStatus failed: ${response.statusCode} ${response.body}');
+      throw Exception('Checking Slack sign-in failed: ${response.statusCode}');
+    }
+    return SlackLinkStatus.fromJson(jsonDecode(response.body));
+  }
+
+  Future<void> slackUnlink(String linkToken) async {
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/SlackUnlink'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'link_token': linkToken}),
+        )
+        .timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint('slackUnlink failed: ${response.statusCode} ${response.body}');
+      throw Exception('Unlinking failed: ${response.statusCode}');
+    }
   }
 
   Future<List<ScouterInfo>> getScouters(String secretKey, String eventKey) async {
@@ -470,6 +532,7 @@ class ApiService {
     required String eventKey,
     required String publishedBy,
     required List<Shift> shifts,
+    Duration timeOffset = Duration.zero,
   }) async {
     final response = await http
         .post(
@@ -480,6 +543,7 @@ class ApiService {
             'event_key': eventKey,
             'published_by': publishedBy,
             'shifts': [for (final s in shifts) s.toJson()],
+            if (timeOffset != Duration.zero) 'time_offset': timeOffset.inSeconds,
           }),
         )
         .timeout(_timeout);
@@ -489,14 +553,6 @@ class ApiService {
       throw Exception('Publishing failed: ${response.statusCode}');
     }
     return ScoutSchedule.fromJson(jsonDecode(response.body));
-  }
-
-  /// The iCalendar feed for a scouter's calendar token. [scheme] is 'https'
-  /// (or the API's own scheme) to copy, 'webcal' to subscribe.
-  static String calendarUrl(String token, {bool webcal = false}) {
-    final uri = Uri.parse('$baseUrl/ScheduleCalendar')
-        .replace(queryParameters: {'token': token});
-    return webcal ? uri.replace(scheme: 'webcal').toString() : uri.toString();
   }
 
   Future<List<PitResult>> getPitResults(String eventKey) async {

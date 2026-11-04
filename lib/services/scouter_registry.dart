@@ -6,8 +6,8 @@ import 'api_service.dart';
 import 'storage_service.dart';
 
 /// Tells the API which scouter names are in use (so the schedule builder can
-/// offer them) once per secret key + event + name per device, and keeps the
-/// calendar token the API hands back.
+/// offer them) once per secret key + event + name per device, with the
+/// Slack link token when there is one.
 class ScouterRegistry {
   static final instance = ScouterRegistry();
 
@@ -16,8 +16,15 @@ class ScouterRegistry {
   Timer? _timer;
   bool _busy = false;
 
-  static String _combo(String secretKey, String eventKey, String name) =>
-      '$secretKey|$eventKey|${nameKey(name)}';
+  /// Called when the API says our Slack link token is no longer valid (the
+  /// link was removed elsewhere); the app state clears the local link.
+  VoidCallback? onLinkInvalid;
+
+  // A Slack link token appearing makes this a new combination, so the name
+  // is registered again with the token.
+  static String _combo(AppSettings s, String name) =>
+      '${s.secretTeamKey.trim()}|${s.selectedEventKey ?? ''}|${nameKey(name)}'
+      '${s.slackLinked ? '|slack' : ''}';
 
   /// Settings were saved or changed. Waits a few seconds so a name that is
   /// still being typed isn't registered half-finished.
@@ -37,23 +44,16 @@ class ScouterRegistry {
     if (_busy) return;
     _busy = true;
     try {
-      final tokens = await _storage.loadCalendarTokens();
-      final combo = _combo(key, event, name);
-      if (tokens.containsKey(combo)) return;
-      final token = await _api.registerScouter(secretKey: key, eventKey: event, name: name);
-      await _storage.setCalendarToken(combo, token);
+      final combo = _combo(s, name);
+      if ((await _storage.loadRegisteredScouters()).contains(combo)) return;
+      final r = await _api.registerScouter(
+          secretKey: key, eventKey: event, name: name, linkToken: s.slackLinkToken);
+      await _storage.markScouterRegistered(combo);
+      if (r.linkValid == false) onLinkInvalid?.call();
     } catch (e) {
       debugPrint('Registering scouter failed: $e');
     } finally {
       _busy = false;
     }
-  }
-
-  /// This scouter's calendar token, registering first if needed. Null when
-  /// it can't be had (no name/key/event, or offline).
-  Future<String?> calendarToken(AppSettings s) async {
-    await registerIfNeeded(s);
-    final tokens = await _storage.loadCalendarTokens();
-    return tokens[_combo(s.secretTeamKey.trim(), s.selectedEventKey ?? '', s.scouterName)];
   }
 }

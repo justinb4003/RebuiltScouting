@@ -58,7 +58,9 @@ class StorageService {
   static const String _scheduleSetupKey = 'schedule_builder_setup';
   static const String _scheduleShiftsKey = 'schedule_builder_shifts_per_person';
   static const String _scheduleMaxMatchesKey = 'schedule_builder_max_matches';
-  static const String _calendarTokensKey = 'scouter_calendar_tokens';
+  static const String _scheduleOptionsKey = 'schedule_builder_options';
+  // Was 'scouter_calendar_tokens' while there was a calendar feed.
+  static const String _registeredScoutersKey = 'scouter_registered';
 
   // Settings
   Future<AppSettings> loadSettings() async {
@@ -486,13 +488,24 @@ class StorageService {
 
   // Schedule Builder preferences on this device (every event): shifts per
   // person and the most matches anyone should scout.
-  Future<({int? shiftsPerPerson, int? maxMatches})> loadSchedulePrefs() async {
+  Future<({int? shiftsPerPerson, int? maxMatches, Map<String, dynamic>? options})> loadSchedulePrefs() async {
     final prefs = await _getPrefs();
+    Map<String, dynamic>? options;
+    final raw = prefs.getString(_scheduleOptionsKey);
+    if (raw != null) {
+      try {
+        options = Map<String, dynamic>.from(jsonDecode(raw) as Map);
+      } catch (_) {}
+    }
     return (
       shiftsPerPerson: prefs.getInt(_scheduleShiftsKey),
       maxMatches: prefs.getInt(_scheduleMaxMatchesKey),
+      options: options,
     );
   }
+
+  Future<void> saveScheduleOptions(Map<String, dynamic> options) async =>
+      (await _getPrefs()).setString(_scheduleOptionsKey, jsonEncode(options));
 
   Future<void> saveScheduleShiftsPerPerson(int shifts) async =>
       (await _getPrefs()).setInt(_scheduleShiftsKey, shifts);
@@ -529,21 +542,21 @@ class StorageService {
     ]);
   }
 
-  /// Calendar tokens from RegisterScouter, keyed by "secret|event|namekey".
-  /// A token being here also means this device already registered the name.
-  Future<Map<String, String>> loadCalendarTokens() async {
+  /// "secret|event|namekey" combinations this device has already sent to
+  /// RegisterScouter.
+  Future<Set<String>> loadRegisteredScouters() async {
     final prefs = await _getPrefs();
-    final json = prefs.getString(_calendarTokensKey);
+    final json = prefs.getString(_registeredScoutersKey);
     if (json == null) return {};
-    return Map<String, String>.from(jsonDecode(json));
+    return {for (final k in jsonDecode(json) as List) k.toString()};
   }
 
-  Future<void> setCalendarToken(String key, String token) => _locked(() async {
+  Future<void> markScouterRegistered(String key) => _locked(() async {
         final prefs = await _getPrefs();
-        final json = prefs.getString(_calendarTokensKey);
-        final tokens = json == null ? <String, dynamic>{} : jsonDecode(json) as Map<String, dynamic>;
-        tokens[key] = token;
-        await _setString(prefs, _calendarTokensKey, jsonEncode(tokens));
+        final json = prefs.getString(_registeredScoutersKey);
+        final keys = {if (json != null) ...(jsonDecode(json) as List).map((k) => k.toString()), key};
+        await _setString(prefs, _registeredScoutersKey, jsonEncode(keys.toList()));
+        await prefs.remove('scouter_calendar_tokens');
       });
 
   // Team Details layout: collapsed sections per team, one section order.

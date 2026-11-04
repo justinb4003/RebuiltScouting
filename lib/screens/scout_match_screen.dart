@@ -153,7 +153,7 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 0),
+      drawer: const NavDrawer(selectedIndex: 1),
       body: Stack(
         children: [
           if (!scouting.scoutingActive)
