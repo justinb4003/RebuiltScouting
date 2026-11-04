@@ -7,7 +7,7 @@ class NavDrawer extends StatelessWidget {
 
   const NavDrawer({super.key, required this.selectedIndex});
 
-  static const _routes = ['/scout', '/pit', '/robot-note', '/my-schedule', '/held', '/settings', '/scouting-status', '/pit-status', '/schedule-builder', '/match-breakdowns', '/rankings', '/team-details', '/head-to-head', '/pick-list', '/clusters', '/dimensions', '/hometown', '/name-that-team', '/spot-the-bot'];
+  static const _routes = ['/my-schedule', '/scout', '/pit', '/robot-note', '/held', '/settings', '/scouting-status', '/pit-status', '/schedule-builder', '/match-breakdowns', '/rankings', '/team-details', '/head-to-head', '/pick-list', '/clusters', '/dimensions', '/hometown', '/name-that-team', '/spot-the-bot'];
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +30,11 @@ class NavDrawer extends StatelessWidget {
         ),
         const Divider(indent: 28, endIndent: 28),
         const NavigationDrawerDestination(
+          icon: Icon(Icons.event_note_outlined),
+          selectedIcon: Icon(Icons.event_note),
+          label: Text('My Schedule'),
+        ),
+        const NavigationDrawerDestination(
           icon: Icon(Icons.assignment_outlined),
           selectedIcon: Icon(Icons.assignment),
           label: Text('Scout Match'),
@@ -43,11 +48,6 @@ class NavDrawer extends StatelessWidget {
           icon: Icon(Icons.sticky_note_2_outlined),
           selectedIcon: Icon(Icons.sticky_note_2),
           label: Text('Robot Note'),
-        ),
-        const NavigationDrawerDestination(
-          icon: Icon(Icons.event_note_outlined),
-          selectedIcon: Icon(Icons.event_note),
-          label: Text('My Schedule'),
         ),
         NavigationDrawerDestination(
           icon: Badge(

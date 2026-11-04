@@ -16,6 +16,8 @@ Before your first match, fill in these three. **Nothing else in the app works un
 
 Once an event is picked, a row shows how many teams are loaded. Open it to see their numbers, or to reload them if the team list changed.
 
+**If your team has set up Slack:** once your secret team key and team number are filled in, a **Link Slack account** button appears. Slack opens in another tab; sign in there and come back. The app uses your Slack name as your scouter name if the field was empty, and your Slack account is remembered for reminders. **Unlink** undoes it. Linking is optional, and teams without Slack set up don't see the button.
+
 The rest is up to you:
 
 - **Scouting:** *Scrollable scouting layout* (one long page instead of tabs), *Haptic feedback* (a buzz on every counter tap), and *Confetti*.
@@ -46,10 +48,9 @@ Notes show up in that team's **Team Details** under Pit scouting → Robot notes
 
 ## 3a. My Schedule
 
-If your lead has published a scouting schedule, **My Schedule** shows who published it and when, **your shifts** (robot station, match numbers, and about when each starts), and everyone else's shifts by station or by match.
+If your lead has published a scouting schedule, **My Schedule** (top of the menu) shows who published it and when, then **My shifts**: each of your shifts with the five people scouting alongside you, the match numbers and about when each starts. Your spot is outlined and marked **(you)**. Switch to **Everyone** for the whole schedule. The app is the place to check: if the schedule changes, it shows the new one as soon as you refresh.
 
 - It finds your shifts by the **scouter name in Settings**, so type your name the same way every time.
-- **Add to my calendar** subscribes your phone's calendar to your shifts, with a reminder 15 minutes before each one. It updates itself when a new schedule is published. For Google Calendar, press **Copy calendar link** and use *Add by URL*.
 - Press the refresh button to get the latest schedule.
 
 ---

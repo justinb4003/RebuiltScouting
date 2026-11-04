@@ -74,7 +74,10 @@ class StationCell extends StatelessWidget {
     final empty = (name ?? '').trim().isEmpty;
     final label = stationLabel(station);
     final shown = empty ? 'No scout' : (isMe ? '$name (you)' : name!);
-    final box = Container(
+    // You: a heavy outline in the theme's primary color, a person icon and
+    // bold "(you)", so it never depends on color alone.
+    final me = theme.colorScheme.primary;
+    Widget box = Container(
       constraints: const BoxConstraints(minHeight: 52),
       padding: const EdgeInsets.fromLTRB(8, 6, 6, 6),
       decoration: BoxDecoration(
@@ -89,24 +92,45 @@ class StationCell extends StatelessWidget {
               style: theme.textTheme.labelSmall
                   ?.copyWith(color: colors.label, fontWeight: FontWeight.bold)),
           const SizedBox(height: 2),
-          Text(
-            shown,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: empty
-                ? theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic)
-                : theme.textTheme.bodyMedium
-                    ?.copyWith(fontWeight: isMe ? FontWeight.bold : FontWeight.w500),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (isMe) ...[
+                Icon(Icons.person, size: 18, color: me),
+                const SizedBox(width: 2),
+              ],
+              Flexible(
+                child: Text(
+                  shown,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: empty
+                      ? theme.textTheme.bodyMedium?.copyWith(
+                          color: theme.colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic)
+                      : theme.textTheme.bodyMedium
+                          ?.copyWith(fontWeight: isMe ? FontWeight.w800 : FontWeight.w500),
+                ),
+              ),
+            ],
           ),
         ],
       ),
     );
+    if (isMe) {
+      box = DecoratedBox(
+        position: DecorationPosition.foreground,
+        decoration: BoxDecoration(
+          border: Border.all(color: me, width: 3),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: box,
+      );
+    }
     return Semantics(
       container: true,
       button: onTap != null,
       label: '${semanticPrefix == null ? '' : '$semanticPrefix, '}$label: '
-          '${empty ? 'no scout' : name}${isMe ? ', you' : ''}',
+          '${empty ? 'no scout' : name}${isMe ? ' (you)' : ''}',
       excludeSemantics: true,
       child: onTap == null
           ? box
@@ -128,8 +152,11 @@ class StationCell extends StatelessWidget {
 /// scouts swap.
 class ScheduleGrid extends StatelessWidget {
   final List<ScheduleBlock> blocks;
-  // Bold "(you)" on this person's cells.
+  // Outlined, bold "(you)" on this person's cells.
   final String? me;
+  // Only the shifts [me] is in (numbered as in the whole schedule), without
+  // the changeover lines between them.
+  final bool onlyMine;
   final Map<int, MatchTime> times;
   final List<ScheduleBreak> breaks;
   final void Function(ScheduleBlock block, String station)? onTapCell;
@@ -138,13 +165,14 @@ class ScheduleGrid extends StatelessWidget {
     super.key,
     required this.blocks,
     this.me,
+    this.onlyMine = false,
     this.times = const {},
     this.breaks = const [],
     this.onTapCell,
   });
 
   /// How long a match takes, for when a shift ends (its last match's start
-  /// plus this; the calendar feed uses the same).
+  /// plus this; the API's shift reminders use the same).
   static const matchLength = Duration(minutes: 8);
 
   /// "52 min", "1 h 4 min", "13 h" (a shift that crosses a break).
@@ -164,9 +192,12 @@ class ScheduleGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     final meKey = nameKey(me ?? '');
     final children = <Widget>[];
+    var shown = 0;
+    bool mine(ScheduleBlock b) => b.names.values.any((n) => nameKey(n) == meKey);
     for (var i = 0; i < blocks.length; i++) {
       final b = blocks[i];
-      if (i > 0) {
+      if (onlyMine && !mine(b)) continue;
+      if (i > 0 && !onlyMine) {
         final prev = blocks[i - 1];
         for (final br in breaks.where((br) => br.afterMatch >= prev.lastMatch && br.afterMatch < b.firstMatch)) {
           children.add(_BreakBanner(br));
@@ -175,10 +206,11 @@ class ScheduleGrid extends StatelessWidget {
       }
       // Weekday on the first shift and whenever the day changes.
       final start = times[b.firstMatch]?.at.toLocal();
-      final prevStart = i == 0 ? null : times[blocks[i - 1].firstMatch]?.at.toLocal();
+      final prevStart = i == 0 || onlyMine ? null : times[blocks[i - 1].firstMatch]?.at.toLocal();
       final newDay = start != null && (prevStart == null || prevStart.day != start.day);
       children.add(_ShiftCard(
         index: i,
+        shade: (shown++).isOdd,
         count: blocks.length,
         block: b,
         meKey: meKey,
@@ -199,6 +231,8 @@ class ScheduleGrid extends StatelessWidget {
 
 class _ShiftCard extends StatelessWidget {
   final int index;
+  // Alternate cards (as shown) get a darker band.
+  final bool shade;
   final int count;
   final ScheduleBlock block;
   final String meKey;
@@ -209,6 +243,7 @@ class _ShiftCard extends StatelessWidget {
 
   const _ShiftCard({
     required this.index,
+    required this.shade,
     required this.count,
     required this.block,
     required this.meKey,
@@ -224,8 +259,11 @@ class _ShiftCard extends StatelessWidget {
     final scheme = theme.colorScheme;
     final muted = theme.textTheme.bodySmall?.copyWith(color: scheme.onSurfaceVariant);
     // Banding: alternate shifts get a different background.
-    final band = index.isEven ? scheme.surfaceContainerLow : scheme.surfaceContainerHighest;
+    final band = !shade ? scheme.surfaceContainerLow : scheme.surfaceContainerHighest;
     final b = block;
+    final myStation = meKey.isEmpty
+        ? null
+        : b.names.entries.where((e) => nameKey(e.value) == meKey).map((e) => e.key).firstOrNull;
     final matchItems = <Widget>[];
     for (var m = b.firstMatch; m <= b.lastMatch; m++) {
       final t = matchTime(m);
@@ -259,6 +297,12 @@ class _ShiftCard extends StatelessWidget {
                   text: '  ·  $timeRange',
                   semanticsLabel: ', ${timeRange!.replaceAll('~', 'about ')}',
                   style: muted,
+                ),
+              if (myStation != null)
+                TextSpan(
+                  text: '  ·  You: ${stationLabel(myStation)}',
+                  semanticsLabel: ', you are on ${stationLabel(myStation)}',
+                  style: theme.textTheme.titleSmall?.copyWith(color: scheme.primary, fontWeight: FontWeight.bold),
                 ),
             ])),
           ),

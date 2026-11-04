@@ -10,6 +10,8 @@ import '../providers/app_state_provider.dart';
 import '../theme.dart';
 import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
+import '../widgets/slack_link_dialog.dart';
+import '../services/api_service.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -81,6 +83,109 @@ class _SettingsScreenState extends State<SettingsScreen> {
     });
   }
 
+  // Whether each secret key + team number has Slack set up on the API,
+  // checked once per app session. Missing = not checked yet.
+  static final Map<String, bool> _slackAvailable = {};
+  static final Set<String> _slackChecking = {};
+
+  bool _slackReady(String key, int? team) {
+    if (key.isEmpty || team == null) return false;
+    final combo = '$key|$team';
+    final known = _slackAvailable[combo];
+    if (known != null) return known;
+    if (_slackChecking.add(combo)) {
+      ApiService.instance.slackLinkAvailable(key, team).then((ok) {
+        _slackAvailable[combo] = ok;
+      }).catchError((Object e) {
+        debugPrint('Checking Slack failed: $e');
+      }).whenComplete(() {
+        _slackChecking.remove(combo);
+        if (mounted) setState(() {});
+      });
+    }
+    return false;
+  }
+
+  Widget _buildSlackLink(AppSettings settings) {
+    if (!settings.slackLinked) {
+      // Only teams with their own Slack set up see the button.
+      final key = settings.secretTeamKey.trim();
+      final team = settings.teamNumber;
+      if (!_slackReady(key, team)) return const SizedBox.shrink();
+      return Align(
+        alignment: Alignment.centerLeft,
+        child: OutlinedButton.icon(
+          onPressed: () => _linkSlack(key, team!),
+          icon: const Icon(Icons.link),
+          label: const Text('Link Slack account'),
+        ),
+      );
+    }
+    final slackName = settings.slackName ?? '';
+    final sameName = _nameController.text.trim() == slackName;
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      children: [
+        const Icon(Icons.link),
+        Text('Slack: linked as $slackName'),
+        TextButton(onPressed: _unlinkSlack, child: const Text('Unlink')),
+        if (!sameName && slackName.isNotEmpty)
+          TextButton(
+            onPressed: () {
+              setState(() => _nameController.text = slackName);
+              _debouncedSaveTextFields();
+            },
+            child: const Text('Use Slack name'),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _linkSlack(String key, int team) async {
+    final result = await showSlackLinkDialog(context, key, team);
+    if (result == null || !mounted) return;
+    if (_nameController.text.trim().isEmpty) {
+      _nameController.text = result.slackName;
+    }
+    _saveTimer?.cancel();
+    final appState = context.read<AppStateProvider>();
+    appState.updateScouterName(_nameController.text.trim());
+    await appState.setSlackLink(result);
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _unlinkSlack() async {
+    final appState = context.read<AppStateProvider>();
+    final messenger = ScaffoldMessenger.of(context);
+    final token = appState.settings.slackLinkToken;
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Unlink Slack account?'),
+        content: const Text('Your secret team key and name stay as they are.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel')),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Unlink')),
+        ],
+      ),
+    );
+    if (ok != true || token == null) return;
+    try {
+      await ApiService.instance.slackUnlink(token);
+    } catch (e) {
+      debugPrint('Unlinking Slack failed: $e');
+      messenger.showSnackBar(const SnackBar(
+          content: Text("Couldn't unlink right now. Check your connection and try again.")));
+      return;
+    }
+    await appState.clearSlackLink();
+  }
+
   @override
   Widget build(BuildContext context) {
     final appState = context.watch<AppStateProvider>();
@@ -136,6 +241,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ),
                     onChanged: (_) => _debouncedSaveTextFields(),
                   ),
+                  const SizedBox(height: 12),
+                  _buildSlackLink(settings),
 
                   _sectionHeader('Event'),
                   _buildEventAutocomplete(appState, settings),
@@ -231,6 +338,17 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             if (value) {
                               _confettiKey.currentState?.fire();
                             }
+                          },
+                        ),
+                        SwitchListTile(
+                          title: const Text('Schedule test mode'),
+                          subtitle: const Text('Publishing a schedule offers a practice run with the match '
+                              'times moved to today, to test shift reminders'),
+                          secondary: const Icon(Icons.science_outlined),
+                          value: settings.scheduleTestMode,
+                          onChanged: (value) {
+                            settings.scheduleTestMode = value;
+                            appState.saveAndNotify();
                           },
                         ),
                       ],

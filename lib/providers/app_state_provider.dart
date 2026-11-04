@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import '../models/app_settings.dart';
+import '../models/slack_link.dart';
 import '../models/tba_event.dart';
 import '../models/tba_match.dart';
 import '../models/tba_team.dart';
@@ -43,6 +44,7 @@ class AppStateProvider extends ChangeNotifier {
     // Keep the drawer's held count current as background uploads land.
     UploadQueue.instance.addListener(refreshHeldDataCount);
     notifyListeners();
+    ScouterRegistry.instance.onLinkInvalid = clearSlackLink;
     ScouterRegistry.instance.registerIfNeeded(_settings);
 
     // Auto-load events if cache is empty (non-blocking)
@@ -82,6 +84,27 @@ class AppStateProvider extends ChangeNotifier {
 
   void updateTeamNumber(int? teamNumber) {
     _settings.teamNumber = teamNumber;
+  }
+
+  /// Remember a finished Slack sign-in and register the scouter with it.
+  /// The caller has already applied the secret key and name it wanted.
+  Future<void> setSlackLink(SlackLinkResult r) async {
+    _settings.slackUserId = r.slackUserId;
+    _settings.slackName = r.slackName;
+    _settings.slackTeamId = r.slackTeamId;
+    _settings.slackLinkToken = r.linkToken;
+    await _storage.saveSettings(_settings);
+    notifyListeners();
+    ScouterRegistry.instance.registerIfNeeded(_settings);
+  }
+
+  Future<void> clearSlackLink() async {
+    _settings.slackUserId = null;
+    _settings.slackName = null;
+    _settings.slackTeamId = null;
+    _settings.slackLinkToken = null;
+    await _storage.saveSettings(_settings);
+    notifyListeners();
   }
 
   Future<void> setEventYear(int year) async {

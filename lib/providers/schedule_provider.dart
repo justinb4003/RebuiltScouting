@@ -28,6 +28,7 @@ class ScheduleProvider extends ChangeNotifier {
   // Preferences on this device, for every event.
   int _shiftsPerPerson = 3;
   int _maxMatches = 10;
+  ScheduleOptions _options = const ScheduleOptions();
   bool _prefsLoaded = false;
 
   // Builder draft, per event + secret key. null = not started yet.
@@ -54,6 +55,14 @@ class ScheduleProvider extends ChangeNotifier {
   int get shiftsPerPerson => _shiftsPerPerson;
   /// The most qualification matches anyone should scout; more is a problem.
   int get maxMatches => _maxMatches;
+  /// How Generate works (the Algorithm dialog).
+  ScheduleOptions get options => _options;
+
+  void setOptions(ScheduleOptions options) {
+    _options = options;
+    notifyListeners();
+    _storage.saveScheduleOptions(options.toJson());
+  }
 
   void setRoster(Set<String> roster) {
     _roster = Set.of(roster);
@@ -88,6 +97,7 @@ class ScheduleProvider extends ChangeNotifier {
     final p = await _storage.loadSchedulePrefs();
     _shiftsPerPerson = p.shiftsPerPerson ?? _shiftsPerPerson;
     _maxMatches = p.maxMatches ?? _maxMatches;
+    if (p.options != null) _options = ScheduleOptions.fromJson(p.options!);
   }
 
   void _saveSetup() {
@@ -183,7 +193,9 @@ class ScheduleProvider extends ChangeNotifier {
   }
 
   /// Publish the draft as [publishedBy]. Throws on failure.
-  Future<void> publish(String publishedBy) async {
+  /// Publish the draft. A [timeOffset] makes it a practice run (schedule
+  /// test mode): every match time moved by that much.
+  Future<void> publish(String publishedBy, {Duration timeOffset = Duration.zero}) async {
     final eventKey = _eventKey, secretKey = _secretKey;
     if (eventKey == null || secretKey == null) throw StateError('No event');
     final saved = await _api.publishSchedule(
@@ -191,6 +203,7 @@ class ScheduleProvider extends ChangeNotifier {
       eventKey: eventKey,
       publishedBy: publishedBy,
       shifts: draft,
+      timeOffset: timeOffset,
     );
     // One schedule per publisher: replace theirs, keep newest first.
     _schedules = [

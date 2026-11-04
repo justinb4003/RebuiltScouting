@@ -60,17 +60,24 @@ class ScoutSchedule {
   final String publishedBy;
   final DateTime? publishedAt;
   final List<Shift> shifts;
+  /// A practice run (schedule test mode): every match time is moved by this
+  /// much. Zero for a real schedule.
+  final Duration timeOffset;
 
   const ScoutSchedule({
     required this.publishedBy,
     required this.publishedAt,
     required this.shifts,
+    this.timeOffset = Duration.zero,
   });
+
+  bool get isPractice => timeOffset != Duration.zero;
 
   Map<String, dynamic> toJson() => {
         'published_by': publishedBy,
         'published_at': publishedAt?.toUtc().toIso8601String(),
         'shifts': [for (final s in shifts) s.toJson()],
+        if (isPractice) 'time_offset': timeOffset.inSeconds,
       };
 
   factory ScoutSchedule.fromJson(Map<String, dynamic> j) => ScoutSchedule(
@@ -80,6 +87,7 @@ class ScoutSchedule {
           for (final s in (j['shifts'] as List? ?? const []))
             Shift.fromJson(Map<String, dynamic>.from(s as Map)),
         ],
+        timeOffset: Duration(seconds: (j['time_offset'] as num?)?.toInt() ?? 0),
       );
 
   /// The shifts whose scouter matches [name] (spacing/case-insensitive),
@@ -338,6 +346,36 @@ List<(int, int)> blockRanges(int qualCount, int count, {List<int> cuts = const [
   return out;
 }
 
+/// Choices for how the Schedule Builder generates (the Algorithm dialog).
+/// Saved on the device for every event.
+class ScheduleOptions {
+  /// Shifts end at lunch and the end of each day (else every shift is about
+  /// the same length, and some run through a break).
+  final bool endAtBreaks;
+  /// After the first round, the same crews come around again in the same
+  /// order (else each shift takes whoever has scouted least, at random).
+  final bool sameCrews;
+  /// People go back to the station they had last time, when it's free.
+  final bool sameStations;
+
+  const ScheduleOptions({this.endAtBreaks = true, this.sameCrews = true, this.sameStations = true});
+
+  ScheduleOptions copyWith({bool? endAtBreaks, bool? sameCrews, bool? sameStations}) => ScheduleOptions(
+        endAtBreaks: endAtBreaks ?? this.endAtBreaks,
+        sameCrews: sameCrews ?? this.sameCrews,
+        sameStations: sameStations ?? this.sameStations,
+      );
+
+  Map<String, dynamic> toJson() =>
+      {'end_at_breaks': endAtBreaks, 'same_crews': sameCrews, 'same_stations': sameStations};
+
+  factory ScheduleOptions.fromJson(Map<String, dynamic> j) => ScheduleOptions(
+        endAtBreaks: j['end_at_breaks'] as bool? ?? true,
+        sameCrews: j['same_crews'] as bool? ?? true,
+        sameStations: j['same_stations'] as bool? ?? true,
+      );
+}
+
 /// The breaks shifts should end at: lunch and the end of each day.
 List<int> shiftCuts(List<ScheduleBreak> breaks) =>
     [for (final b in breaks) if (b.kind != BreakKind.other) b.afterMatch];
@@ -356,9 +394,13 @@ List<int> shiftCuts(List<ScheduleBreak> breaks) =>
 /// [maxMatches], people who'd go over it are skipped when someone else can
 /// take the spot. Stations are random the first time; after that people
 /// go back to the station they had, when it's free.
+///
+/// With [sameCrews] false, the line order is ignored after the first round:
+/// each block takes people with the fewest shifts so far, at random (so
+/// crews mix). With [sameStations] false, stations are shuffled every block.
 List<Shift> generateSchedule(
     List<String> roster, List<ScoutGroup> groups, List<(int, int)> ranges, Random rng,
-    {int? maxMatches}) {
+    {int? maxMatches, bool sameCrews = true, bool sameStations = true}) {
   if (roster.isEmpty || ranges.isEmpty) return [];
   final inRoster = {for (final n in roster) nameKey(n)};
   // Units: each group (still scouting) as one, everyone else alone.
@@ -386,7 +428,9 @@ List<Shift> generateSchedule(
     final cost = <int, double>{
       for (var pos = 0; pos < line.length; pos++)
         line[pos]: units[line[pos]].length *
-            (load[line[pos]] * 1000 + pos + (maxMatches != null && matches[line[pos]] + length > maxMatches ? 100000 : 0)).toDouble(),
+            (load[line[pos]] * 1000 +
+                    (sameCrews ? pos : rng.nextDouble() * line.length) +
+                    (maxMatches != null && matches[line[pos]] + length > maxMatches ? 100000 : 0)).toDouble(),
     };
     final order = [...line]..sort((a, b) => (cost[a]! / units[a].length).compareTo(cost[b]! / units[b].length));
     // Cheapest set of whole units filling exactly the block's seats
@@ -430,7 +474,7 @@ List<Shift> generateSchedule(
     final seats = <String, String>{};
     final newcomers = <String>[];
     for (final n in people) {
-      final st = stationOf[n];
+      final st = sameStations ? stationOf[n] : null;
       if (st != null && !seats.containsKey(st)) {
         seats[st] = n;
       } else {
@@ -524,14 +568,28 @@ class MatchTime {
 }
 
 /// Qual match number -> start time, from epoch-second times.
-Map<int, MatchTime> qualTimes(Iterable<({int match, int? time, int? actualTime})> matches) => {
+///
+/// With an [offset] (a practice run), every match is at its predicted time
+/// moved by that much, all estimates, the same times the API's shift
+/// reminders use.
+Map<int, MatchTime> qualTimes(Iterable<({int match, int? time, int? actualTime})> matches,
+    {Duration offset = Duration.zero}) {
+  if (offset != Duration.zero) {
+    return {
       for (final m in matches)
-        if ((m.actualTime ?? m.time) != null)
-          m.match: MatchTime(
-            DateTime.fromMillisecondsSinceEpoch((m.actualTime ?? m.time)! * 1000),
-            actual: m.actualTime != null,
-          ),
+        if (m.time != null)
+          m.match: MatchTime(DateTime.fromMillisecondsSinceEpoch(m.time! * 1000).add(offset), actual: false),
     };
+  }
+  return {
+    for (final m in matches)
+      if ((m.actualTime ?? m.time) != null)
+        m.match: MatchTime(
+          DateTime.fromMillisecondsSinceEpoch((m.actualTime ?? m.time)! * 1000),
+          actual: m.actualTime != null,
+        ),
+  };
+}
 
 enum BreakKind { lunch, endOfDay, other }
 
