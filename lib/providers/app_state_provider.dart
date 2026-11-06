@@ -109,6 +109,7 @@ class AppStateProvider extends ChangeNotifier {
 
   Future<void> setEventYear(int year) async {
     _settings.eventYear = year;
+    _settings.eventYearChosen = true;
     await persistSettings();
     await loadEvents(year);
   }

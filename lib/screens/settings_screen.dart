@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/app_settings.dart';
-import '../models/tba_event.dart';
 import '../widgets/confetti_overlay.dart';
 import '../widgets/fixed_segmented_button.dart';
 import '../providers/app_state_provider.dart';
@@ -26,10 +25,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _keyController;
   late TextEditingController _teamController;
   late TextEditingController _eventSearchController;
-  final FocusNode _eventSearchFocusNode = FocusNode();
   final _confettiKey = GlobalKey<ConfettiOverlayState>();
   late AppStateProvider _appState;
   Timer? _saveTimer;
+
+  // Events the entered team is registered for, per 'team|year' (fetched
+  // once per app session). The event list shows only these when known.
+  static final Map<String, Set<String>> _teamEvents = {};
+  String? _teamEventsWanted;
 
   @override
   void initState() {
@@ -54,6 +57,38 @@ class _SettingsScreenState extends State<SettingsScreen> {
         appState.loadEvents(settings.eventYear, quiet: quiet);
       });
     }
+    _loadTeamEvents();
+  }
+
+  int? get _enteredTeam => int.tryParse(_teamController.text.trim());
+
+  /// Fetches the entered team's events for the selected season, if not
+  /// already known; the event list filters to them when they arrive.
+  void _loadTeamEvents() {
+    final team = _enteredTeam;
+    if (team == null) return;
+    final combo = '$team|${_appState.settings.eventYear}';
+    if (_teamEvents.containsKey(combo) || _teamEventsWanted == combo) return;
+    _teamEventsWanted = combo;
+    ApiService.instance
+        .getTeamEventKeys(team, _appState.settings.eventYear)
+        .then((keys) {
+      _teamEvents[combo] = keys;
+    }).catchError((Object e) {
+      debugPrint('Loading team events failed: $e');
+    }).whenComplete(() {
+      if (_teamEventsWanted == combo) _teamEventsWanted = null;
+      if (mounted) setState(() {});
+    });
+  }
+
+  /// The entered team's events this season, or null to show every event
+  /// (no team, not loaded yet, failed, or the team has none this season).
+  Set<String>? _teamEventFilter(int year) {
+    final team = _enteredTeam;
+    if (team == null) return null;
+    final keys = _teamEvents['$team|$year'];
+    return (keys == null || keys.isEmpty) ? null : keys;
   }
 
   @override
@@ -68,7 +103,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _teamController.dispose();
     _keyController.dispose();
     _eventSearchController.dispose();
-    _eventSearchFocusNode.dispose();
     super.dispose();
   }
 
@@ -80,6 +114,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appState.updateSecretKey(_keyController.text.trim());
       appState.updateTeamNumber(int.tryParse(_teamController.text.trim()));
       appState.persistSettings();
+      _loadTeamEvents();
+      setState(() {});
     });
   }
 
@@ -235,7 +271,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     ],
                     decoration: const InputDecoration(
                       labelText: 'Your team number (optional)',
-                      helperText: 'Used by the statewide games',
+                      helperText:
+                          'Filters the event list; used by the statewide games',
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.groups),
                     ),
@@ -245,7 +282,39 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _buildSlackLink(settings),
 
                   _sectionHeader('Event'),
-                  _buildEventAutocomplete(appState, settings),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: SizedBox(
+                      width: 160,
+                      child: DropdownButtonFormField<int>(
+                        key: ValueKey(settings.eventYear),
+                        initialValue: settings.eventYear,
+                        decoration: const InputDecoration(
+                          labelText: 'Season',
+                          border: OutlineInputBorder(),
+                          isDense: true,
+                        ),
+                        items: {
+                          for (var i = 0; i < 6; i++) currentSeason() - i,
+                          settings.eventYear,
+                        }
+                            .map((y) =>
+                                DropdownMenuItem(value: y, child: Text('$y')))
+                            .toList(),
+                        onChanged: (year) {
+                          if (year == null || year == settings.eventYear) {
+                            return;
+                          }
+                          _eventSearchController.clear();
+                          appState.setEventKey('');
+                          appState.setEventYear(year);
+                          _loadTeamEvents();
+                        },
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _buildEventPicker(appState, settings),
                   if (appState.loading)
                     const Padding(
                       padding: EdgeInsets.only(top: 8),
@@ -417,40 +486,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      MergeSemantics(
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                      Text('Season ',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant)),
-                      DropdownButton<int>(
-                        value: settings.eventYear,
-                        isDense: true,
-                        underline: const SizedBox.shrink(),
-                        style: theme.textTheme.bodySmall,
-                        items: {
-                          for (var i = 0; i < 5; i++) DateTime.now().year - i,
-                          settings.eventYear,
-                        }
-                            .map((y) =>
-                                DropdownMenuItem(value: y, child: Text('$y')))
-                            .toList(),
-                        onChanged: (year) {
-                          if (year == null || year == settings.eventYear) {
-                            return;
-                          }
-                          _eventSearchController.clear();
-                          appState.setEventKey('');
-                          appState.setEventYear(year);
-                        },
-                      ),
-                          ],
-                        ),
-                      ),
                       Semantics(
                         container: true,
-                        child: Text('  \u00b7  Updated $buildTimestamp',
+                        child: Text('Updated $buildTimestamp',
                             style: theme.textTheme.bodySmall?.copyWith(
                                 color: theme.colorScheme.onSurfaceVariant)),
                       ),
@@ -522,94 +560,66 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _buildEventAutocomplete(AppStateProvider appState, AppSettings settings) {
+  /// The event picker: a standard dropdown you can also type in to filter
+  /// (by name, code or city).
+  Widget _buildEventPicker(AppStateProvider appState, AppSettings settings) {
+    final only = _teamEventFilter(settings.eventYear);
     final yearEvents = appState.events
         .where((e) => e.key.startsWith(settings.eventYear.toString()))
-        .toList();
+        .where((e) => only == null || only.contains(e.key))
+        .toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    final selected = settings.selectedEventKey;
 
-    return RawAutocomplete<TbaEvent>(
-      textEditingController: _eventSearchController,
-      focusNode: _eventSearchFocusNode,
-      optionsBuilder: (textEditingValue) {
-        final query = textEditingValue.text.trim().toLowerCase();
-        if (query.isEmpty) return yearEvents;
-        return yearEvents.where((e) =>
-            e.name.toLowerCase().contains(query) ||
-            e.key.toLowerCase().contains(query));
+    return DropdownMenu<String>(
+      // Start fresh when the season changes.
+      key: ValueKey(settings.eventYear),
+      controller: _eventSearchController,
+      initialSelection:
+          yearEvents.any((e) => e.key == selected) ? selected : null,
+      expandedInsets: EdgeInsets.zero,
+      menuHeight: 320,
+      requestFocusOnTap: true,
+      enableFilter: true,
+      label: const Text('Event'),
+      hintText: 'Pick or type to search',
+      helperText: selected == null
+          ? 'Pick an event to start scouting'
+          : only != null
+              ? "Team $_enteredTeam's events"
+              : null,
+      leadingIcon: const Icon(Icons.event),
+      filterCallback: (entries, filter) {
+        final q = filter.trim().toLowerCase();
+        if (q.isEmpty) return entries;
+        return entries.where((entry) {
+          final e = yearEvents.firstWhere((e) => e.key == entry.value);
+          return e.name.toLowerCase().contains(q) ||
+              e.key.toLowerCase().contains(q) ||
+              (e.city ?? '').toLowerCase().contains(q);
+        }).toList();
       },
-      displayStringForOption: (e) => e.name,
-      onSelected: (event) {
-        appState.setEventKey(event.key);
-        _eventSearchController.text = event.name;
+      onSelected: (key) {
+        if (key != null && key != selected) appState.setEventKey(key);
       },
-      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-        // No visible label (the section header says Event), but screen
-        // readers still need one, also once an event fills the field.
-        return Semantics(
-          label: 'Event',
-          child: TextField(
-            controller: controller,
-            focusNode: focusNode,
-            decoration: InputDecoration(
-              hintText: 'Search by name or code',
-              helperText: settings.selectedEventKey == null
-                  ? 'Pick an event to start scouting'
-                  : null,
-              border: const OutlineInputBorder(),
-              prefixIcon: const Icon(Icons.event),
-              suffixIcon: controller.text.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.clear,
-                          semanticLabel: 'Clear event'),
-                      onPressed: () {
-                        controller.clear();
-                        appState.setEventKey('');
-                        setState(() {});
-                      },
-                    )
-                  : null,
-            ),
-            onTap: () {
-              if (controller.text.isNotEmpty) {
-                controller.selection = TextSelection(
-                  baseOffset: 0,
-                  extentOffset: controller.text.length,
-                );
-              }
-            },
-          ),
-        );
-      },
-      optionsViewBuilder: (context, onSelected, options) {
-        return Align(
-          alignment: Alignment.topLeft,
-          child: Material(
-            elevation: 4,
-            borderRadius: BorderRadius.circular(8),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 300),
-              child: ListView.builder(
-                padding: EdgeInsets.zero,
-                shrinkWrap: true,
-                itemCount: options.length,
-                itemBuilder: (context, index) {
-                  final event = options.elementAt(index);
-                  final isSelected = event.key == settings.selectedEventKey;
-                  return ListTile(
-                    dense: true,
-                    selected: isSelected,
-                    title: Text(event.name),
-                    subtitle: Text(
-                      '${event.key}${event.city != null ? ' \u2014 ${event.city}, ${event.stateProv ?? ''}' : ''}',
-                    ),
-                    onTap: () => onSelected(event),
-                  );
-                },
-              ),
+      dropdownMenuEntries: [
+        for (final e in yearEvents)
+          DropdownMenuEntry(
+            value: e.key,
+            label: e.name,
+            labelWidget: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(e.name),
+                Text(
+                  '${e.key}${e.city != null ? ' \u2014 ${e.city}, ${e.stateProv ?? ''}' : ''}',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
           ),
-        );
-      },
+      ],
     );
   }
 }

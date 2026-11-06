@@ -110,7 +110,8 @@ class _SpotTheBotScreenState extends State<SpotTheBotScreen> {
         title: 'Spot The Bot',
         navIndex: 18,
         rules: 'A robot photo from pit scouting comes up with three teams. '
-            'Pick the right one before time runs out.',
+            'Pick the right one before time runs out, then press Next.',
+        nextButton: true,
         blocker: (appState) {
           final total = appState.teams.length;
           final have = _withPhotos(appState).length;

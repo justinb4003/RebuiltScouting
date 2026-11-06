@@ -56,6 +56,22 @@ class ApiService {
     throw Exception('Failed to load events: ${response.statusCode}');
   }
 
+  /// Keys of the events [team] is registered for in [year].
+  Future<Set<String>> getTeamEventKeys(int team, int year) async {
+    final response = await http
+        .get(Uri.parse('$baseUrl/GetTeamEvents?team_number=$team&year=$year'))
+        .timeout(_timeout);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return {
+        for (final e in (data['events'] as List? ?? []))
+          (e as Map<String, dynamic>)['event_key'] as String,
+      };
+    }
+    if (response.statusCode == 404) return {};
+    throw Exception('Failed to load team events: ${response.statusCode}');
+  }
+
   Future<List<TbaTeam>> getTeamsForEvent(String eventKey) async {
     final response = await http
         .get(Uri.parse('$baseUrl/GetTeamsForEvent?event_key=$eventKey'))

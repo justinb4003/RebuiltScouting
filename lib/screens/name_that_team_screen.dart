@@ -65,7 +65,8 @@ class _NameThatTeamScreenState extends State<NameThatTeamScreen> {
       title: 'Name That Team',
       navIndex: 17,
       rules: 'A team number comes up with three team names. Pick the '
-          'right one before time runs out.',
+          'right one before time runs out, then press Next.',
+      nextButton: true,
       lobbyHeader: GameScopePicker(
         scope: scope,
         eventAvailable: eventAvailable,
