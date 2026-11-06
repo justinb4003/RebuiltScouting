@@ -29,6 +29,9 @@ void onBrowserOnline(void Function() callback) {
   _addEventListener('online', ((JSAny _) => callback()).toJS);
 }
 
+/// Reload the page: the app starts over from scratch.
+void reloadPage() => web.window.location.reload();
+
 /// Open [url] in this tab, or
 /// in a new one.
 void openUrl(String url, {bool newTab = false}) {

@@ -10,6 +10,7 @@ import '../theme.dart';
 import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
 import '../widgets/slack_link_dialog.dart';
+import '../widgets/event_picker_dialog.dart';
 import '../services/api_service.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -24,15 +25,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _nameController;
   late TextEditingController _keyController;
   late TextEditingController _teamController;
-  late TextEditingController _eventSearchController;
   final _confettiKey = GlobalKey<ConfettiOverlayState>();
   late AppStateProvider _appState;
   Timer? _saveTimer;
-
-  // Events the entered team is registered for, per 'team|year' (fetched
-  // once per app session). The event list shows only these when known.
-  static final Map<String, Set<String>> _teamEvents = {};
-  String? _teamEventsWanted;
 
   @override
   void initState() {
@@ -44,9 +39,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _keyController = TextEditingController(text: settings.secretTeamKey);
     _teamController =
         TextEditingController(text: settings.teamNumber?.toString() ?? '');
-    _eventSearchController = TextEditingController(
-      text: settings.selectedEventName ?? '',
-    );
 
     // No cached events: load them. Otherwise refresh quietly once per app
     // session so newly added events show up.
@@ -57,39 +49,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         appState.loadEvents(settings.eventYear, quiet: quiet);
       });
     }
-    _loadTeamEvents();
   }
 
   int? get _enteredTeam => int.tryParse(_teamController.text.trim());
-
-  /// Fetches the entered team's events for the selected season, if not
-  /// already known; the event list filters to them when they arrive.
-  void _loadTeamEvents() {
-    final team = _enteredTeam;
-    if (team == null) return;
-    final combo = '$team|${_appState.settings.eventYear}';
-    if (_teamEvents.containsKey(combo) || _teamEventsWanted == combo) return;
-    _teamEventsWanted = combo;
-    ApiService.instance
-        .getTeamEventKeys(team, _appState.settings.eventYear)
-        .then((keys) {
-      _teamEvents[combo] = keys;
-    }).catchError((Object e) {
-      debugPrint('Loading team events failed: $e');
-    }).whenComplete(() {
-      if (_teamEventsWanted == combo) _teamEventsWanted = null;
-      if (mounted) setState(() {});
-    });
-  }
-
-  /// The entered team's events this season, or null to show every event
-  /// (no team, not loaded yet, failed, or the team has none this season).
-  Set<String>? _teamEventFilter(int year) {
-    final team = _enteredTeam;
-    if (team == null) return null;
-    final keys = _teamEvents['$team|$year'];
-    return (keys == null || keys.isEmpty) ? null : keys;
-  }
 
   @override
   void dispose() {
@@ -102,7 +64,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _nameController.dispose();
     _teamController.dispose();
     _keyController.dispose();
-    _eventSearchController.dispose();
     super.dispose();
   }
 
@@ -114,7 +75,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       appState.updateSecretKey(_keyController.text.trim());
       appState.updateTeamNumber(int.tryParse(_teamController.text.trim()));
       appState.persistSettings();
-      _loadTeamEvents();
       setState(() {});
     });
   }
@@ -282,38 +242,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   _buildSlackLink(settings),
 
                   _sectionHeader('Event'),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: SizedBox(
-                      width: 160,
-                      child: DropdownButtonFormField<int>(
-                        key: ValueKey(settings.eventYear),
-                        initialValue: settings.eventYear,
-                        decoration: const InputDecoration(
-                          labelText: 'Season',
-                          border: OutlineInputBorder(),
-                          isDense: true,
-                        ),
-                        items: {
-                          for (var i = 0; i < 6; i++) currentSeason() - i,
-                          settings.eventYear,
-                        }
-                            .map((y) =>
-                                DropdownMenuItem(value: y, child: Text('$y')))
-                            .toList(),
-                        onChanged: (year) {
-                          if (year == null || year == settings.eventYear) {
-                            return;
-                          }
-                          _eventSearchController.clear();
-                          appState.setEventKey('');
-                          appState.setEventYear(year);
-                          _loadTeamEvents();
-                        },
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
                   _buildEventPicker(appState, settings),
                   if (appState.loading)
                     const Padding(
@@ -560,66 +488,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /// The event picker: a standard dropdown you can also type in to filter
-  /// (by name, code or city).
+  /// The selected event; tap to choose another in the event dialog.
   Widget _buildEventPicker(AppStateProvider appState, AppSettings settings) {
-    final only = _teamEventFilter(settings.eventYear);
-    final yearEvents = appState.events
-        .where((e) => e.key.startsWith(settings.eventYear.toString()))
-        .where((e) => only == null || only.contains(e.key))
-        .toList()
-      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
-    final selected = settings.selectedEventKey;
-
-    return DropdownMenu<String>(
-      // Start fresh when the season changes.
-      key: ValueKey(settings.eventYear),
-      controller: _eventSearchController,
-      initialSelection:
-          yearEvents.any((e) => e.key == selected) ? selected : null,
-      expandedInsets: EdgeInsets.zero,
-      menuHeight: 320,
-      requestFocusOnTap: true,
-      enableFilter: true,
-      label: const Text('Event'),
-      hintText: 'Pick or type to search',
-      helperText: selected == null
-          ? 'Pick an event to start scouting'
-          : only != null
-              ? "Team $_enteredTeam's events"
-              : null,
-      leadingIcon: const Icon(Icons.event),
-      filterCallback: (entries, filter) {
-        final q = filter.trim().toLowerCase();
-        if (q.isEmpty) return entries;
-        return entries.where((entry) {
-          final e = yearEvents.firstWhere((e) => e.key == entry.value);
-          return e.name.toLowerCase().contains(q) ||
-              e.key.toLowerCase().contains(q) ||
-              (e.city ?? '').toLowerCase().contains(q);
-        }).toList();
-      },
-      onSelected: (key) {
-        if (key != null && key != selected) appState.setEventKey(key);
-      },
-      dropdownMenuEntries: [
-        for (final e in yearEvents)
-          DropdownMenuEntry(
-            value: e.key,
-            label: e.name,
-            labelWidget: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(e.name),
-                Text(
-                  '${e.key}${e.city != null ? ' \u2014 ${e.city}, ${e.stateProv ?? ''}' : ''}',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-              ],
-            ),
-          ),
-      ],
+    final key = settings.selectedEventKey;
+    return Card(
+      margin: EdgeInsets.zero,
+      child: ListTile(
+        leading: const Icon(Icons.event),
+        title: Text(key == null
+            ? 'No event selected'
+            : settings.selectedEventName ?? key),
+        subtitle: Text(key ?? 'Pick an event to start scouting'),
+        trailing: const Text('Change'),
+        onTap: () => _chooseEvent(appState),
+      ),
     );
+  }
+
+  Future<void> _chooseEvent(AppStateProvider appState) async {
+    final settings = appState.settings;
+    final picked = await showEventPickerDialog(
+      context,
+      initialYear: settings.eventYear,
+      initialEvents: appState.events,
+      teamNumber: _enteredTeam,
+      selectedKey: settings.selectedEventKey,
+    );
+    if (picked == null || picked.key == settings.selectedEventKey) return;
+    final year = int.tryParse(picked.key.substring(0, 4));
+    if (year != null && year != settings.eventYear) {
+      await appState.setEventYear(year);
+    }
+    await appState.setEventKey(picked.key);
   }
 }
