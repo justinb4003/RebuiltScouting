@@ -78,7 +78,6 @@ class _TeamSelectorState extends State<TeamSelector> {
           focusNode: focusNode,
           decoration: InputDecoration(
             labelText: 'Team',
-            border: const OutlineInputBorder(),
             prefixIcon: const Icon(Icons.groups),
             suffixIcon: controller.text.isNotEmpty
                 ? IconButton(

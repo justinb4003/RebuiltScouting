@@ -7,7 +7,7 @@ class NavDrawer extends StatelessWidget {
 
   const NavDrawer({super.key, required this.selectedIndex});
 
-  static const _routes = ['/my-schedule', '/scout', '/pit', '/robot-note', '/held', '/settings', '/scouting-status', '/pit-status', '/schedule-builder', '/match-breakdowns', '/rankings', '/team-details', '/head-to-head', '/pick-list', '/clusters', '/dimensions', '/hometown', '/name-that-team', '/spot-the-bot'];
+  static const _routes = ['/my-schedule', '/scout', '/pit', '/robot-note', '/held', '/settings', '/appearance', '/scouting-status', '/pit-status', '/schedule-builder', '/match-breakdowns', '/rankings', '/team-details', '/head-to-head', '/pick-list', '/clusters', '/dimensions', '/hometown', '/name-that-team', '/spot-the-bot'];
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +68,11 @@ class NavDrawer extends StatelessWidget {
           label: Text('Settings'),
         ),
         _CurrentSettings(appState),
+        const NavigationDrawerDestination(
+          icon: Icon(Icons.palette_outlined),
+          selectedIcon: Icon(Icons.palette),
+          label: Text('Appearance'),
+        ),
         const Divider(indent: 28, endIndent: 28),
         const _SectionLabel('Management'),
         const NavigationDrawerDestination(

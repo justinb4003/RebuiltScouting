@@ -236,7 +236,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
                                   decoration: const InputDecoration(
                                     labelText: 'Match #',
                                     hintText: 'xx',
-                                    border: OutlineInputBorder(),
                                   ),
                                   keyboardType: TextInputType.number,
                                   controller: _matchController,
@@ -1075,7 +1074,6 @@ class _ScoutMatchScreenState extends State<ScoutMatchScreen>
             labelText: 'Match Notes',
             hintText: 'They were (good/bad) at shooting due to their (shooter type).\nTheir intake was (slow/fast/broken) and fuel was shot in (time taken).\nThis teams defense was (good/bad/okay) and their cycles were (fast/slow).\nRobot broke down due to (reason).\nRobot got stuck on (blank) because of (blank).',
             floatingLabelBehavior: FloatingLabelBehavior.always,
-            border: OutlineInputBorder(),
           ),
           maxLines: 6,
           onChanged: (v) =>

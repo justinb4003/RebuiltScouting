@@ -99,7 +99,6 @@ class _RobotNoteScreenState extends State<RobotNoteScreen> {
                 labelText: 'Notes',
                 hintText: 'What did you notice about this robot?',
                 floatingLabelBehavior: FloatingLabelBehavior.always,
-                border: OutlineInputBorder(),
               ),
               maxLines: 6,
             ),

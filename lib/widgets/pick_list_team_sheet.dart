@@ -164,7 +164,6 @@ class _PickListTeamSheetState extends State<_PickListTeamSheet> {
             maxLines: 5,
             decoration: const InputDecoration(
               labelText: 'Notes',
-              border: OutlineInputBorder(),
             ),
             onChanged: (_) => setState(() {}),
           ),

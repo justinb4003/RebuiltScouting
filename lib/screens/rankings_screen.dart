@@ -146,7 +146,7 @@ class _RankingsScreenState extends State<RankingsScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 10),
+      drawer: const NavDrawer(selectedIndex: 11),
       body: Column(
         children: [
           if (rankings.loading) const LinearProgressIndicator(),

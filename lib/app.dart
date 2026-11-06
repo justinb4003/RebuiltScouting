@@ -6,6 +6,7 @@ import 'screens/scout_match_screen.dart';
 import 'screens/scout_pit_screen.dart';
 import 'screens/held_data_screen.dart';
 import 'screens/settings_screen.dart';
+import 'screens/appearance_screen.dart';
 import 'screens/scouting_status_screen.dart';
 import 'screens/pit_status_screen.dart';
 import 'screens/robot_note_screen.dart';
@@ -38,6 +39,7 @@ class App extends StatelessWidget {
     final fontFamily =
         settings.useOpenDyslexic ? 'OpenDyslexic' : null;
     final seedColor = Color(settings.themeColor);
+    final style = settings.themeStyle;
     final themeMode = switch (settings.themeMode) {
       'light' => ThemeMode.light,
       'dark' => ThemeMode.dark,
@@ -48,8 +50,8 @@ class App extends StatelessWidget {
       navigatorObservers: [routeObserver],
       title: 'FRC Scouting',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.lightTheme(fontFamily: fontFamily, seedColor: seedColor),
-      darkTheme: AppTheme.darkTheme(fontFamily: fontFamily, seedColor: seedColor),
+      theme: AppTheme.lightTheme(fontFamily: fontFamily, seedColor: seedColor, style: style),
+      darkTheme: AppTheme.darkTheme(fontFamily: fontFamily, seedColor: seedColor, style: style),
       themeMode: themeMode,
       home: const SettingsScreen(),
       routes: {
@@ -57,6 +59,7 @@ class App extends StatelessWidget {
         '/pit': (context) => const ScoutPitScreen(),
         '/held': (context) => const HeldDataScreen(),
         '/settings': (context) => const SettingsScreen(),
+        '/appearance': (context) => const AppearanceScreen(),
         '/scouting-status': (context) => const ScoutingStatusScreen(),
         '/pit-status': (context) => const PitStatusScreen(),
         '/robot-note': (context) => const RobotNoteScreen(),
