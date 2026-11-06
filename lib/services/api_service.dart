@@ -18,6 +18,8 @@ import '../models/rankings.dart';
 import '../models/match_result.dart';
 import '../models/opr.dart';
 import '../models/scouted_match.dart';
+import '../models/scout_schedule.dart';
+import '../models/slack_link.dart';
 
 /// The API answered with an error status (the request did get through).
 class ApiStatusException implements Exception {
@@ -52,6 +54,22 @@ class ApiService {
       return data.map((e) => TbaEvent.fromJson(e)).toList();
     }
     throw Exception('Failed to load events: ${response.statusCode}');
+  }
+
+  /// Keys of the events [team] is registered for in [year].
+  Future<Set<String>> getTeamEventKeys(int team, int year) async {
+    final response = await http
+        .get(Uri.parse('$baseUrl/GetTeamEvents?team_number=$team&year=$year'))
+        .timeout(_timeout);
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
+      return {
+        for (final e in (data['events'] as List? ?? []))
+          (e as Map<String, dynamic>)['event_key'] as String,
+      };
+    }
+    if (response.statusCode == 404) return {};
+    throw Exception('Failed to load team events: ${response.statusCode}');
   }
 
   Future<List<TbaTeam>> getTeamsForEvent(String eventKey) async {
@@ -405,6 +423,152 @@ class ApiService {
       throw Exception('Publishing failed: ${response.statusCode}');
     }
     return GameScore.fromJson(jsonDecode(response.body));
+  }
+
+  // --- Match-scouting schedule ---
+
+  /// Record that [name] is in use for this key + event. Returns whether the
+  /// [linkToken] (if one was sent) is still a valid Slack link.
+  Future<({bool? linkValid})> registerScouter({
+    required String secretKey,
+    required String eventKey,
+    required String name,
+    String? linkToken,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/RegisterScouter'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'secret_key': secretKey,
+            'event_key': eventKey,
+            'scouter_name': name,
+            if (linkToken != null && linkToken.isNotEmpty) 'link_token': linkToken,
+          }),
+        )
+        .timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint(
+          'registerScouter failed: ${response.statusCode} ${response.body}');
+      throw Exception('Registering scouter failed: ${response.statusCode}');
+    }
+    final j = jsonDecode(response.body);
+    return (linkValid: j['link_valid'] as bool?);
+  }
+
+  /// Whether this secret key + team number has Slack set up (the API keeps
+  /// each team's Slack app settings; none of it comes back here).
+  Future<bool> slackLinkAvailable(String secretKey, int teamNumber) async {
+    final uri = Uri.parse('$baseUrl/SlackLinkAvailable')
+        .replace(queryParameters: {'secret_key': secretKey, 'team_number': '$teamNumber'});
+    final response = await http.get(uri).timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint('slackLinkAvailable failed: ${response.statusCode} ${response.body}');
+      throw Exception('Checking Slack failed: ${response.statusCode}');
+    }
+    return jsonDecode(response.body)['available'] == true;
+  }
+
+  /// Begin a Sign in with Slack for a team. Throws [SlackNotConfigured]
+  /// when that team has no Slack set up.
+  Future<SlackLinkStart> slackLinkStart(String secretKey, int teamNumber) async {
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/SlackLinkStart'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'secret_key': secretKey, 'team_number': teamNumber}),
+        )
+        .timeout(_timeout);
+    if (response.statusCode == 503) throw SlackNotConfigured();
+    if (response.statusCode != 200) {
+      debugPrint('slackLinkStart failed: ${response.statusCode} ${response.body}');
+      throw Exception('Could not start Slack sign-in: ${response.statusCode}');
+    }
+    return SlackLinkStart.fromJson(jsonDecode(response.body));
+  }
+
+  /// One poll of a sign-in. A finished one comes back once only.
+  Future<SlackLinkStatus> slackLinkStatus(String sessionId) async {
+    final uri = Uri.parse('$baseUrl/SlackLinkStatus')
+        .replace(queryParameters: {'session_id': sessionId});
+    final response = await http.get(uri).timeout(_timeout);
+    if (response.statusCode == 503) throw SlackNotConfigured();
+    if (response.statusCode != 200 && response.statusCode != 404) {
+      debugPrint('slackLinkStatus failed: ${response.statusCode} ${response.body}');
+      throw Exception('Checking Slack sign-in failed: ${response.statusCode}');
+    }
+    return SlackLinkStatus.fromJson(jsonDecode(response.body));
+  }
+
+  Future<void> slackUnlink(String linkToken) async {
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/SlackUnlink'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({'link_token': linkToken}),
+        )
+        .timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint('slackUnlink failed: ${response.statusCode} ${response.body}');
+      throw Exception('Unlinking failed: ${response.statusCode}');
+    }
+  }
+
+  Future<List<ScouterInfo>> getScouters(String secretKey, String eventKey) async {
+    final uri = Uri.parse('$baseUrl/GetScouters')
+        .replace(queryParameters: {'secret_key': secretKey, 'event_key': eventKey});
+    final response = await http.get(uri).timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint('getScouters failed: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load scouters: ${response.statusCode}');
+    }
+    return [
+      for (final j in jsonDecode(response.body) as List)
+        ScouterInfo.fromJson(Map<String, dynamic>.from(j)),
+    ];
+  }
+
+  /// Every published schedule for the key + event, newest first.
+  Future<List<ScoutSchedule>> getSchedules(String secretKey, String eventKey) async {
+    final uri = Uri.parse('$baseUrl/GetSchedules')
+        .replace(queryParameters: {'secret_key': secretKey, 'event_key': eventKey});
+    final response = await http.get(uri).timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint('getSchedules failed: ${response.statusCode} ${response.body}');
+      throw Exception('Failed to load schedules: ${response.statusCode}');
+    }
+    return [
+      for (final j in jsonDecode(response.body) as List)
+        ScoutSchedule.fromJson(Map<String, dynamic>.from(j)),
+    ];
+  }
+
+  Future<ScoutSchedule> publishSchedule({
+    required String secretKey,
+    required String eventKey,
+    required String publishedBy,
+    required List<Shift> shifts,
+    Duration timeOffset = Duration.zero,
+  }) async {
+    final response = await http
+        .post(
+          Uri.parse('$baseUrl/PublishSchedule'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'secret_key': secretKey,
+            'event_key': eventKey,
+            'published_by': publishedBy,
+            'shifts': [for (final s in shifts) s.toJson()],
+            if (timeOffset != Duration.zero) 'time_offset': timeOffset.inSeconds,
+          }),
+        )
+        .timeout(_timeout);
+    if (response.statusCode != 200) {
+      debugPrint(
+          'publishSchedule failed: ${response.statusCode} ${response.body}');
+      throw Exception('Publishing failed: ${response.statusCode}');
+    }
+    return ScoutSchedule.fromJson(jsonDecode(response.body));
   }
 
   /// Pit records for [secretKey]'s team. GetPitResults filters server-side by

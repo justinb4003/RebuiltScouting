@@ -117,7 +117,7 @@ class _PitStatusScreenState extends State<PitStatusScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 6),
+      drawer: const NavDrawer(selectedIndex: 7),
       body: Column(
         children: [
           if (teams.isNotEmpty)

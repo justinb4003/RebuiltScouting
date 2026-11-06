@@ -16,6 +16,8 @@ Before your first match, fill in these three. **Nothing else in the app works un
 
 Once an event is picked, a row shows how many teams are loaded. Open it to see their numbers, or to reload them if the team list changed.
 
+**If your team has set up Slack:** once your secret team key and team number are filled in, a **Link Slack account** button appears. Slack opens in another tab; sign in there and come back. The app uses your Slack name as your scouter name if the field was empty, and your Slack account is remembered for reminders. **Unlink** undoes it. Linking is optional, and teams without Slack set up don't see the button.
+
 The rest is up to you:
 
 - **Scouting:** *Scrollable scouting layout* (one long page instead of tabs), *Haptic feedback* (a buzz on every counter tap), and *Confetti*.
@@ -44,6 +46,13 @@ Think of it as a mini pit-scouting report. It's for mentors too, not just studen
 
 Notes show up in that team's **Team Details** under Pit scouting → Robot notes.
 
+## 3a. My Schedule
+
+If your lead has published a scouting schedule, **My Schedule** (top of the menu) shows who published it and when, then **My shifts**: each of your shifts with the five people scouting alongside you, the match numbers and about when each starts. Your spot is outlined and marked **(you)**. Switch to **Everyone** for the whole schedule. The app is the place to check: if the schedule changes, it shows the new one as soon as you refresh.
+
+- It finds your shifts by the **scouter name in Settings**, so type your name the same way every time.
+- Press the refresh button to get the latest schedule.
+
 ---
 
 ## 4. Held Data (no signal? no problem)
@@ -66,6 +75,7 @@ Gyms and arenas often have bad or no Wi-Fi or cell signal. The app is built for 
 These are mostly for the one or two people running scouting.
 
 - **Scouting Status:** every match, with one column per robot (B1–B3, R1–R3). A green check means someone scouted that robot; a red X means nobody did; a number means more than one person did. Tap a mark to see who scouted it. If the schedule isn't loaded yet, press *Load match schedule*.
+- **Schedule Builder:** for the scouting lead. Tick who's scouting, put friends who like to scout together in groups (2–6), choose how many shifts each person does and the most matches anyone should scout (default 10; both are remembered on your device), and press **Generate schedule**. Every block gets six scouts, groups always land in the same block, and everyone gets the same number of shifts. The first round of shifts is random; after that the same crews come around again in the same order, and nobody gets a second shift until everyone has had a first. If there aren't enough scouts to stay under the max, the builder says so before you generate, with how many scouts you'd need. Press it again for a whole new schedule, or tap any name to swap one spot, then **Publish**. Publishing as you replaces your earlier schedule; the newest published schedule is the one everyone sees.
 - **Pit Status:** every team, and how many pit scouting results it has. Filter to *Unscouted* to see who still needs a visit.
 
 ---
