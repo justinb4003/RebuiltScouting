@@ -26,7 +26,13 @@ class StorageService {
   static final instance = StorageService();
 
   SharedPreferences? _prefs;
-  Future<SharedPreferences> _getPrefs() async => _prefs ??= await SharedPreferences.getInstance();
+  // Set by Reset App just before the page reloads, so nothing still running
+  // (dispose saves, debounce timers, the upload queue) writes old data back.
+  bool _wiped = false;
+  Future<SharedPreferences> _getPrefs() async {
+    if (_wiped) throw StateError('Storage was reset; reloading');
+    return _prefs ??= await SharedPreferences.getInstance();
+  }
 
   static const String _settingsKey = 'app_settings';
   static const String _eventListKey = 'event_list';
@@ -144,8 +150,11 @@ class StorageService {
     await _setString(prefs, cacheKey, jsonEncode(cache));
   }
 
-  Future<void> clearAll() => _locked(() async {
+  /// Clears everything. With [lock], every later storage call fails, for
+  /// Reset App, which reloads the page right after.
+  Future<void> clearAll({bool lock = false}) => _locked(() async {
         final prefs = await _getPrefs();
+        if (lock) _wiped = true;
         await prefs.clear();
         try {
           await clearPhotos();

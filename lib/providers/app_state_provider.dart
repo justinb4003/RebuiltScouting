@@ -6,6 +6,7 @@ import '../models/tba_match.dart';
 import '../models/tba_team.dart';
 import '../models/pit_result.dart';
 import '../services/api_service.dart';
+import '../services/browser.dart';
 import '../services/storage_service.dart';
 import '../services/upload_queue.dart';
 import '../services/scouter_registry.dart';
@@ -235,7 +236,14 @@ class AppStateProvider extends ChangeNotifier {
     return getPitResultForTeam(teamNumber);
   }
 
+  /// Reset App. On the web this clears storage and reloads the page, so
+  /// every provider, cache and timer starts over; it doesn't return.
   Future<void> resetToDefaults() async {
+    if (kIsWeb) {
+      await _storage.clearAll(lock: true);
+      reloadPage();
+      return;
+    }
     await _storage.clearAll();
     _settings = AppSettings();
     _events = [];
