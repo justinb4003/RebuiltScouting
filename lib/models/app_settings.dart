@@ -28,6 +28,8 @@ class AppSettings {
   bool useOpenDyslexic;
   int themeColor;
   String themeMode;
+  // AppTheme.styles id (Appearance > Style).
+  String themeStyle;
   bool confettiEnabled;
   bool hapticEnabled;
   bool scrollableScoutLayout;
@@ -52,6 +54,7 @@ class AppSettings {
     this.useOpenDyslexic = false,
     this.themeColor = 0xFF1565C0,
     this.themeMode = 'system',
+    this.themeStyle = 'default',
     this.confettiEnabled = true,
     this.hapticEnabled = true,
     this.scrollableScoutLayout = false,
@@ -73,6 +76,7 @@ class AppSettings {
         'useOpenDyslexic': useOpenDyslexic,
         'themeColor': themeColor,
         'themeMode': themeMode,
+        'themeStyle': themeStyle,
         'confettiEnabled': confettiEnabled,
         'hapticEnabled': hapticEnabled,
         'scrollableScoutLayout': scrollableScoutLayout,
@@ -100,6 +104,7 @@ class AppSettings {
         useOpenDyslexic: json['useOpenDyslexic'] ?? false,
         themeColor: json['themeColor'] ?? 0xFF1565C0,
         themeMode: json['themeMode'] ?? 'system',
+        themeStyle: json['themeStyle'] ?? 'default',
         confettiEnabled: json['confettiEnabled'] ?? true,
         hapticEnabled: json['hapticEnabled'] ?? true,
         scrollableScoutLayout: json['scrollableScoutLayout'] ?? false,

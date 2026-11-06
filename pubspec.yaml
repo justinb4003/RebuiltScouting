@@ -109,6 +109,10 @@ flutter:
         - asset: assets/fonts/OpenDyslexic-BoldItalic.otf
           weight: 700
           style: italic
+    # Terminal style (Appearance). Inconsolata by Raph Levien, SIL OFL 1.1.
+    - family: Inconsolata
+      fonts:
+        - asset: assets/fonts/Inconsolata.otf
 
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package

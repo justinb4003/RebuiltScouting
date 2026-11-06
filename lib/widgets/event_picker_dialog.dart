@@ -184,7 +184,6 @@ class _EventPickerDialogState extends State<_EventPickerDialog> {
         isExpanded: true,
         decoration: InputDecoration(
           labelText: "Team $team's events",
-          border: const OutlineInputBorder(),
         ),
         items: [
           const DropdownMenuItem<String?>(
@@ -222,7 +221,6 @@ class _EventPickerDialogState extends State<_EventPickerDialog> {
                   initialValue: _year,
                   decoration: const InputDecoration(
                     labelText: 'Season',
-                    border: OutlineInputBorder(),
                     isDense: true,
                   ),
                   items: [
@@ -244,7 +242,6 @@ class _EventPickerDialogState extends State<_EventPickerDialog> {
                 labelText: 'Search all events',
                 helperText: 'Name, city or event code, e.g. 2027mimus',
                 prefixIcon: Icon(Icons.search),
-                border: OutlineInputBorder(),
               ),
               textInputAction: TextInputAction.search,
               onChanged: _onSearchChanged,

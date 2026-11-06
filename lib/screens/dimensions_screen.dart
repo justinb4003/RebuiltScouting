@@ -163,6 +163,7 @@ class _DimensionsScreenState extends State<DimensionsScreen> {
             width: 220,
             child: TextField(
               decoration: const InputDecoration(
+                border: UnderlineInputBorder(),
                 isDense: true,
                 prefixIcon: Icon(Icons.search),
                 hintText: 'Filter dimensions',
@@ -311,7 +312,7 @@ class _DimensionsScreenState extends State<DimensionsScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 15),
+      drawer: const NavDrawer(selectedIndex: 16),
       body: Column(
         children: [
           if (p.loading) const LinearProgressIndicator(),

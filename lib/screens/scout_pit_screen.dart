@@ -126,7 +126,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                         controller: _driveTrainOtherController,
                         decoration: const InputDecoration(
                           labelText: 'Specify Drive Train',
-                          border: OutlineInputBorder(),
                         ),
                         onChanged: (v) =>
                             pit.updateField(() => pit.driveTrainOther = v),
@@ -158,7 +157,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
               controller: _fuelCapacityController,
               decoration: const InputDecoration(
                 labelText: 'Fuel Cell Capacity',
-                border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.inventory_2),
               ),
               keyboardType: TextInputType.number,
@@ -192,7 +190,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                           decoration: const InputDecoration(
                             hintText: 'The (auton position) accomplishes (objective) because it does (what it does)',
                             floatingLabelBehavior: FloatingLabelBehavior.always,
-                            border: OutlineInputBorder(),
                           ),
                           maxLines: 2,
                           onChanged: (v) =>
@@ -213,7 +210,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                           decoration: const InputDecoration(
                             hintText: 'The (auton position) accomplishes (objective) because it does (what it does)',
                             floatingLabelBehavior: FloatingLabelBehavior.always,
-                            border: OutlineInputBorder(),
                           ),
                           maxLines: 2,
                           onChanged: (v) =>
@@ -234,7 +230,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                           decoration: const InputDecoration(
                             hintText: 'The (auton position) accomplishes (objective) because it does (what it does)',
                             floatingLabelBehavior: FloatingLabelBehavior.always,
-                            border: OutlineInputBorder(),
                           ),
                           maxLines: 2,
                           onChanged: (v) =>
@@ -255,7 +250,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                           decoration: const InputDecoration(
                             hintText: 'The (auton position) accomplishes (objective) because it does (what it does)',
                             floatingLabelBehavior: FloatingLabelBehavior.always,
-                            border: OutlineInputBorder(),
                           ),
                           maxLines: 2,
                           onChanged: (v) =>
@@ -276,7 +270,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                           decoration: const InputDecoration(
                             hintText: 'The (auton position) accomplishes (objective) because it does (what it does)',
                             floatingLabelBehavior: FloatingLabelBehavior.always,
-                            border: OutlineInputBorder(),
                           ),
                           maxLines: 2,
                           onChanged: (v) =>
@@ -304,7 +297,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                         child: DropdownButtonFormField<String>(
                           decoration: const InputDecoration(
                             labelText: 'From which start position?',
-                            border: OutlineInputBorder(),
                           ),
                           value: pit.autoHangPosition.isEmpty ? null : pit.autoHangPosition,
                           items: const [
@@ -362,7 +354,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                         labelText: 'Hanging Time',
                         hintText: 'How much time does it take?',
                         floatingLabelBehavior: FloatingLabelBehavior.always,
-                        border: OutlineInputBorder(),
                       ),
                       onChanged: (v) =>
                           pit.updateField(() => pit.hangingTime = v),
@@ -374,7 +365,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                         labelText: 'Hanging Method',
                         hintText: 'How does it work?',
                         floatingLabelBehavior: FloatingLabelBehavior.always,
-                        border: OutlineInputBorder(),
                       ),
                       onChanged: (v) =>
                           pit.updateField(() => pit.hangingHow = v),
@@ -400,7 +390,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                         labelText: 'Teleop Active',
                         hintText: 'Goal/plan',
                         floatingLabelBehavior: FloatingLabelBehavior.always,
-                        border: OutlineInputBorder(),
                       ),
                       maxLines: 3,
                       onChanged: (v) =>
@@ -427,7 +416,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                         labelText: 'Teleop Inactive',
                         hintText: 'Goal/plan',
                         floatingLabelBehavior: FloatingLabelBehavior.always,
-                        border: OutlineInputBorder(),
                       ),
                       maxLines: 3,
                       onChanged: (v) =>
@@ -488,7 +476,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                         labelText: 'Hopper Empty Time',
                         hintText: 'How long does it take for you to empty your hopper? (BPS)',
                         floatingLabelBehavior: FloatingLabelBehavior.always,
-                        border: OutlineInputBorder(),
                       ),
                       onChanged: (v) =>
                           pit.updateField(() => pit.hopperEmptyTime = v),
@@ -500,7 +487,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                         labelText: 'Fun Question',
                         hintText: 'Dont be stupid',
                         floatingLabelBehavior: FloatingLabelBehavior.always,
-                        border: OutlineInputBorder(),
                       ),
                       onChanged: (v) =>
                           pit.updateField(() => pit.funQuestion = v),
@@ -518,7 +504,6 @@ class _ScoutPitScreenState extends State<ScoutPitScreen> {
                 labelText: 'Notes',
                 hintText: 'Any additional observations about this robot?',
                 floatingLabelBehavior: FloatingLabelBehavior.always,
-                border: OutlineInputBorder(),
               ),
               maxLines: 3,
               onChanged: (v) =>

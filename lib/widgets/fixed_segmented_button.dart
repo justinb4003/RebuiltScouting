@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 class FixedSegmentedButton<T extends Object> extends StatelessWidget {
   final List<ButtonSegment<T>> segments;
   final Set<T> selected;
-  final ValueChanged<Set<T>> onSelectionChanged;
+  final ValueChanged<Set<T>>? onSelectionChanged;
 
   const FixedSegmentedButton({
     super.key,

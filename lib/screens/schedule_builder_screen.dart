@@ -499,7 +499,7 @@ class _ScheduleBuilderScreenState extends State<ScheduleBuilderScreen> {
           ),
         ],
       ),
-      drawer: const NavDrawer(selectedIndex: 8),
+      drawer: const NavDrawer(selectedIndex: 9),
       body: body,
     );
   }
@@ -911,7 +911,7 @@ class _CellDialogState extends State<_CellDialog> {
         mainAxisSize: MainAxisSize.min,
         children: [
           InputDecorator(
-            decoration: const InputDecoration(labelText: 'Scouter'),
+            decoration: const InputDecoration(labelText: 'Scouter', border: UnderlineInputBorder()),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<String>(
                 isExpanded: true,
@@ -931,7 +931,7 @@ class _CellDialogState extends State<_CellDialog> {
             TextField(
               controller: _custom,
               autofocus: true,
-              decoration: const InputDecoration(labelText: 'Scouter name'),
+              decoration: const InputDecoration(labelText: 'Scouter name', border: UnderlineInputBorder()),
               textCapitalization: TextCapitalization.words,
             ),
         ],
@@ -971,6 +971,7 @@ class _NameDialogState extends State<_NameDialog> {
           controller: _name,
           autofocus: true,
           decoration: const InputDecoration(
+            border: UnderlineInputBorder(),
             labelText: 'Scouter name',
             helperText: 'For someone who hasn\'t used the app at this event yet',
           ),

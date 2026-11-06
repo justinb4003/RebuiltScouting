@@ -142,7 +142,7 @@ class _PickBoardScreenState extends State<PickBoardScreen> with RouteAware {
                   Tab(text: 'Other Lists'),
                 ]),
         ),
-        drawer: const NavDrawer(selectedIndex: 13),
+        drawer: const NavDrawer(selectedIndex: 14),
         body: message != null
             ? Center(
                 child: Padding(
@@ -902,7 +902,6 @@ class _MyListViewState extends State<_MyListView> {
               isDense: true,
               prefixIcon: const Icon(Icons.search),
               hintText: 'Find team',
-              border: const OutlineInputBorder(),
               suffixIcon: query.isEmpty
                   ? null
                   : IconButton(
@@ -1221,7 +1220,7 @@ class _TeamSheetState extends State<_TeamSheet> {
               autofocus: true,
               minLines: 2,
               maxLines: 5,
-              decoration: const InputDecoration(labelText: 'My notes', border: OutlineInputBorder()),
+              decoration: const InputDecoration(labelText: 'My notes'),
               onChanged: (_) => setState(() {}),
             ),
             const SizedBox(height: 8),

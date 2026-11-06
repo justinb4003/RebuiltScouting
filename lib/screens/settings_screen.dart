@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../models/app_settings.dart';
-import '../widgets/confetti_overlay.dart';
-import '../widgets/fixed_segmented_button.dart';
 import '../providers/app_state_provider.dart';
-import '../theme.dart';
 import '../build_info.dart';
 import '../widgets/nav_drawer.dart';
 import '../widgets/slack_link_dialog.dart';
@@ -25,7 +22,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late TextEditingController _nameController;
   late TextEditingController _keyController;
   late TextEditingController _teamController;
-  final _confettiKey = GlobalKey<ConfettiOverlayState>();
   late AppStateProvider _appState;
   Timer? _saveTimer;
 
@@ -206,7 +202,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     controller: _nameController,
                     decoration: const InputDecoration(
                       labelText: 'Scouter name',
-                      border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.person),
                     ),
                     onChanged: (_) => _debouncedSaveTextFields(),
@@ -216,7 +211,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     controller: _keyController,
                     decoration: const InputDecoration(
                       labelText: 'Secret team key',
-                      border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.key),
                     ),
                     onChanged: (_) => _debouncedSaveTextFields(),
@@ -233,7 +227,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       labelText: 'Your team number (optional)',
                       helperText:
                           'Filters the event list; used by the statewide games',
-                      border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.groups),
                     ),
                     onChanged: (_) => _debouncedSaveTextFields(),
@@ -325,19 +318,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           },
                         ),
                         SwitchListTile(
-                          title: const Text('Confetti'),
-                          subtitle: const Text('Celebrate when scouting'),
-                          secondary: const Icon(Icons.celebration),
-                          value: settings.confettiEnabled,
-                          onChanged: (value) {
-                            settings.confettiEnabled = value;
-                            appState.saveAndNotify();
-                            if (value) {
-                              _confettiKey.currentState?.fire();
-                            }
-                          },
-                        ),
-                        SwitchListTile(
                           title: const Text('Schedule test mode'),
                           subtitle: const Text('Publishing a schedule offers a practice run with the match '
                               'times moved to today, to test shift reminders'),
@@ -349,64 +329,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           },
                         ),
                       ],
-                    ),
-                  ),
-
-                  _sectionHeader('Appearance'),
-                  Card(
-                    margin: EdgeInsets.zero,
-                    clipBehavior: Clip.antiAlias,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            child: FixedSegmentedButton<String>(
-                              segments: const [
-                                ButtonSegment(
-                                  value: 'light',
-                                  label: Text('Light'),
-                                  icon: Icon(Icons.light_mode),
-                                ),
-                                ButtonSegment(
-                                  value: 'system',
-                                  label: Text('System'),
-                                  icon: Icon(Icons.settings_brightness),
-                                ),
-                                ButtonSegment(
-                                  value: 'dark',
-                                  label: Text('Dark'),
-                                  icon: Icon(Icons.dark_mode),
-                                ),
-                              ],
-                              selected: {settings.themeMode},
-                              onSelectionChanged: (selected) {
-                                settings.themeMode = selected.first;
-                                appState.saveAndNotify();
-                              },
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 16, vertical: 8),
-                            child: _buildColorPicker(appState, settings),
-                          ),
-                          SwitchListTile(
-                            title: const Text('Dyslexia-friendly font'),
-                            subtitle:
-                                const Text('Use OpenDyslexic across the app'),
-                            secondary: const Icon(Icons.font_download),
-                            value: settings.useOpenDyslexic,
-                            onChanged: (value) {
-                              settings.useOpenDyslexic = value;
-                              appState.saveAndNotify();
-                            },
-                          ),
-                        ],
-                      ),
                     ),
                   ),
 
@@ -426,7 +348,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             ),
           ),
-          ConfettiOverlay(key: _confettiKey),
         ],
       ),
     );
@@ -443,48 +364,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           fontWeight: FontWeight.bold,
         ),
       ),
-    );
-  }
-
-  Widget _buildColorPicker(AppStateProvider appState, AppSettings settings) {
-    final onSurface = Theme.of(context).colorScheme.onSurface;
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: AppTheme.themeColors.entries.map((entry) {
-        final isSelected = settings.themeColor == entry.value.toARGB32();
-        return Semantics(
-          button: true,
-          label: '${entry.key} theme color${isSelected ? ', selected' : ''}',
-          child: InkWell(
-            customBorder: const CircleBorder(),
-            onTap: () {
-              settings.themeColor = entry.value.toARGB32();
-              appState.saveAndNotify();
-            },
-            child: Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                color: entry.value,
-                shape: BoxShape.circle,
-                border: isSelected
-                    ? Border.all(color: onSurface, width: 3)
-                    : null,
-              ),
-              child: isSelected
-                  ? Icon(Icons.check,
-                      color: ThemeData.estimateBrightnessForColor(
-                                  entry.value) ==
-                              Brightness.dark
-                          ? Colors.white
-                          : Colors.black,
-                      size: 18)
-                  : null,
-            ),
-          ),
-        );
-      }).toList(),
     );
   }
 
